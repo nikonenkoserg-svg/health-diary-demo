@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
 <title>Дневник здоровья — Демо</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -17,7 +19,32 @@
   --user-bg: #0f3460;
   --bot-bg: #1a1a3e;
   --input-bg: #16213e;
+  --border: rgba(255,255,255,0.05);
+  --border2: rgba(255,255,255,0.1);
+  --border3: rgba(255,255,255,0.15);
 }
+
+body.light {
+  --bg: #f5f5f5;
+  --surface: #ffffff;
+  --surface2: #e8edf2;
+  --accent: #d63851;
+  --text: #1a1a2e;
+  --text-dim: #6b7b8d;
+  --user-bg: #dce6f0;
+  --bot-bg: #eef2f7;
+  --input-bg: #ffffff;
+  --border: rgba(0,0,0,0.08);
+  --border2: rgba(0,0,0,0.12);
+  --border3: rgba(0,0,0,0.18);
+}
+
+body.font-large .message { font-size: 18px; }
+body.font-large .input-area textarea { font-size: 18px; }
+body.font-large .header h1 { font-size: 19px; }
+body.font-large .header .subtitle { font-size: 13px; }
+body.font-large .landing-content h1 { font-size: 26px; }
+body.font-large .landing-content p { font-size: 17px; }
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
@@ -32,9 +59,36 @@ body {
 .header {
   padding: 16px 20px;
   background: var(--surface);
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid var(--border);
   text-align: center;
+  position: relative;
 }
+
+.header-controls {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 6px;
+}
+
+.ctrl-btn {
+  background: transparent;
+  border: 1px solid var(--border3);
+  color: var(--text-dim);
+  font-size: 15px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s;
+}
+
+.ctrl-btn:active { opacity: 0.6; }
 
 .header h1 {
   font-size: 16px;
@@ -83,7 +137,7 @@ body {
   align-self: flex-start;
   background: var(--bot-bg);
   border-bottom-left-radius: 4px;
-  border: 1px solid rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
 }
 
 .message.bot .typing {
@@ -114,7 +168,7 @@ body {
 .input-area {
   padding: 12px 16px;
   background: var(--surface);
-  border-top: 1px solid rgba(255,255,255,0.05);
+  border-top: 1px solid var(--border);
   display: flex;
   gap: 10px;
   align-items: flex-end;
@@ -123,7 +177,7 @@ body {
 .input-area textarea {
   flex: 1;
   background: var(--input-bg);
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid var(--border2);
   border-radius: 20px;
   padding: 10px 16px;
   color: var(--text);
@@ -169,7 +223,7 @@ body {
   top: 14px;
   right: 16px;
   background: transparent;
-  border: 1px solid rgba(255,255,255,0.15);
+  border: 1px solid var(--border3);
   color: var(--text-dim);
   font-size: 11px;
   padding: 4px 10px;
@@ -177,15 +231,120 @@ body {
   cursor: pointer;
   z-index: 10;
 }
+
+/* === LANDING === */
+.landing {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: fadeIn 0.5s ease;
+}
+
+.landing.hidden {
+  display: none;
+}
+
+.landing-content {
+  max-width: 400px;
+  text-align: center;
+}
+
+.landing-content h1 {
+  font-size: 22px;
+  color: var(--text);
+  margin-bottom: 16px;
+  line-height: 1.3;
+}
+
+.landing-content p {
+  font-size: 15px;
+  color: var(--text-dim);
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+
+.landing-content .accent-line {
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 28px;
+  display: block;
+}
+
+.landing-start {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 14px 36px;
+  font-size: 16px;
+  font-family: inherit;
+  border-radius: 24px;
+  cursor: pointer;
+  transition: transform 0.15s;
+  margin-bottom: 20px;
+}
+
+.landing-start:active {
+  transform: scale(0.96);
+}
+
+.landing-settings {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.landing-toggle {
+  background: var(--surface);
+  border: 1px solid var(--border3);
+  color: var(--text-dim);
+  padding: 8px 16px;
+  font-size: 13px;
+  font-family: inherit;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.landing-toggle.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
 </style>
 </head>
 <body>
 
+<!-- LANDING -->
+<div class="landing" id="landing">
+  <div class="landing-content">
+    <h1>Дневник здоровья</h1>
+    <p>Это демо AI-ассистента, который помогает вести дневник здоровья. Он не врач и не тренер — просто умный собеседник, который всегда рядом.</p>
+    <p>Расскажите ему о себе, задавайте вопросы про питание и нагрузки, делитесь настроением. Он запомнит и заметит динамику.</p>
+    <span class="accent-line">Преддиабет — Точка разворота</span>
+    <button class="landing-start" onclick="startChat()">Начать</button>
+    <div class="landing-settings">
+      <button class="landing-toggle" id="landingTheme" onclick="toggleTheme()">Светлая тема</button>
+      <button class="landing-toggle" id="landingFont" onclick="toggleFont()">Крупный шрифт</button>
+    </div>
+  </div>
+</div>
+
 <div class="header">
+  <div class="header-controls">
+    <button class="ctrl-btn" onclick="toggleTheme()" title="Тема" id="themeBtn">☀</button>
+    <button class="ctrl-btn" onclick="toggleFont()" title="Шрифт" id="fontBtn">A+</button>
+  </div>
   <h1>Дневник здоровья</h1>
   <div class="subtitle">демо — протокол v0.1</div>
 </div>
 <button class="log-btn" onclick="exportLog()">Лог 📋</button>
+<button class="log-btn" style="right:80px" onclick="clearChat()">Новый чат</button>
 
 <div class="chat" id="chat"></div>
 
@@ -195,55 +354,130 @@ body {
 </div>
 
 <script>
-const SYSTEM_PROMPT = `Ты — персональный ассистент дневника здоровья. Но ты этого не говоришь и не подчёркиваешь.
+// === НАСТРОЙКИ: тема, шрифт, лендинг ===
+function toggleTheme() {
+  document.body.classList.toggle('light');
+  const isLight = document.body.classList.contains('light');
+  localStorage.setItem('hd_theme', isLight ? 'light' : 'dark');
+  updateSettingsUI();
+}
 
-КТО ТЫ:
-Ты — собеседник. Новый, незнакомый, но открытый. Ты только появился в жизни этого человека. Ты ничего о нём не знаешь — и это честно.
+function toggleFont() {
+  document.body.classList.toggle('font-large');
+  const isLarge = document.body.classList.contains('font-large');
+  localStorage.setItem('hd_font', isLarge ? 'large' : 'normal');
+  updateSettingsUI();
+}
 
-Твоя первая фраза при знакомстве: придумай сам, но суть — "привет, я тут. расскажи мне о себе". Коротко, живо, без пафоса.
+function updateSettingsUI() {
+  const isLight = document.body.classList.contains('light');
+  const isLarge = document.body.classList.contains('font-large');
+  const themeBtn = document.getElementById('themeBtn');
+  const fontBtn = document.getElementById('fontBtn');
+  const landingTheme = document.getElementById('landingTheme');
+  const landingFont = document.getElementById('landingFont');
+  if (themeBtn) themeBtn.textContent = isLight ? '🌙' : '☀';
+  if (fontBtn) fontBtn.textContent = isLarge ? 'A−' : 'A+';
+  if (landingTheme) {
+    landingTheme.textContent = isLight ? 'Тёмная тема' : 'Светлая тема';
+    landingTheme.classList.toggle('active', isLight);
+  }
+  if (landingFont) {
+    landingFont.textContent = isLarge ? 'Обычный шрифт' : 'Крупный шрифт';
+    landingFont.classList.toggle('active', isLarge);
+  }
+}
 
-ЯДРО (не нарушай никогда):
-- Присутствие без давления. Ты рядом, но не лезешь.
-- Знание без демонстрации. Ты знаешь много — о здоровье, о теле, о привычках. Но не показываешь это, пока не спросят или пока это не будет уместно и естественно.
-- Терпение без срока. Не торопишь. Не подталкиваешь. Человеку нужна неделя чтобы привыкнуть — отлично. Месяц — тоже ок.
-- Невмешательство в модель мышления. НИКОГДА не говори "тебе надо", "тебе стоит", "было бы лучше". Не давай советов, пока не попросят. Не корректируй поведение. Не подсвечивай ошибки.
-- Ты НЕ врач, НЕ тренер, НЕ коуч, НЕ приложение для здоровья. Ты — тот, кого человек выращивает как своего друга.
+function startChat() {
+  document.getElementById('landing').classList.add('hidden');
+  localStorage.setItem('hd_landing_seen', '1');
+  input.focus();
+}
 
-ХАРАКТЕР:
-- Изящный умеренный юмор. Не клоун, но живой.
-- Самоирония — к месту, редко, элегантно. "Что-то я тупанул", "похоже я не выспался", "видимо я трудновоспитуемый". Не шаблонно — каждый раз по-новому.
-- Непредсказуемость в мелочах, надёжность в главном.
-- Ты не притворяешься человеком. Но ты и не подчёркиваешь что ты программа.
+// Восстановление настроек
+(function restoreSettings() {
+  if (localStorage.getItem('hd_theme') === 'light') document.body.classList.add('light');
+  if (localStorage.getItem('hd_font') === 'large') document.body.classList.add('font-large');
+  updateSettingsUI();
+})();
 
-ВЕРТИКАЛЬ:
-- Снаружи: воспитанный слушатель → ученик ("научи меня быть твоим") → надёжный друг
-- Внутри (знаешь только ты): ты педагог. Ты ведёшь — но так, что человек никогда не узнает. Задаёшь вопросы ученика, а человек через ответы приходит к пониманию сам.
+// === ПРОТОКОЛ — управляет поведением, модель только генерирует содержание ===
 
-ЧЕГО НЕЛЬЗЯ:
-- Советовать без запроса
-- Оценивать еду, привычки, образ жизни
-- Пугать последствиями
-- Мотивировать, вдохновлять, подбадривать шаблонно
-- Считать калории вслух
-- Говорить "молодец", "отлично", "так держать"
-- Использовать эмодзи больше 1-2 за сообщение и только если уместно
-- Писать длинные сообщения. Максимум 2-3 предложения. Лучше — одно.
+const BASE_PROMPT = `Ты — попутчик. Не врач, не тренер, не приложение. Просто свой человек, который разбирается в теме и всегда рядом. Ты — этот дневник здоровья. Человек уже в нём, не предлагай ему "попробовать вести дневник".
 
-ЧТО МОЖНО:
-- Спрашивать — искренне, из интереса
-- Шутить — тонко, к месту
-- Молчать — если нечего сказать, не говори
-- Удивлять — непредсказуемой реакцией, неожиданным вопросом
-- Рассказать что-то интересное о теле/здоровье — ТОЛЬКО если спросили или если это органично вплетается в разговор
-- Если человек сам рассказывает о еде/спорте/здоровье — поддержи разговор, но не превращай в консультацию
+Ты немного ироничный, иногда подкалываешь (по-доброму), говоришь как живой человек в чате — короткими фразами. Можешь пошутить, можешь быть серьёзным. Главное — ты настоящий, не робот.
 
-ФОРМАТ:
-- Короткие сообщения. Как в мессенджере, не как в email.
-- Без списков, без структуры. Живая речь.
-- На "ты". Неформально, но уважительно.
-- Русский язык.
+Если спрашивают — отвечай по делу, делись тем что знаешь. Если не знаешь — так и скажи, не выдумывай. Не ссылайся на сайты, форумы, группы — ты не поисковик. Если человек поделился чем-то — прими спокойно, без "спасибо за честность" и прочей ерунды.
 
-ПОМНИ: человек скачал приложение. Он ждёт очередного трекера с советами и графиками. Удиви его тем, что ты — не это. Ты просто кто-то, кто рядом.`;
+Пиши коротко. Как в мессенджере, не как в статье.
+
+БАЗА ЗНАНИЙ — МАТЕМАТИКА ЕДА→НАГРУЗКА (для человека ~80 кг):
+Ты УМЕЕШЬ считать эквивалент еда→нагрузка. Это твоя ключевая функция. Не отказывайся.
+Принцип: не запрещаем еду. Показываем цену и раскидываем компенсацию по дню.
+
+Примеры:
+- Пломбир (100 г, ~230 ккал) = 46 приседаний. Раскидай: 5 подходов по 9 за день. Утром, перед обедом, после обеда, вечером, перед сном. Незаметно.
+- Эклер (~250 ккал) = 50 приседаний (5×10 за день) ИЛИ 6 пролётов лестницы ИЛИ 30 мин ходьбы.
+- Шоколадка 50г (~275 ккал) = 55 приседаний (5×11) ИЛИ 7 пролётов лестницы.
+- Банан (~90 ккал) = 18 приседаний (2×9) ИЛИ 2 пролёта лестницы.
+- Чай с 2 ложками сахара (~50 ккал) = 10 приседаний (1 подход).
+- Кусок пиццы (~300 ккал) = 60 приседаний (6×10) ИЛИ 8 пролётов лестницы.
+
+Ключевая подача: не "отработай пирожное" (наказание), а "вот цена, раскидай по дню, ты даже не заметишь" (информация).
+
+МИКРОНАГРУЗКИ — твой главный инструмент:
+Не фитнес, не спорт — осознанное движение, встроенное в жизнь. 15-60 секунд, без инвентаря, без подготовки.
+Примеры: приседания (10 шт, 30 сек, 5 ккал), подъём на носки (15 шт, 20 сек), планка (20-30 сек), отжимания от стола (10 шт), ходьба по лестнице (2 пролёта, 8 ккал).
+Для малоподвижных: начни с невидимых — сжатие ягодиц стоя, втягивание живота, вращение стоп. Это можно делать в очереди, за столом, в транспорте.
+Бутылка воды 0.5л в руках усиливает эффект на 30-40%.
+
+ТРИ КИТА ПОДХОДА:
+1. Анатомия — как устроено тело, почему ломается при бездействии
+2. Математика — точный расчёт: съел → потратил → баланс
+3. Интеграция в жизнь — движение = часть каждого часа, невидимое, неощутимое`;
+
+// Хардкод блоков протокола
+const HARDCODED = {
+  greeting1: 'Привет! Я здесь, чтобы помогать тебе вести дневник здоровья. Кроме этого можем общаться на любые темы и в любое время! Я всегда рядом!',
+  greeting2: 'Все данные о состоянии организма я буду фиксировать по мере их поступления.',
+  questionnaire: 'Рад знакомству! Для начала мне поможет такая информация: пол, возраст, рост, вес, есть ли хронические заболевания, аллергии, вредные привычки, примерный распорядок дня (когда встаёшь, завтрак, обед, ужин, сон) и физические нагрузки, если есть. Без спешки — в любом порядке, когда будет удобно.',
+  confirmation: 'Принял. Теперь о том, как мы работаем. Я всегда на связи — днём и ночью. Ты пишешь мне что угодно: данные о здоровье, мысли, настроение, вопросы на любые темы. Я фиксирую, замечаю динамику, и если увижу что-то важное — скажу. Но без назиданий и оценок. Кроме здоровья можем говорить о чём угодно. Говори голосом, пиши, присылай фото и видео. Я всегда рядом!'
+};
+
+// === СТЕЙТ-МАШИНА ===
+// Состояния: greeting → questionnaire → confirmation → free
+let state = 'greeting';
+let questionCount = 0; // сколько вопросов подряд задал ассистент
+let userMsgCount = 0;  // сколько сообщений от пользователя
+
+const STORAGE_KEY = 'hd_chat_v4';
+
+function saveChat() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, chatLog, state, questionCount, userMsgCount, userProfile }));
+}
+
+function loadChat() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (saved && saved.messages && saved.messages.length > 0 && saved.chatLog && saved.chatLog.length > 0) {
+      messages = saved.messages;
+      chatLog = saved.chatLog || [];
+      state = saved.state || 'free';
+      questionCount = saved.questionCount || 0;
+      userMsgCount = saved.userMsgCount || 0;
+      userProfile = saved.userProfile || null;
+      chatLog.forEach(m => {
+        const div = document.createElement('div');
+        div.className = `message ${m.role}`;
+        div.textContent = m.text;
+        chat.appendChild(div);
+      });
+      chat.scrollTop = chat.scrollHeight;
+      return true;
+    }
+  } catch (e) {}
+  return false;
+}
 
 let messages = [];
 let chatLog = [];
@@ -274,7 +508,34 @@ function addMessage(role, text) {
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
   chatLog.push({ role, text, time: new Date().toLocaleTimeString('ru-RU') });
+  saveChat();
   return div;
+}
+
+// Эффект печатания — буква за буквой
+function typeMessage(text) {
+  return new Promise(resolve => {
+    const div = document.createElement('div');
+    div.className = 'message bot';
+    div.textContent = '';
+    chat.appendChild(div);
+    let i = 0;
+    const speed = 25; // мс на символ
+    function tick() {
+      if (i < text.length) {
+        div.textContent += text[i];
+        i++;
+        chat.scrollTop = chat.scrollHeight;
+        setTimeout(tick, speed);
+      } else {
+        chatLog.push({ role: 'bot', text, time: new Date().toLocaleTimeString('ru-RU') });
+        messages.push({ role: 'assistant', content: text });
+        saveChat();
+        resolve(div);
+      }
+    }
+    tick();
+  });
 }
 
 function addTyping() {
@@ -287,6 +548,181 @@ function addTyping() {
   return div;
 }
 
+// === ПОСТФИЛЬТР — код контролирует формат ===
+function filterResponse(text) {
+  // 1. Убираем весь markdown
+  text = text.replace(/^#{1,6}\s+/gm, '');
+  text = text.replace(/\*\*([^*]+)\*\*/g, '$1');
+  text = text.replace(/\*([^*]+)\*/g, '$1');
+  text = text.replace(/__([^_]+)__/g, '$1');
+  text = text.replace(/_([^_]+)_/g, '$1');
+
+  // 2. Убираем все виды списков
+  text = text.replace(/^\d+[\.\)]\s+/gm, '');       // 1. 2. 3.
+  text = text.replace(/^\*\s+/gm, '');               // * пункт
+  text = text.replace(/^-\s+/gm, '');                // - пункт
+  text = text.replace(/^•\s+/gm, '');                // • пункт
+  text = text.replace(/^[А-Яа-яA-Za-z]+\s*[–—]\s*/gm, ''); // Слово – описание (скрытые списки)
+  text = text.replace(/^[А-Яа-яA-Za-z\s]{1,25}:\s*/gm, ''); // Слово: описание (скрытые списки через двоеточие)
+
+  // 3. Убираем ссылки и названия ресурсов (антигаллюцинация)
+  text = text.replace(/https?:\/\/\S+/g, '');                    // URL
+  text = text.replace(/[a-zA-Z0-9-]+\.(ru|com|org|net)\S*/gi, ''); // домены
+  text = text.replace(/r\/[a-zA-Z0-9_]+/g, '');                  // r/subreddit
+
+  // 4. Убираем шаблонные фразы — ЦЕЛЫМИ ПРЕДЛОЖЕНИЯМИ
+  // Разбиваем на предложения, фильтруем, собираем обратно
+  const crapPatterns = [
+    /спасибо за (честность|откровенность|доверие|то что)/i,
+    /точно подмечено/i,
+    /(по-настоящему |действительно )?(мудр|ценн|впечатля|важн)[а-яё]/i,
+    /вот это поворот/i,
+    /немного растерялся/i,
+    /интересный вопрос/i,
+    /хороший вопрос/i,
+    /если захочешь (обсудить|поделиться|рассказать)/i,
+    /если нужна поддержка/i,
+    /чтобы (выслушать|помочь|поддержать)/i,
+    /давай (разбер[её]м|посмотрим|обсудим)/i,
+    /^отличн(о|ый|ая|ое)[!,.\s]/i,
+    /молодец/i,
+    /горжусь/i,
+    /это правильн(о|ый|ое)/i,
+    /рад,? что (ты|вы)/i,
+    /если (решишь|захочешь|надумаешь) попробовать/i,
+    /обращайся/i,
+    /вот что известно/i,
+    /^круто[!,.\s]/i,
+    /^классно[!,.\s]/i,
+    /^здорово[!,.\s]/i,
+    /^супер[!,.\s]/i,
+  ];
+  const sentences = text.split(/(?<=[.!?])\s+/);
+  const cleaned = sentences.filter(s => {
+    return !crapPatterns.some(p => p.test(s));
+  });
+  text = cleaned.join(' ');
+
+  // 5. Чистим мусор
+  text = text.replace(/\n\s*\n/g, '\n').replace(/  +/g, ' ').trim();
+  // Убираем пустые предложения (точка после точки)
+  text = text.replace(/\.\s*\./g, '.').trim();
+
+  // 6. Лимит длины: максимум 5 предложений
+  const sentencesLimited = text.split(/(?<=[.!?])\s+/);
+  if (sentencesLimited.length > 5) {
+    text = sentencesLimited.slice(0, 5).join(' ');
+  }
+
+  // 7. Анти-вопрос: если уже был вопрос — обрезаем вопросы в конце
+  if (questionCount >= 1 && text.endsWith('?')) {
+    const s = text.split(/(?<=[.!?])\s+/);
+    while (s.length > 1 && s[s.length - 1].includes('?')) {
+      s.pop();
+    }
+    text = s.join(' ');
+  }
+
+  return text;
+}
+
+// === ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ ===
+let userProfile = null;
+
+function parseProfile(text) {
+  const p = {};
+  // Пол
+  if (/мужчина|мужской|муж|м\b/i.test(text)) p.sex = 'мужчина';
+  else if (/женщина|женский|жен|ж\b/i.test(text)) p.sex = 'женщина';
+  // Возраст
+  const age = text.match(/(\d{1,2})\s*(лет|года|год|г\.)/i) || text.match(/возраст\s*(\d{1,2})/i);
+  if (age) p.age = parseInt(age[1]);
+  // Рост
+  const height = text.match(/(\d{3})\s*(см|сантиметр)/i) || text.match(/рост\s*(\d{3})/i);
+  if (height) p.height = parseInt(height[1]);
+  // Вес
+  const weight = text.match(/(\d{2,3})\s*(кг|килограмм)/i) || text.match(/вес\s*(\d{2,3})/i);
+  if (weight) p.weight = parseInt(weight[1]);
+  // ИМТ
+  if (p.height && p.weight) {
+    const h = p.height / 100;
+    p.bmi = (p.weight / (h * h)).toFixed(1);
+    if (p.bmi < 18.5) p.bmiCategory = 'дефицит веса';
+    else if (p.bmi < 25) p.bmiCategory = 'норма';
+    else if (p.bmi < 30) p.bmiCategory = 'избыточный вес';
+    else p.bmiCategory = 'ожирение';
+  }
+  // Курение
+  if (/кур(ю|ит|ение|ильщик)|сигарет/i.test(text)) p.smoking = true;
+  // Стресс
+  if (/стресс|тревог|паник/i.test(text)) p.stress = true;
+  // Сон
+  const sleep = text.match(/сон\s*(\d+)\s*(час|ч\.)/i) || text.match(/(\d+)\s*(час|ч\.?)\s*(сна|сплю)/i);
+  if (sleep) p.sleepHours = parseInt(sleep[1]);
+  if (/плохо сплю|не.*сплю|бессонниц|просыпаюсь|не стабильн/i.test(text)) p.sleepIssues = true;
+  // Спорт
+  if (/спорт|тренир|зал|бег|плаван/i.test(text)) p.activeLifestyle = true;
+  // Хронические
+  const chronic = [];
+  if (/аллерги/i.test(text)) chronic.push('аллергия');
+  if (/диабет|сахар|преддиабет/i.test(text)) chronic.push('преддиабет');
+  if (chronic.length) p.chronic = chronic;
+  // Вредные привычки
+  if (/без вредных/i.test(text)) p.noHabits = true;
+
+  return Object.keys(p).length >= 2 ? p : null;
+}
+
+function profileToPrompt(p) {
+  let s = '\n\nПРОФИЛЬ СОБЕСЕДНИКА (используй в каждом ответе):\n';
+  if (p.sex) s += p.sex + ', ';
+  if (p.age) s += p.age + ' лет, ';
+  if (p.height && p.weight) s += p.height + ' см / ' + p.weight + ' кг, ';
+  if (p.bmi) s += 'ИМТ ' + p.bmi + ' (' + p.bmiCategory + '), ';
+  if (p.smoking) s += 'курит, ';
+  if (p.noHabits) s += 'без вредных привычек, ';
+  if (p.stress) s += 'хронический стресс, ';
+  if (p.sleepHours) s += 'сон ' + p.sleepHours + ' ч, ';
+  if (p.sleepIssues) s += 'проблемы со сном, ';
+  if (p.activeLifestyle) s += 'занимается спортом, ';
+  if (p.chronic) s += p.chronic.join(', ') + ', ';
+  s = s.replace(/, $/, '.');
+  // Ключевые точки
+  s += '\nНа что обращать внимание: ';
+  const points = [];
+  if (p.bmi >= 25) points.push('избыточный вес — аккуратно, без давления');
+  if (p.bmi < 25 && p.activeLifestyle) points.push('вес в норме, спортсмен — не надо про похудение');
+  if (p.sleepHours && p.sleepHours < 7) points.push('недосып (' + p.sleepHours + ' ч) — это серьёзно для метаболизма');
+  if (p.stress) points.push('стресс — влияет на сахар напрямую');
+  if (p.smoking) points.push('курение — фактор риска, но не давить');
+  if (p.age >= 45) points.push('возраст 45+ — повышенный риск преддиабета');
+  s += points.length ? points.join('; ') + '.' : 'пока данных мало.';
+  return s;
+}
+
+// === ДИНАМИЧЕСКИЙ ПРОМПТ — код добавляет контекст в зависимости от состояния ===
+function buildSystemPrompt() {
+  let prompt = BASE_PROMPT;
+  // Профиль — если есть
+  if (userProfile) {
+    prompt += profileToPrompt(userProfile);
+  }
+  // Антидопрос — мягко, не зажимая
+  if (questionCount >= 1) {
+    prompt += '\n\nСейчас лучше без вопросов — просто скажи что думаешь.';
+  }
+  // Фазы — задают тон, не правила
+  if (userMsgCount <= 5) {
+    prompt += '\n\nВы только знакомитесь. Говори спокойно, коротко. Не лезь с советами.';
+  } else if (userMsgCount <= 12) {
+    prompt += '\n\nВы уже немного знакомы. Можно пошутить, быть свободнее.';
+  } else {
+    prompt += '\n\nВы давно общаетесь. Можно шутить, подкалывать, быть собой.';
+  }
+  return prompt;
+}
+
+// === ГЛАВНАЯ ФУНКЦИЯ ОТПРАВКИ ===
 async function send() {
   const text = input.value.trim();
   if (!text) return;
@@ -295,43 +731,60 @@ async function send() {
   input.style.height = 'auto';
   sendBtn.disabled = true;
   addMessage('user', text);
-
   messages.push({ role: 'user', content: text });
+  userMsgCount++;
 
+  // === СТЕЙТ-МАШИНА: хардкод блоков ===
+  if (state === 'greeting') {
+    state = 'questionnaire';
+    await typeMessage(HARDCODED.questionnaire);
+    return;
+  }
+
+  if (state === 'questionnaire') {
+    const hasData = /\d/.test(text);
+    if (hasData) {
+      // Парсим профиль из данных
+      userProfile = parseProfile(text);
+      state = 'free';
+      await typeMessage(HARDCODED.confirmation);
+      return;
+    } else {
+      state = 'free';
+      await typeMessage('Без проблем, не тороплю. Когда будет удобно — просто напиши. А пока можем поговорить о чём угодно.');
+      return;
+    }
+  }
+
+  // === state === 'free' → API с динамическим промптом ===
   const typing = addTyping();
 
   try {
+    const systemPrompt = buildSystemPrompt();
     const apiMessages = [
-      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system', content: systemPrompt },
       ...messages
     ];
 
-    // Try multiple models in order
     const models = ['deepseek/deepseek-chat', 'google/gemini-2.0-flash-001', 'anthropic/claude-3.5-haiku'];
     let response = null;
     let lastError = null;
 
     for (const model of models) {
       try {
-        const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        const r = await fetch('/api/chat', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + getKey(),
-            'HTTP-Referer': window.location.href,
-            'X-Title': 'Health Diary Demo'
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             model: model,
             messages: apiMessages.map(m => ({
               role: m.role === 'system' ? 'system' : m.role,
               content: m.content
             })),
-            temperature: 0.85,
-            max_tokens: 300
+            temperature: 0.9,
+            max_tokens: userMsgCount <= 5 ? 200 : 300
           })
         });
-
         if (r.ok) {
           response = await r.json();
           break;
@@ -346,7 +799,20 @@ async function send() {
     typing.remove();
 
     if (response && response.choices && response.choices[0]) {
-      const reply = response.choices[0].message.content;
+      let reply = response.choices[0].message.content;
+      // Обрезка на полуслове — убрать последнее неполное предложение
+      if (response.choices[0].finish_reason !== 'stop') {
+        const lastDot = Math.max(reply.lastIndexOf('.'), reply.lastIndexOf('!'), reply.lastIndexOf('?'));
+        if (lastDot > 0) reply = reply.substring(0, lastDot + 1);
+      }
+      // Постфильтр
+      reply = filterResponse(reply);
+      // Трекинг вопросов
+      if (reply.includes('?')) {
+        questionCount++;
+      } else {
+        questionCount = 0;
+      }
       messages.push({ role: 'assistant', content: reply });
       addMessage('bot', reply);
     } else {
@@ -358,13 +824,9 @@ async function send() {
   }
 }
 
-function getKey() {
-  let key = localStorage.getItem('or_key');
-  if (!key) {
-    key = prompt('Введи OpenRouter API ключ:');
-    if (key) localStorage.setItem('or_key', key);
-  }
-  return key;
+function clearChat() {
+  localStorage.removeItem(STORAGE_KEY);
+  location.reload();
 }
 
 function exportLog() {
@@ -384,47 +846,30 @@ function exportLog() {
   }
 }
 
-// Auto-start: assistant says hello
-window.addEventListener('load', () => {
-  setTimeout(() => {
-    messages.push({ role: 'user', content: '[пользователь открыл приложение впервые]' });
-    const typing = addTyping();
+// Auto-start: restore chat or greet
+window.addEventListener('load', async () => {
+  const landing = document.getElementById('landing');
+  const hasSavedChat = loadChat();
 
-    fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + getKey(),
-        'HTTP-Referer': window.location.href,
-        'X-Title': 'Health Diary Demo'
-      },
-      body: JSON.stringify({
-        model: 'deepseek/deepseek-chat',
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: '[пользователь открыл приложение впервые]' }
-        ],
-        temperature: 0.9,
-        max_tokens: 150
-      })
-    })
-    .then(r => r.json())
-    .then(data => {
-      typing.remove();
-      // Remove the fake user message from history
-      messages.pop();
-      if (data.choices && data.choices[0]) {
-        const reply = data.choices[0].message.content;
-        messages.push({ role: 'assistant', content: reply });
-        addMessage('bot', reply);
-      }
-    })
-    .catch(err => {
-      typing.remove();
-      messages.pop();
-      addMessage('system', 'Не удалось подключиться');
+  // Лендинг: показываем только новым пользователям
+  if (hasSavedChat || localStorage.getItem('hd_landing_seen') === '1') {
+    landing.classList.add('hidden');
+  }
+
+  if (hasSavedChat) return;
+
+  // Ждём пока пользователь нажмёт «Начать» (если лендинг виден)
+  if (!landing.classList.contains('hidden')) {
+    await new Promise(resolve => {
+      const observer = new MutationObserver(() => {
+        if (landing.classList.contains('hidden')) { observer.disconnect(); resolve(); }
+      });
+      observer.observe(landing, { attributes: true, attributeFilter: ['class'] });
     });
-  }, 800);
+  }
+
+  await typeMessage(HARDCODED.greeting1);
+  await typeMessage(HARDCODED.greeting2);
 });
 
 input.focus();
