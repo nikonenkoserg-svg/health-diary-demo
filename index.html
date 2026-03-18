@@ -834,6 +834,7 @@ async function send() {
 
 function clearChat() {
   localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem('hd_landing_seen');
   location.reload();
 }
 
