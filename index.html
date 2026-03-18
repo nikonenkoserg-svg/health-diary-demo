@@ -218,10 +218,16 @@ body {
   transform: scale(0.95);
 }
 
-.log-btn {
-  position: fixed;
-  top: 14px;
-  right: 16px;
+.header-right {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 6px;
+}
+
+.hdr-btn {
   background: transparent;
   border: 1px solid var(--border3);
   color: var(--text-dim);
@@ -229,7 +235,7 @@ body {
   padding: 4px 10px;
   border-radius: 12px;
   cursor: pointer;
-  z-index: 10;
+  white-space: nowrap;
 }
 
 /* === LANDING === */
@@ -342,9 +348,11 @@ body {
   </div>
   <h1>Дневник здоровья</h1>
   <div class="subtitle">демо — протокол v0.1</div>
+  <div class="header-right">
+    <button class="hdr-btn" onclick="clearChat()">Сброс</button>
+    <button class="hdr-btn" onclick="exportLog()">Лог</button>
+  </div>
 </div>
-<button class="log-btn" onclick="exportLog()">Лог 📋</button>
-<button class="log-btn" style="right:80px" onclick="clearChat()">Новый чат</button>
 
 <div class="chat" id="chat"></div>
 
