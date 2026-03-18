@@ -58,8 +58,7 @@ body {
 }
 
 .header {
-  padding: 16px 20px;
-  padding: 16px 20px;
+  padding: 56px 20px 12px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   text-align: center;
@@ -70,8 +69,7 @@ body {
 .header-controls {
   position: absolute;
   left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
+  bottom: 10px;
   display: flex;
   gap: 6px;
 }
@@ -224,8 +222,7 @@ body {
 .header-right {
   position: absolute;
   right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
+  bottom: 10px;
   display: flex;
   gap: 6px;
 }
@@ -241,12 +238,6 @@ body {
   white-space: nowrap;
 }
 
-/* Telegram in-app browser: spacer above header */
-.tg-spacer {
-  height: 48px;
-  background: var(--surface);
-  flex-shrink: 0;
-}
 
 /* === LANDING === */
 .landing {
@@ -351,7 +342,6 @@ body {
   </div>
 </div>
 
-<div class="tg-spacer"></div>
 <div class="header">
   <div class="header-controls">
     <button class="ctrl-btn" onclick="toggleTheme()" title="Тема" id="themeBtn">☀</button>
