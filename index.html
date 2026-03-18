@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>Дневник здоровья — Демо</title>
@@ -54,14 +54,18 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .header {
   padding: 16px 20px;
+  padding-top: max(16px, env(safe-area-inset-top, 16px));
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   text-align: center;
   position: relative;
+  flex-shrink: 0;
 }
 
 .header-controls {
@@ -236,6 +240,11 @@ body {
   border-radius: 12px;
   cursor: pointer;
   white-space: nowrap;
+}
+
+/* Telegram in-app browser fix */
+@supports not (padding-top: env(safe-area-inset-top)) {
+  .header { padding-top: 48px; }
 }
 
 /* === LANDING === */
