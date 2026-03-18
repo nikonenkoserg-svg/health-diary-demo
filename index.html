@@ -50,15 +50,25 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   background: var(--bg);
   color: var(--text);
-  height: 100dvh;
+  margin: 0;
+  overflow: hidden;
+  position: fixed;
+  inset: 0;
+}
+
+.app-wrap {
+  position: absolute;
+  top: 48px;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .header {
-  padding: 56px 20px 12px;
+  padding: 12px 20px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   text-align: center;
@@ -342,6 +352,7 @@ body {
   </div>
 </div>
 
+<div class="app-wrap" id="appWrap">
 <div class="header">
   <div class="header-controls">
     <button class="ctrl-btn" onclick="toggleTheme()" title="Тема" id="themeBtn">☀</button>
@@ -361,6 +372,7 @@ body {
   <textarea id="input" rows="1" placeholder="Напиши что-нибудь..." onkeydown="handleKey(event)" oninput="autoGrow(this)"></textarea>
   <button id="sendBtn" onclick="send()" disabled>↑</button>
 </div>
+</div><!-- /app-wrap -->
 
 <script>
 // === НАСТРОЙКИ: тема, шрифт, лендинг ===
