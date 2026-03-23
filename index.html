@@ -843,6 +843,28 @@ function startChat() {
   updateSettingsUI();
 })();
 
+// === SCROLL REVEAL ===
+(function initReveal() {
+  const reveals = document.querySelectorAll('.reveal');
+  if (!('IntersectionObserver' in window)) {
+    reveals.forEach(el => el.classList.add('visible'));
+    return;
+  }
+  const landing = document.getElementById('landing');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { root: landing, threshold: 0.1, rootMargin: '0px 0px -30px 0px' });
+  reveals.forEach((el, i) => {
+    el.style.transitionDelay = (i * 0.07) + 's';
+    observer.observe(el);
+  });
+})();
+
 // === ПРОТОКОЛ — управляет поведением, модель только генерирует содержание ===
 
 // === ВЫБОР АССИСТЕНТА ===
