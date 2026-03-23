@@ -39,12 +39,18 @@ body.light {
   --border3: rgba(0,0,0,0.18);
 }
 
-body.font-large .message { font-size: 18px; }
-body.font-large .input-area textarea { font-size: 18px; }
-body.font-large .header h1 { font-size: 19px; }
-body.font-large .header .subtitle { font-size: 13px; }
-body.font-large .landing-content h1 { font-size: 26px; }
-body.font-large .landing-content p { font-size: 17px; }
+body.font-large .message { font-size: 20px; line-height: 1.6; }
+body.font-large .input-area textarea { font-size: 20px; }
+body.font-large .header h1 { font-size: 20px; }
+body.font-large .header .subtitle { font-size: 14px; }
+body.font-large .landing-content h1 { font-size: 28px; }
+body.font-large .landing-subtitle { font-size: 18px; }
+body.font-large .feature-text h3 { font-size: 16px; }
+body.font-large .feature-text p { font-size: 15px; }
+body.font-large .step-text { font-size: 16px; }
+body.font-large .demo-msg { font-size: 16px; }
+body.font-large .demo-label { font-size: 14px; }
+body.font-large .pick-btn { font-size: 17px; }
 
 html, body { height: 100%; overflow: hidden; }
 
@@ -55,7 +61,7 @@ body {
 }
 
 .app-wrap {
-  height: 100%;
+  height: var(--app-height, 100%);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -114,7 +120,6 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  scroll-behavior: smooth;
 }
 
 .message {
@@ -250,13 +255,100 @@ body {
   background: var(--bg);
   z-index: 100;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: 24px;
+  padding: 20px;
+  padding-top: 32px;
+  padding-bottom: 40px;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   animation: fadeIn 0.5s ease;
 }
 
+.landing.hidden {
+  display: none;
+}
+
+.landing-content {
+  max-width: 440px;
+  text-align: center;
+}
+
+.landing-content h1 {
+  font-size: 24px;
+  color: var(--text);
+  margin-bottom: 8px;
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+.landing-subtitle {
+  font-size: 15px;
+  color: var(--text-dim);
+  line-height: 1.6;
+  margin-bottom: 28px;
+}
+
+.landing-content .accent-line {
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 28px;
+  display: block;
+}
+
+/* Feature cards */
+.feature-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 28px;
+  text-align: left;
+}
+
+.feature-card {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 16px;
+  padding: 16px 18px;
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.feature-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+  width: 36px;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.feature-text h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.feature-text p {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Section dividers */
+.section-label {
+  font-size: 13px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 28px 0 16px;
+  font-weight: 500;
+}
+
+/* Demo chat */
 .demo-chat {
   background: var(--surface);
   border-radius: 16px;
@@ -288,45 +380,63 @@ body {
   border-bottom-left-radius: 4px;
 }
 
-.landing.hidden {
-  display: none;
+/* Assistant pick */
+.assistant-pick {
+  margin: 20px 0;
 }
 
-.landing-content {
-  max-width: 400px;
-  text-align: center;
-}
-
-.landing-content h1 {
-  font-size: 22px;
-  color: var(--text);
-  margin-bottom: 16px;
-  line-height: 1.3;
-}
-
-.landing-content p {
-  font-size: 15px;
+.pick-btn {
+  background: var(--surface);
+  border: 2px solid var(--border3);
   color: var(--text-dim);
-  line-height: 1.6;
-  margin-bottom: 12px;
+  padding: 10px 24px;
+  font-size: 15px;
+  font-family: inherit;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-.landing-content .accent-line {
+.pick-btn.active {
+  border-color: var(--accent);
   color: var(--accent);
   font-weight: 600;
-  font-size: 14px;
-  margin-bottom: 28px;
-  display: block;
 }
 
+.assistant-hint {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 8px;
+}
+
+.demo-section {
+  margin: 16px 0 20px;
+  text-align: left;
+}
+
+.demo-label {
+  font-size: 12px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 12px 0 6px 4px;
+  text-align: left;
+}
+
+.demo-label:first-child {
+  margin-top: 0;
+}
+
+/* Start button & settings */
 .landing-start {
   background: var(--accent);
   color: white;
   border: none;
-  padding: 14px 36px;
-  font-size: 16px;
+  padding: 16px 48px;
+  font-size: 17px;
   font-family: inherit;
-  border-radius: 24px;
+  font-weight: 600;
+  border-radius: 28px;
   cursor: pointer;
   transition: transform 0.15s;
   margin-bottom: 20px;
@@ -359,6 +469,50 @@ body {
   border-color: var(--accent);
   color: var(--accent);
 }
+
+/* How it works steps */
+.how-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 16px 0 24px;
+  text-align: left;
+  position: relative;
+}
+
+.how-step {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 10px 0;
+}
+
+.step-num {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.step-text {
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.5;
+  padding-top: 3px;
+}
+
+.step-text span {
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
 </style>
 </head>
 <body>
@@ -367,21 +521,117 @@ body {
 <div class="landing" id="landing">
   <div class="landing-content">
     <h1>Дневник здоровья</h1>
-    <p>Это демо AI-ассистента, который помогает вести дневник здоровья. Он не врач и не тренер — просто умный собеседник, который всегда рядом.</p>
-    <p>Расскажите ему о себе, задавайте вопросы, делитесь настроением.</p>
+    <p class="landing-subtitle">Ваш личный ассистент — внимательный, терпеливый, всегда рядом. Он ведёт дневник вашего здоровья вместе с вами и помогает видеть то, что сложно заметить самому.</p>
 
-    <div class="demo-chat">
-      <div class="demo-msg u">Съел два куска пиццы на обеде</div>
-      <div class="demo-msg b">~600 ккал. Это 120 приседаний — звучит страшно, но если раскидать по дню: 6 подходов по 20, между делами. Уже после второго подхода забудешь что считаешь :)</div>
+    <!-- ЧТО ЭТО -->
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-icon">🤝</div>
+        <div class="feature-text">
+          <h3>Верный попутчик</h3>
+          <p>Не врач, не тренер, не приложение с графиками. Собеседник, который разбирается в здоровье и помогает держать курс. Без нравоучений, без оценок — просто рядом.</p>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📝</div>
+        <div class="feature-text">
+          <h3>Записывает всё</h3>
+          <p>Сон, настроение, питание, нагрузки, жалобы, мысли — всё, чем вы делитесь, фиксируется и анализируется. Ничего не потеряется, даже если вы сами забудете.</p>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📊</div>
+        <div class="feature-text">
+          <h3>Вечерний отчёт</h3>
+          <p>Каждый вечер — короткая сводка дня. Что было хорошо, что изменилось, на что обратить внимание. Не длинный отчёт — живое наблюдение.</p>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">⌚</div>
+        <div class="feature-text">
+          <h3>Гаджеты и трекеры</h3>
+          <p>Подключите часы, фитнес-браслет или датчик сахара — и ассистент видит данные 24/7. Чем больше информации, тем точнее понимание вашего состояния.</p>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🩺</div>
+        <div class="feature-text">
+          <h3>Отчёт для врача</h3>
+          <p>Перед визитом к врачу ассистент соберёт профессиональный отчёт: динамика, паттерны, важные изменения. Вместо «ну, вроде нормально» — конкретные данные.</p>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🎤</div>
+        <div class="feature-text">
+          <h3>Общайтесь как удобно</h3>
+          <p>Голосовое сообщение, текст, фото еды, видео — ассистент понимает всё. Не нужно заполнять формы или нажимать кнопки. Просто расскажите как есть.</p>
+        </div>
+      </div>
     </div>
 
-    <div class="demo-chat">
-      <div class="demo-msg u">Плохо спал, голова тяжёлая</div>
-      <div class="demo-msg b">Сколько часов вышло? Если меньше 6 — это бьёт по сахару не хуже пирожного, кстати.</div>
+    <!-- КАК ЭТО РАБОТАЕТ -->
+    <p class="section-label">Как это работает</p>
+    <div class="how-steps">
+      <div class="how-step">
+        <div class="step-num">1</div>
+        <div class="step-text">Расскажите о себе — возраст, рост, вес, образ жизни. <span>Это поможет ассистенту понять вашу ситуацию.</span></div>
+      </div>
+      <div class="how-step">
+        <div class="step-num">2</div>
+        <div class="step-text">Пишите каждый день — что ели, как спали, как себя чувствуете. <span>Голосом, текстом, фото — как удобно.</span></div>
+      </div>
+      <div class="how-step">
+        <div class="step-num">3</div>
+        <div class="step-text">Ассистент замечает закономерности, предупреждает о рисках и готовит отчёты. <span>Чем больше он знает — тем лучше вы понимаете себя.</span></div>
+      </div>
     </div>
 
+    <!-- ПРИМЕРЫ -->
+    <p class="section-label">Как выглядит общение</p>
+
+    <div class="assistant-pick" id="assistantPick">
+      <div style="display:flex; gap:10px; justify-content:center; margin-bottom:8px;">
+        <button class="pick-btn active" id="pickMale" onclick="pickAssistant('male')">Мужское здоровье</button>
+        <button class="pick-btn" id="pickFemale" onclick="pickAssistant('female')">Женское здоровье</button>
+      </div>
+      <p class="assistant-hint" id="hintMale">Стресс, сон, метаболизм, сердце</p>
+      <p class="assistant-hint" id="hintFemale" style="display:none;">Цикл, гормоны, щитовидка, железо + всё то же</p>
+    </div>
+
+    <!-- Мужской пример -->
+    <div class="demo-section" id="demoMale">
+      <p class="demo-label">Утро</p>
+      <div class="demo-chat">
+        <div class="demo-msg b">Утро. Как спалось?</div>
+        <div class="demo-msg u">Третью ночь подряд не могу нормально заснуть. И тревога какая-то фоновая, не пойму откуда</div>
+        <div class="demo-msg b">Три ночи — это уже паттерн, не случайность. Тревога и недосып друг друга кормят: кортизол не даёт заснуть → утром разбитый → тревога растёт. Фиксирую. Напиши после обеда — интересно, станет ли легче к середине дня или так и будет давить.</div>
+      </div>
+      <p class="demo-label">После обеда</p>
+      <div class="demo-chat">
+        <div class="demo-msg b">Привет, как ты? Днём полегчало или тревога осталась?</div>
+        <div class="demo-msg u">Не особо. Сердце колотится иногда, не могу сосредоточиться</div>
+        <div class="demo-msg b">Три ночи плохого сна + учащённое сердцебиение + тревога — вместе это повод показаться врачу. Не пугаю, но это не «просто стресс». Могу собрать для врача отчёт за последний месяц — сон, настроение, всё что ты мне писал. Чтобы на приёме не вспоминать по памяти.</div>
+      </div>
+    </div>
+
+    <!-- Женский пример -->
+    <div class="demo-section" id="demoFemale" style="display:none;">
+      <p class="demo-label">Утро</p>
+      <div class="demo-chat">
+        <div class="demo-msg b">Утро. Как ты сегодня?</div>
+        <div class="demo-msg u">Встала разбитая, хотя спала нормально. Сил вообще нет</div>
+        <div class="demo-msg b">Знакомое ощущение. Какой сейчас день цикла, примерно? Перед месячными прогестерон тянет энергию вниз — это физиология, не лень. Если так — не гони себя сегодня, серьёзно.</div>
+      </div>
+      <p class="demo-label">Вечер</p>
+      <div class="demo-chat">
+        <div class="demo-msg u">Хочу макароны на ужин, но чувствую себя виноватой заранее</div>
+        <div class="demo-msg b">Макароны — не катастрофа. Порция пасты — это примерно 350 ккал, 70 приседаний. Раскидать по завтрашнему дню — незаметно. Но вот чувство вины за еду реально вреднее самих макарон — кортизол от стресса бьёт по сахару сильнее, чем паста.</div>
+      </div>
+    </div>
+
+    <!-- CTA -->
     <span class="accent-line">Преддиабет — Точка разворота</span>
-    <button class="landing-start" onclick="startChat()">Начать</button>
+    <button class="landing-start" onclick="startChat()">Попробовать</button>
     <div class="landing-settings">
       <button class="landing-toggle" id="landingTheme" onclick="toggleTheme()">Светлая тема</button>
       <button class="landing-toggle" id="landingFont" onclick="toggleFont()">Крупный шрифт</button>
@@ -412,6 +662,13 @@ body {
 </div><!-- /app-wrap -->
 
 <script>
+// === VIEWPORT FIX для Telegram in-app browser на iOS ===
+function setAppHeight() {
+  document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px');
+}
+setAppHeight();
+window.addEventListener('resize', setAppHeight);
+
 // === НАСТРОЙКИ: тема, шрифт, лендинг ===
 function toggleTheme() {
   document.body.classList.toggle('light');
@@ -446,10 +703,20 @@ function updateSettingsUI() {
   }
 }
 
+function pickAssistant(type) {
+  assistantType = type;
+  localStorage.setItem('hd_assistant', type);
+  document.getElementById('pickMale').classList.toggle('active', type === 'male');
+  document.getElementById('pickFemale').classList.toggle('active', type === 'female');
+  document.getElementById('demoMale').style.display = type === 'male' ? 'block' : 'none';
+  document.getElementById('demoFemale').style.display = type === 'female' ? 'block' : 'none';
+  document.getElementById('hintMale').style.display = type === 'male' ? 'block' : 'none';
+  document.getElementById('hintFemale').style.display = type === 'female' ? 'block' : 'none';
+}
+
 function startChat() {
   document.getElementById('landing').classList.add('hidden');
   localStorage.setItem('hd_landing_seen', '1');
-  input.focus();
 }
 
 // Восстановление настроек
@@ -561,13 +828,6 @@ const HARDCODED_FEMALE = {
 function getPrompt() { return assistantType === 'female' ? BASE_PROMPT_FEMALE : BASE_PROMPT_MALE; }
 function getHardcoded() { return assistantType === 'female' ? HARDCODED_FEMALE : HARDCODED_MALE; }
 
-// Обратная совместимость
-const HARDCODED = {
-  greeting1: 'Привет! Я здесь, чтобы помогать тебе вести дневник здоровья. Кроме этого можем общаться на любые темы и в любое время! Я всегда рядом!',
-  greeting2: 'Все данные о состоянии организма я буду фиксировать по мере их поступления.',
-  questionnaire: 'Рад знакомству! Для начала мне поможет такая информация: пол, возраст, рост, вес, есть ли хронические заболевания, аллергии, вредные привычки, примерный распорядок дня (когда встаёшь, завтрак, обед, ужин, сон) и физические нагрузки, если есть. Без спешки — в любом порядке, когда будет удобно.',
-  confirmation: 'Принял. Теперь о том, как мы работаем. Я всегда на связи — днём и ночью. Ты пишешь мне что угодно: данные о здоровье, мысли, настроение, вопросы на любые темы. Я фиксирую, замечаю динамику, и если увижу что-то важное — скажу. Но без назиданий и оценок. Кроме здоровья можем говорить о чём угодно. Говори голосом, пиши, присылай фото и видео. Я всегда рядом!'
-};
 
 // === СТЕЙТ-МАШИНА ===
 // Состояния: greeting → questionnaire → confirmation → free
@@ -639,7 +899,7 @@ function addMessage(role, text) {
 }
 
 // Эффект печатания — буква за буквой
-function typeMessage(text) {
+function typeMessage(text, noScroll) {
   return new Promise(resolve => {
     const div = document.createElement('div');
     div.className = 'message bot';
@@ -651,7 +911,7 @@ function typeMessage(text) {
       if (i < text.length) {
         div.textContent += text[i];
         i++;
-        chat.scrollTop = chat.scrollHeight;
+        if (!noScroll) chat.scrollTop = chat.scrollHeight;
         setTimeout(tick, speed);
       } else {
         chatLog.push({ role: 'bot', text, time: new Date().toLocaleTimeString('ru-RU') });
@@ -1017,14 +1277,17 @@ window.addEventListener('load', async () => {
   }
 
   const hc = getHardcoded();
+  await typeMessage(hc.greeting1, true);
+  await typeMessage(hc.greeting2, true);
+  // Агрессивный scroll reset — iOS Telegram browser иногда игнорирует первый
   chat.scrollTop = 0;
-  window.scrollTo(0, 0);
-  await typeMessage(hc.greeting1);
-  await typeMessage(hc.greeting2);
-  setTimeout(() => { chat.scrollTop = 0; window.scrollTo(0, 0); }, 100);
+  requestAnimationFrame(() => {
+    chat.scrollTop = 0;
+    if (chat.firstElementChild) chat.firstElementChild.scrollIntoView({ block: 'start' });
+  });
 });
 
-input.focus();
+
 </script>
 </body>
 </html>
