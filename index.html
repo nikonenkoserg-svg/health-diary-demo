@@ -12,8 +12,8 @@
 :root {
   --bg: #0f0f1a;
   --bg2: #161628;
-  --surface: rgba(255,255,255,0.04);
-  --surface-glass: rgba(255,255,255,0.06);
+  --surface: rgba(255,255,255,0.06);
+  --surface-glass: rgba(255,255,255,0.09);
   --surface2: #1a1a3a;
   --accent: #ff4d6d;
   --accent-glow: rgba(255,77,109,0.3);
@@ -266,7 +266,7 @@ body {
 .landing {
   position: fixed;
   inset: 0;
-  background: linear-gradient(160deg, var(--bg) 0%, var(--bg2) 50%, var(--bg) 100%);
+  background: var(--bg);
   z-index: 100;
   display: flex;
   align-items: flex-start;
@@ -278,6 +278,38 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
+.landing::before {
+  content: '';
+  position: fixed;
+  top: -20%;
+  left: -30%;
+  width: 80%;
+  height: 60%;
+  background: radial-gradient(ellipse, rgba(255,77,109,0.15) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.landing::after {
+  content: '';
+  position: fixed;
+  bottom: -10%;
+  right: -20%;
+  width: 70%;
+  height: 50%;
+  background: radial-gradient(ellipse, rgba(199,125,255,0.12) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+body.light .landing::before {
+  background: radial-gradient(ellipse, rgba(230,57,86,0.08) 0%, transparent 70%);
+}
+
+body.light .landing::after {
+  background: radial-gradient(ellipse, rgba(155,89,182,0.06) 0%, transparent 70%);
+}
+
 .landing.hidden {
   display: none;
 }
@@ -285,6 +317,8 @@ body {
 .landing-content {
   max-width: 440px;
   text-align: center;
+  position: relative;
+  z-index: 1;
 }
 
 /* Scroll reveal animation */
@@ -346,7 +380,7 @@ body {
 .feature-grid {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   margin-bottom: 32px;
   text-align: left;
 }
@@ -356,13 +390,14 @@ body {
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
   border: 1px solid var(--border2);
+  border-left: 3px solid var(--card-accent, var(--accent));
   border-radius: 16px;
   padding: 16px 18px;
   display: flex;
   gap: 14px;
   align-items: flex-start;
   box-shadow: var(--shadow-card);
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
   cursor: default;
 }
 
@@ -375,6 +410,14 @@ body {
   transform: translateY(0);
 }
 
+/* Unique accent per card */
+.feature-card:nth-child(1) { --card-accent: #ff6b8a; }
+.feature-card:nth-child(2) { --card-accent: #ffa94d; }
+.feature-card:nth-child(3) { --card-accent: #69db7c; }
+.feature-card:nth-child(4) { --card-accent: #74c0fc; }
+.feature-card:nth-child(5) { --card-accent: #b197fc; }
+.feature-card:nth-child(6) { --card-accent: #ffd43b; }
+
 .feature-icon {
   font-size: 22px;
   flex-shrink: 0;
@@ -384,8 +427,7 @@ body {
   align-items: center;
   justify-content: center;
   border-radius: 12px;
-  background: var(--surface);
-  border: 1px solid var(--border2);
+  background: color-mix(in srgb, var(--card-accent, var(--accent)) 15%, transparent);
 }
 
 .feature-text h3 {
