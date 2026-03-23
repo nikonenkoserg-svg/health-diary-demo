@@ -617,58 +617,62 @@ body {
 <!-- LANDING -->
 <div class="landing" id="landing">
   <div class="landing-content">
-    <h1>Дневник здоровья</h1>
-    <p class="landing-subtitle">Ваш личный ассистент — внимательный, терпеливый, всегда рядом. Он ведёт дневник вашего здоровья вместе с вами и помогает видеть то, что сложно заметить самому.</p>
+
+    <!-- HERO -->
+    <div class="hero">
+      <h1>Дневник <span class="accent-word">здоровья</span></h1>
+      <p class="landing-subtitle">Ваш личный ассистент — внимательный, терпеливый, всегда рядом. Ведёт дневник вместе с вами и помогает видеть то, что сложно заметить самому.</p>
+    </div>
 
     <!-- ЧТО ЭТО -->
     <div class="feature-grid">
-      <div class="feature-card">
+      <div class="feature-card reveal">
         <div class="feature-icon">🤝</div>
         <div class="feature-text">
           <h3>Верный попутчик</h3>
-          <p>Не врач, не тренер, не приложение с графиками. Собеседник, который разбирается в здоровье и помогает держать курс. Без нравоучений, без оценок — просто рядом.</p>
+          <p>Не врач, не тренер, не приложение с графиками. Собеседник, который разбирается в здоровье и помогает держать курс. Без нравоучений — просто рядом.</p>
         </div>
       </div>
-      <div class="feature-card">
+      <div class="feature-card reveal">
         <div class="feature-icon">📝</div>
         <div class="feature-text">
           <h3>Записывает всё</h3>
-          <p>Сон, настроение, питание, нагрузки, жалобы, мысли — всё, чем вы делитесь, фиксируется и анализируется. Ничего не потеряется, даже если вы сами забудете.</p>
+          <p>Сон, настроение, питание, нагрузки, жалобы, мысли — всё фиксируется и анализируется. Ничего не потеряется, даже если вы сами забудете.</p>
         </div>
       </div>
-      <div class="feature-card">
+      <div class="feature-card reveal">
         <div class="feature-icon">📊</div>
         <div class="feature-text">
           <h3>Вечерний отчёт</h3>
-          <p>Каждый вечер — короткая сводка дня. Что было хорошо, что изменилось, на что обратить внимание. Не длинный отчёт — живое наблюдение.</p>
+          <p>Каждый вечер — короткая сводка дня: что было хорошо, что изменилось, на что обратить внимание. Живое наблюдение, не формальный отчёт.</p>
         </div>
       </div>
-      <div class="feature-card">
+      <div class="feature-card reveal">
         <div class="feature-icon">⌚</div>
         <div class="feature-text">
           <h3>Гаджеты и трекеры</h3>
-          <p>Подключите часы, фитнес-браслет или датчик сахара — и ассистент видит данные 24/7. Чем больше информации, тем точнее понимание вашего состояния.</p>
+          <p>Подключите часы, браслет или датчик сахара — ассистент видит данные 24/7. Чем больше информации, тем точнее картина.</p>
         </div>
       </div>
-      <div class="feature-card">
+      <div class="feature-card reveal">
         <div class="feature-icon">🩺</div>
         <div class="feature-text">
           <h3>Отчёт для врача</h3>
-          <p>Перед визитом к врачу ассистент соберёт профессиональный отчёт: динамика, паттерны, важные изменения. Вместо «ну, вроде нормально» — конкретные данные.</p>
+          <p>Перед визитом ассистент соберёт профессиональный отчёт: динамика, паттерны, изменения. Вместо «ну, вроде нормально» — конкретные данные.</p>
         </div>
       </div>
-      <div class="feature-card">
+      <div class="feature-card reveal">
         <div class="feature-icon">🎤</div>
         <div class="feature-text">
           <h3>Общайтесь как удобно</h3>
-          <p>Голосовое сообщение, текст, фото еды, видео — ассистент понимает всё. Не нужно заполнять формы или нажимать кнопки. Просто расскажите как есть.</p>
+          <p>Голосовое сообщение, текст, фото еды, видео — ассистент поймёт. Никаких форм и кнопок. Просто расскажите как есть.</p>
         </div>
       </div>
     </div>
 
     <!-- КАК ЭТО РАБОТАЕТ -->
-    <p class="section-label">Как это работает</p>
-    <div class="how-steps">
+    <p class="section-label reveal">Как это работает</p>
+    <div class="how-steps reveal">
       <div class="how-step">
         <div class="step-num">1</div>
         <div class="step-text">Расскажите о себе — возраст, рост, вес, образ жизни. <span>Это поможет ассистенту понять вашу ситуацию.</span></div>
@@ -684,9 +688,9 @@ body {
     </div>
 
     <!-- ПРИМЕРЫ -->
-    <p class="section-label">Как выглядит общение</p>
+    <p class="section-label reveal">Как выглядит общение</p>
 
-    <div class="assistant-pick" id="assistantPick">
+    <div class="assistant-pick reveal" id="assistantPick">
       <div style="display:flex; gap:10px; justify-content:center; margin-bottom:8px;">
         <button class="pick-btn active" id="pickMale" onclick="pickAssistant('male')">Мужское здоровье</button>
         <button class="pick-btn" id="pickFemale" onclick="pickAssistant('female')">Женское здоровье</button>
@@ -694,11 +698,11 @@ body {
       <p class="assistant-hint" id="hintMale">Стресс, сон, метаболизм, сердце, вес, нагрузки</p>
       <p class="assistant-hint" id="hintFemale" style="display:none;">Всё то же + цикл, гормоны, щитовидка, железо, контрацептивы</p>
       <p class="assistant-desc" id="descMale">Попутчик. Немного ироничный, говорит как живой человек в чате. Без нравоучений — по делу, коротко, честно.</p>
-      <p class="assistant-desc" id="descFemale" style="display:none;">Попутчица. Мягкая, но честная — как подруга, которая разбирается в теме. Понимает, как цикл влияет на энергию, аппетит, настроение и вес. Не стыдит за «срывы», не считает калории вслух. Объясняет — почему тянет на сладкое перед месячными, почему вес скачет, почему нет сил. Физиология, не лень.</p>
+      <p class="assistant-desc" id="descFemale" style="display:none;">Попутчица. Мягкая, но честная — как подруга, которая разбирается в теме. Понимает, как цикл влияет на энергию, аппетит, настроение и вес. Не стыдит за «срывы», не считает калории вслух. Объясняет — почему тянет на сладкое, почему вес скачет, почему нет сил. Физиология, не лень.</p>
     </div>
 
     <!-- Мужской пример -->
-    <div class="demo-section" id="demoMale">
+    <div class="demo-section reveal" id="demoMale">
       <p class="demo-label">Утро</p>
       <div class="demo-chat">
         <div class="demo-msg b">Утро. Как спалось?</div>
@@ -711,10 +715,15 @@ body {
         <div class="demo-msg u">Не особо. Сердце колотится иногда, не могу сосредоточиться</div>
         <div class="demo-msg b">Три ночи плохого сна + учащённое сердцебиение + тревога — вместе это повод показаться врачу. Не пугаю, но это не «просто стресс». Могу собрать для врача отчёт за последний месяц — сон, настроение, всё что ты мне писал. Чтобы на приёме не вспоминать по памяти.</div>
       </div>
+      <p class="demo-label">Микронагрузки</p>
+      <div class="demo-chat">
+        <div class="demo-msg u">Хочу начать двигаться, но в зал не пойду. Можешь составить что-то простое, прямо на каждый день?</div>
+        <div class="demo-msg b">Зал не нужен. Смотри — раскидаем по дню микродозами, ты даже не заметишь. Утром после подъёма: 10 приседаний (30 секунд). Перед обедом: подъём на носки 15 раз, стоя у стола. После обеда: планка 20 секунд. Вечером: 10 приседаний + 2 пролёта лестницы вместо лифта. Итого ~5 минут за день, разбитых на 4 точки. Через неделю тело привыкнет и попросит добавить.</div>
+      </div>
     </div>
 
     <!-- Женский пример -->
-    <div class="demo-section" id="demoFemale" style="display:none;">
+    <div class="demo-section reveal" id="demoFemale" style="display:none;">
       <p class="demo-label">Утро</p>
       <div class="demo-chat">
         <div class="demo-msg b">Утро. Как ты сегодня?</div>
@@ -726,14 +735,21 @@ body {
         <div class="demo-msg u">Хочу макароны на ужин, но чувствую себя виноватой заранее</div>
         <div class="demo-msg b">Макароны — не катастрофа. Порция пасты — это примерно 350 ккал, 70 приседаний. Раскидать по завтрашнему дню — незаметно. Но вот чувство вины за еду реально вреднее самих макарон — кортизол от стресса бьёт по сахару сильнее, чем паста.</div>
       </div>
+      <p class="demo-label">Микронагрузки</p>
+      <div class="demo-chat">
+        <div class="demo-msg u">Хочу начать двигаться, но мне всегда лень. Что-нибудь совсем незаметное есть?</div>
+        <div class="demo-msg b">Есть. Трюк в том, чтобы не бороться с ленью, а обойти её. Сжимай ягодицы стоя в очереди — 10 раз, никто не заметит. Вращай стопами под столом на работе. Втягивай живот на 5 секунд, отпускай — повтори 10 раз. Это уже движение. А вечером — 10 приседаний и подъём на носки 15 раз. Всё вместе — 3 минуты, раскиданные по дню. Через неделю тело само начнёт просить больше.</div>
+      </div>
     </div>
 
     <!-- CTA -->
-    <span class="accent-line">Преддиабет — Точка разворота</span>
-    <button class="landing-start" onclick="startChat()">Попробовать</button>
-    <div class="landing-settings">
-      <button class="landing-toggle" id="landingTheme" onclick="toggleTheme()">Светлая тема</button>
-      <button class="landing-toggle" id="landingFont" onclick="toggleFont()">Крупный шрифт</button>
+    <div class="reveal">
+      <span class="accent-line">Преддиабет — Точка разворота</span>
+      <button class="landing-start" onclick="startChat()">Попробовать</button>
+      <div class="landing-settings">
+        <button class="landing-toggle" id="landingTheme" onclick="toggleTheme()">Светлая тема</button>
+        <button class="landing-toggle" id="landingFont" onclick="toggleFont()">Крупный шрифт</button>
+      </div>
     </div>
   </div>
 </div>
