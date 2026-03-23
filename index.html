@@ -660,6 +660,12 @@ body.light .landing::after {
 <div class="landing" id="landing">
   <div class="landing-content">
 
+    <!-- SETTINGS -->
+    <div class="landing-settings" style="margin-bottom: 24px;">
+      <button class="landing-toggle" id="landingTheme" onclick="toggleTheme()">Светлая тема</button>
+      <button class="landing-toggle" id="landingFont" onclick="toggleFont()">Крупный шрифт</button>
+    </div>
+
     <!-- HERO -->
     <div class="hero">
       <h1>Дневник <span class="accent-word">здоровья</span></h1>
@@ -788,10 +794,6 @@ body.light .landing::after {
     <div class="reveal">
       <span class="accent-line">Преддиабет — Точка разворота</span>
       <button class="landing-start" onclick="startChat()">Попробовать</button>
-      <div class="landing-settings">
-        <button class="landing-toggle" id="landingTheme" onclick="toggleTheme()">Светлая тема</button>
-        <button class="landing-toggle" id="landingFont" onclick="toggleFont()">Крупный шрифт</button>
-      </div>
     </div>
   </div>
 </div>
