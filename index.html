@@ -1184,6 +1184,14 @@ function applyI18nBlocks() {
     const ecos = { ru: 'Часть экосистемы AI Alma Mater', en: 'Part of the AI Alma Mater ecosystem', fr: 'Fait partie de l\'écosystème AI Alma Mater' };
     ecoLine.textContent = ecos[lang] || ecos.ru;
   }
+  // Force-reveal visible blocks (observer may not fire for toggled elements)
+  document.querySelectorAll('.landing-content .reveal').forEach(el => {
+    if (el.style.display !== 'none') {
+      el.classList.add('visible');
+    } else {
+      el.classList.remove('visible');
+    }
+  });
 }
 
 const LANDING_VERSION = '3';
