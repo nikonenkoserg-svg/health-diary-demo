@@ -1028,6 +1028,7 @@ function pickAssistant(type) {
   document.getElementById('pickMale').classList.toggle('active', type === 'male');
   document.getElementById('pickFemale').classList.toggle('active', type === 'female');
   applyI18nBlocks();
+  if (typeof refreshReveal === 'function') refreshReveal();
 }
 
 // === I18N — ПЕРЕВОДЫ ===
@@ -1114,6 +1115,7 @@ function setLang(lang) {
   });
   applyTranslations();
   applyI18nBlocks();
+  if (typeof refreshReveal === 'function') refreshReveal();
 }
 
 function applyTranslations() {
@@ -1199,26 +1201,32 @@ function startChat() {
 })();
 
 // === SCROLL REVEAL ===
-(function initReveal() {
-  const reveals = document.querySelectorAll('.reveal');
+let revealObserver = null;
+
+function refreshReveal() {
+  const landing = document.getElementById('landing');
+  if (revealObserver) revealObserver.disconnect();
   if (!('IntersectionObserver' in window)) {
-    reveals.forEach(el => el.classList.add('visible'));
+    document.querySelectorAll('.reveal').forEach(el => el.classList.add('visible'));
     return;
   }
-  const landing = document.getElementById('landing');
-  const observer = new IntersectionObserver((entries) => {
+  revealObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
         entry.target.classList.add('visible');
-        observer.unobserve(entry.target);
+        revealObserver.unobserve(entry.target);
       }
     });
   }, { root: landing, threshold: 0.1, rootMargin: '0px 0px -30px 0px' });
-  reveals.forEach((el, i) => {
+  // Only observe visible .reveal elements
+  const visible = [...document.querySelectorAll('.reveal')].filter(el => el.offsetParent !== null || el.style.display !== 'none');
+  visible.forEach((el, i) => {
     el.style.transitionDelay = (i * 0.07) + 's';
-    observer.observe(el);
+    revealObserver.observe(el);
   });
-})();
+}
+
+refreshReveal();
 
 // === ПРОТОКОЛ — управляет поведением, модель только генерирует содержание ===
 
