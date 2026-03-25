@@ -810,14 +810,22 @@ body.light .landing::after {
         <button class="pick-btn active" id="pickMale" onclick="pickAssistant('male')">Мужское здоровье</button>
         <button class="pick-btn" id="pickFemale" onclick="pickAssistant('female')">Женское здоровье</button>
       </div>
-      <p class="assistant-hint" id="hintMale">Стресс, сон, метаболизм, сердце, вес, нагрузки</p>
-      <p class="assistant-hint" id="hintFemale" style="display:none;">Всё то же + цикл, гормоны, щитовидка, железо, контрацептивы</p>
-      <p class="assistant-desc" id="descMale">Попутчик. Немного ироничный, говорит как живой человек в чате. Без нравоучений — по делу, коротко, честно.</p>
-      <p class="assistant-desc" id="descFemale" style="display:none;">Попутчица. Мягкая, но честная — как подруга, которая разбирается в теме. Понимает, как цикл влияет на энергию, аппетит, настроение и вес. Не стыдит за «срывы», не считает калории вслух. Объясняет — почему тянет на сладкое, почему вес скачет, почему нет сил. Физиология, не лень.</p>
+      <p class="assistant-hint i18n-ru" id="hintMale">Стресс, сон, метаболизм, сердце, вес, нагрузки</p>
+      <p class="assistant-hint i18n-ru" id="hintFemale" style="display:none;">Всё то же + цикл, гормоны, щитовидка, железо, контрацептивы</p>
+      <p class="assistant-hint i18n-en" style="display:none;" data-for="male">Stress, sleep, metabolism, heart, weight, exercise</p>
+      <p class="assistant-hint i18n-en" style="display:none;" data-for="female">All of the above + cycle, hormones, thyroid, iron, contraceptives</p>
+      <p class="assistant-hint i18n-fr" style="display:none;" data-for="male">Stress, sommeil, métabolisme, cœur, poids, exercice</p>
+      <p class="assistant-hint i18n-fr" style="display:none;" data-for="female">Tout cela + cycle, hormones, thyroïde, fer, contraceptifs</p>
+      <p class="assistant-desc i18n-ru" id="descMale">Попутчик. Немного ироничный, говорит как живой человек в чате. Без нравоучений — по делу, коротко, честно.</p>
+      <p class="assistant-desc i18n-ru" id="descFemale" style="display:none;">Попутчица. Мягкая, но честная — как подруга, которая разбирается в теме. Понимает, как цикл влияет на энергию, аппетит, настроение и вес. Не стыдит за «срывы», не считает калории вслух. Объясняет — почему тянет на сладкое, почему вес скачет, почему нет сил. Физиология, не лень.</p>
+      <p class="assistant-desc i18n-en" style="display:none;" data-for="male">A companion. Slightly ironic, talks like a real person in a chat. No lectures — to the point, short, honest.</p>
+      <p class="assistant-desc i18n-en" style="display:none;" data-for="female">A companion. Gentle but honest — like a friend who really knows her stuff. Understands how the cycle affects energy, appetite, mood, and weight. No shaming for "slip-ups." Explains why you crave sweets, why weight fluctuates, why you feel drained. Physiology, not laziness.</p>
+      <p class="assistant-desc i18n-fr" style="display:none;" data-for="male">Un compagnon. Légèrement ironique, parle comme une vraie personne dans un chat. Sans leçons de morale — concret, court, honnête.</p>
+      <p class="assistant-desc i18n-fr" style="display:none;" data-for="female">Une compagne. Douce mais honnête — comme une amie qui s'y connaît. Comprend comment le cycle affecte l'énergie, l'appétit, l'humeur et le poids. Pas de honte pour les « écarts ». Explique pourquoi on a envie de sucré, pourquoi le poids fluctue. Physiologie, pas paresse.</p>
     </div>
 
-    <!-- Мужской пример -->
-    <div class="demo-section reveal" id="demoMale">
+    <!-- Мужской пример RU -->
+    <div class="demo-section reveal i18n-ru" id="demoMale">
       <p class="demo-label">Утро</p>
       <div class="demo-chat">
         <div class="demo-msg b">Утро. Как спалось?</div>
@@ -837,8 +845,8 @@ body.light .landing::after {
       </div>
     </div>
 
-    <!-- Женский пример -->
-    <div class="demo-section reveal" id="demoFemale" style="display:none;">
+    <!-- Женский пример RU -->
+    <div class="demo-section reveal i18n-ru" id="demoFemale" style="display:none;">
       <p class="demo-label">Утро</p>
       <div class="demo-chat">
         <div class="demo-msg b">Утро. Как ты сегодня?</div>
@@ -857,12 +865,94 @@ body.light .landing::after {
       </div>
     </div>
 
+    <!-- Male demo EN -->
+    <div class="demo-section reveal i18n-en" style="display:none;" data-for="male">
+      <p class="demo-label">Morning</p>
+      <div class="demo-chat">
+        <div class="demo-msg b">Morning. How'd you sleep?</div>
+        <div class="demo-msg u">Third night in a row I can't fall asleep properly. And there's this background anxiety, can't figure out where it's coming from</div>
+        <div class="demo-msg b">Three nights is a pattern, not a coincidence. Anxiety and sleep deprivation feed each other: cortisol keeps you awake → you wake up drained → anxiety grows. Noted. Write me after lunch — curious if it gets easier by midday or keeps pressing.</div>
+      </div>
+      <p class="demo-label">After lunch</p>
+      <div class="demo-chat">
+        <div class="demo-msg b">Hey, how are you? Did it ease up during the day or is the anxiety still there?</div>
+        <div class="demo-msg u">Not really. Heart races sometimes, can't concentrate</div>
+        <div class="demo-msg b">Three nights of poor sleep + racing heart + anxiety — together that's a reason to see a doctor. Not trying to scare you, but this isn't "just stress." I can put together a report for the doctor — sleep, mood, everything you've told me this month. So you don't have to recall it all from memory at the appointment.</div>
+      </div>
+      <p class="demo-label">Micro-exercises</p>
+      <div class="demo-chat">
+        <div class="demo-msg u">I want to start moving but I'm not going to the gym. Can you put together something simple, for every day?</div>
+        <div class="demo-msg b">No gym needed. Here's the idea — we spread micro-doses throughout the day, you won't even notice. Morning after waking: 10 squats (30 seconds). Before lunch: 15 calf raises standing at your desk. After lunch: 20-second plank. Evening: 10 squats + 2 flights of stairs instead of the elevator. Total ~5 minutes a day, split into 4 points. After a week your body will get used to it and ask for more.</div>
+      </div>
+    </div>
+
+    <!-- Female demo EN -->
+    <div class="demo-section reveal i18n-en" style="display:none;" data-for="female">
+      <p class="demo-label">Morning</p>
+      <div class="demo-chat">
+        <div class="demo-msg b">Morning. How are you today?</div>
+        <div class="demo-msg u">Woke up exhausted even though I slept fine. Zero energy</div>
+        <div class="demo-msg b">Familiar feeling. What day of your cycle is it, roughly? Before your period, progesterone pulls energy down — that's physiology, not laziness. If that's the case — don't push yourself today, seriously.</div>
+      </div>
+      <p class="demo-label">Evening</p>
+      <div class="demo-chat">
+        <div class="demo-msg u">I want pasta for dinner but I already feel guilty about it</div>
+        <div class="demo-msg b">Pasta isn't a disaster. A portion is about 350 kcal, 70 squats. Spread over tomorrow — barely noticeable. But here's the thing — guilt about food is actually worse than the pasta itself. The cortisol from stress hits blood sugar harder than carbs do.</div>
+      </div>
+      <p class="demo-label">Micro-exercises</p>
+      <div class="demo-chat">
+        <div class="demo-msg u">I want to start moving but I'm always too lazy. Anything really subtle?</div>
+        <div class="demo-msg b">Sure. The trick is not fighting laziness but going around it. Squeeze your glutes standing in line — 10 times, nobody will notice. Rotate your feet under the desk at work. Pull in your stomach for 5 seconds, release — repeat 10 times. That's already movement. And in the evening — 10 squats and 15 calf raises. Total about 3 minutes spread through the day. After a week your body will start asking for more.</div>
+      </div>
+    </div>
+
+    <!-- Male demo FR -->
+    <div class="demo-section reveal i18n-fr" style="display:none;" data-for="male">
+      <p class="demo-label">Matin</p>
+      <div class="demo-chat">
+        <div class="demo-msg b">Matin. Bien dormi ?</div>
+        <div class="demo-msg u">Troisième nuit d'affilée où je n'arrive pas à m'endormir. Et une anxiété de fond, je ne comprends pas d'où elle vient</div>
+        <div class="demo-msg b">Trois nuits, c'est un schéma, pas un hasard. L'anxiété et le manque de sommeil se nourrissent mutuellement : le cortisol empêche de dormir → tu te réveilles épuisé → l'anxiété augmente. Noté. Écris-moi après le déjeuner — curieux de savoir si ça s'atténue en journée ou si ça continue à peser.</div>
+      </div>
+      <p class="demo-label">Après le déjeuner</p>
+      <div class="demo-chat">
+        <div class="demo-msg b">Salut, comment ça va ? Ça s'est calmé dans la journée ou l'anxiété est toujours là ?</div>
+        <div class="demo-msg u">Pas vraiment. Le cœur s'emballe parfois, je n'arrive pas à me concentrer</div>
+        <div class="demo-msg b">Trois nuits de mauvais sommeil + cœur qui s'emballe + anxiété — ensemble, c'est une raison de consulter. Je ne veux pas t'effrayer, mais ce n'est pas « juste du stress ». Je peux préparer un rapport pour le médecin — sommeil, humeur, tout ce que tu m'as dit ce mois-ci. Pour ne pas devoir tout rappeler de mémoire en consultation.</div>
+      </div>
+      <p class="demo-label">Micro-exercices</p>
+      <div class="demo-chat">
+        <div class="demo-msg u">Je veux commencer à bouger mais je n'irai pas à la salle. Tu peux me préparer quelque chose de simple, pour tous les jours ?</div>
+        <div class="demo-msg b">Pas besoin de salle. L'idée : on répartit des micro-doses sur la journée, tu ne le remarqueras même pas. Le matin au réveil : 10 squats (30 secondes). Avant le déjeuner : 15 montées sur pointes debout au bureau. Après le déjeuner : planche 20 secondes. Le soir : 10 squats + 2 étages d'escalier au lieu de l'ascenseur. Total ~5 minutes par jour, réparties en 4 moments. Après une semaine, ton corps s'habituera et en demandera plus.</div>
+      </div>
+    </div>
+
+    <!-- Female demo FR -->
+    <div class="demo-section reveal i18n-fr" style="display:none;" data-for="female">
+      <p class="demo-label">Matin</p>
+      <div class="demo-chat">
+        <div class="demo-msg b">Matin. Comment tu vas aujourd'hui ?</div>
+        <div class="demo-msg u">Je me suis réveillée épuisée alors que j'ai bien dormi. Zéro énergie</div>
+        <div class="demo-msg b">Sensation connue. C'est quel jour de ton cycle, à peu près ? Avant les règles, la progestérone tire l'énergie vers le bas — c'est de la physiologie, pas de la paresse. Si c'est le cas — ne te force pas aujourd'hui, sérieusement.</div>
+      </div>
+      <p class="demo-label">Soirée</p>
+      <div class="demo-chat">
+        <div class="demo-msg u">J'ai envie de pâtes ce soir mais je me sens déjà coupable</div>
+        <div class="demo-msg b">Les pâtes, ce n'est pas une catastrophe. Une portion c'est environ 350 kcal, 70 squats. Répartis sur demain — à peine visible. Mais la culpabilité alimentaire est en réalité pire que les pâtes elles-mêmes. Le cortisol du stress frappe la glycémie plus fort que les glucides.</div>
+      </div>
+      <p class="demo-label">Micro-exercices</p>
+      <div class="demo-chat">
+        <div class="demo-msg u">Je veux commencer à bouger mais j'ai toujours la flemme. Quelque chose de vraiment discret ?</div>
+        <div class="demo-msg b">Bien sûr. L'astuce c'est de ne pas combattre la flemme, mais de la contourner. Serre les fessiers debout dans la file — 10 fois, personne ne remarquera. Fais tourner tes pieds sous le bureau au travail. Rentre le ventre 5 secondes, relâche — répète 10 fois. C'est déjà du mouvement. Et le soir — 10 squats et 15 montées sur pointes. Total environ 3 minutes réparties dans la journée. Après une semaine, ton corps commencera à en demander plus.</div>
+      </div>
+    </div>
+
     <!-- CTA -->
     <div class="reveal">
-      <span class="accent-line">Преддиабет — Точка разворота</span>
+      <span class="accent-line" id="brandLine">Преддиабет — Точка разворота</span>
       <button class="landing-start" id="ctaBtn" onclick="startChat()">Попробовать</button>
     </div>
-    <p style="margin-top: 48px; font-size: 11px; color: var(--text-dim); text-align: center; letter-spacing: 0.3px;">Часть экосистемы AI Alma Mater</p>
+    <p id="ecosystemLine" style="margin-top: 48px; font-size: 11px; color: var(--text-dim); text-align: center; letter-spacing: 0.3px;">Часть экосистемы AI Alma Mater</p>
   </div>
 </div>
 
@@ -937,12 +1027,7 @@ function pickAssistant(type) {
   localStorage.setItem('hd_assistant', type);
   document.getElementById('pickMale').classList.toggle('active', type === 'male');
   document.getElementById('pickFemale').classList.toggle('active', type === 'female');
-  document.getElementById('demoMale').style.display = type === 'male' ? 'block' : 'none';
-  document.getElementById('demoFemale').style.display = type === 'female' ? 'block' : 'none';
-  document.getElementById('hintMale').style.display = type === 'male' ? 'block' : 'none';
-  document.getElementById('hintFemale').style.display = type === 'female' ? 'block' : 'none';
-  document.getElementById('descMale').style.display = type === 'male' ? 'block' : 'none';
-  document.getElementById('descFemale').style.display = type === 'female' ? 'block' : 'none';
+  applyI18nBlocks();
 }
 
 // === I18N — ПЕРЕВОДЫ ===
@@ -1028,6 +1113,7 @@ function setLang(lang) {
     b.classList.toggle('active', b.dataset.lang === lang);
   });
   applyTranslations();
+  applyI18nBlocks();
 }
 
 function applyTranslations() {
@@ -1057,6 +1143,45 @@ function applyTranslations() {
   if (logB) logB.textContent = t.logBtn;
   // Settings toggles
   updateSettingsUI();
+}
+
+function applyI18nBlocks() {
+  const lang = currentLang;
+  const type = assistantType; // 'male' or 'female'
+  // Hide all i18n blocks, show only current lang
+  document.querySelectorAll('[class*="i18n-"]').forEach(el => {
+    const classes = el.className;
+    const isCurrentLang = classes.includes('i18n-' + lang);
+    if (!isCurrentLang) {
+      el.style.display = 'none';
+      return;
+    }
+    // For lang-specific blocks with data-for attribute (gender)
+    const forAttr = el.dataset.for;
+    if (forAttr) {
+      el.style.display = (forAttr === type) ? '' : 'none';
+    } else {
+      // RU blocks use old id-based system
+      if (el.id === 'hintFemale' || el.id === 'descFemale' || el.id === 'demoFemale') {
+        el.style.display = (type === 'female') ? '' : 'none';
+      } else if (el.id === 'hintMale' || el.id === 'descMale' || el.id === 'demoMale') {
+        el.style.display = (type === 'male') ? '' : 'none';
+      } else {
+        el.style.display = '';
+      }
+    }
+  });
+  // Brand line & ecosystem
+  const brandLine = document.getElementById('brandLine');
+  const ecoLine = document.getElementById('ecosystemLine');
+  if (brandLine) {
+    const brands = { ru: 'Преддиабет — Точка разворота', en: 'Prediabetes — Turning Point', fr: 'Prédiabète — Point de retour' };
+    brandLine.textContent = brands[lang] || brands.ru;
+  }
+  if (ecoLine) {
+    const ecos = { ru: 'Часть экосистемы AI Alma Mater', en: 'Part of the AI Alma Mater ecosystem', fr: 'Fait partie de l\'écosystème AI Alma Mater' };
+    ecoLine.textContent = ecos[lang] || ecos.ru;
+  }
 }
 
 const LANDING_VERSION = '3';
