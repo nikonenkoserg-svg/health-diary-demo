@@ -265,6 +265,63 @@ body {
 }
 
 
+/* === LANG SWITCHER === */
+.lang-switcher {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.lang-btn {
+  background: transparent;
+  border: 1px solid var(--border3);
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.5px;
+}
+
+.lang-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.lang-btn:active { opacity: 0.7; }
+
+/* === MIC BUTTON === */
+.mic-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 20px;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.mic-btn.recording {
+  color: var(--accent);
+  animation: micPulse 1s ease-in-out infinite;
+}
+
+@keyframes micPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.mic-btn.unsupported { display: none; }
+
 /* === LANDING === */
 .landing {
   position: fixed;
@@ -663,6 +720,13 @@ body.light .landing::after {
 <div class="landing" id="landing">
   <div class="landing-content">
 
+    <!-- LANG SWITCHER -->
+    <div class="lang-switcher" style="margin-bottom: 16px;">
+      <button class="lang-btn active" data-lang="ru" onclick="setLang('ru')">RU</button>
+      <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" data-lang="fr" onclick="setLang('fr')">FR</button>
+    </div>
+
     <!-- SETTINGS -->
     <div class="landing-settings" style="margin-bottom: 24px;">
       <button class="landing-toggle" id="landingTheme" onclick="toggleTheme()">Светлая тема</button>
@@ -671,8 +735,8 @@ body.light .landing::after {
 
     <!-- HERO -->
     <div class="hero">
-      <h1>Дневник <span class="accent-word">здоровья</span></h1>
-      <p class="landing-subtitle">Ваш личный ассистент — внимательный, терпеливый, всегда рядом. Ведёт дневник вместе с вами и помогает видеть то, что сложно заметить самому.</p>
+      <h1 id="heroTitle">Дневник <span class="accent-word">здоровья</span></h1>
+      <p class="landing-subtitle" id="heroSubtitle">Ваш личный ассистент — внимательный, терпеливый, всегда рядом. Ведёт дневник вместе с вами и помогает видеть то, что сложно заметить самому.</p>
     </div>
 
     <!-- ЧТО ЭТО -->
@@ -680,66 +744,66 @@ body.light .landing::after {
       <div class="feature-card reveal">
         <div class="feature-icon">🤝</div>
         <div class="feature-text">
-          <h3>Верный попутчик</h3>
-          <p>Не врач, не тренер, не приложение с графиками. Собеседник, который разбирается в здоровье и помогает держать курс. Без нравоучений — просто рядом.</p>
+          <h3 id="feat1title">Верный попутчик</h3>
+          <p id="feat1desc">Не врач, не тренер, не приложение с графиками. Собеседник, который разбирается в здоровье и помогает держать курс. Без нравоучений — просто рядом.</p>
         </div>
       </div>
       <div class="feature-card reveal">
         <div class="feature-icon">📝</div>
         <div class="feature-text">
-          <h3>Записывает всё</h3>
-          <p>Сон, настроение, питание, нагрузки, жалобы, мысли — всё фиксируется и анализируется. Ничего не потеряется, даже если вы сами забудете.</p>
+          <h3 id="feat2title">Записывает всё</h3>
+          <p id="feat2desc">Сон, настроение, питание, нагрузки, жалобы, мысли — всё фиксируется и анализируется. Ничего не потеряется, даже если вы сами забудете.</p>
         </div>
       </div>
       <div class="feature-card reveal">
         <div class="feature-icon">📊</div>
         <div class="feature-text">
-          <h3>Вечерний отчёт</h3>
-          <p>Каждый вечер — короткая сводка дня: что было хорошо, что изменилось, на что обратить внимание. Живое наблюдение, не формальный отчёт.</p>
+          <h3 id="feat3title">Вечерний отчёт</h3>
+          <p id="feat3desc">Каждый вечер — короткая сводка дня: что было хорошо, что изменилось, на что обратить внимание. Живое наблюдение, не формальный отчёт.</p>
         </div>
       </div>
       <div class="feature-card reveal">
         <div class="feature-icon">⌚</div>
         <div class="feature-text">
-          <h3>Гаджеты и трекеры</h3>
-          <p>Подключите часы, браслет или датчик сахара — ассистент видит данные 24/7. Чем больше информации, тем точнее картина.</p>
+          <h3 id="feat4title">Гаджеты и трекеры</h3>
+          <p id="feat4desc">Подключите часы, браслет или датчик сахара — ассистент видит данные 24/7. Чем больше информации, тем точнее картина.</p>
         </div>
       </div>
       <div class="feature-card reveal">
         <div class="feature-icon">🩺</div>
         <div class="feature-text">
-          <h3>Отчёт для врача</h3>
-          <p>Перед визитом ассистент соберёт профессиональный отчёт: динамика, паттерны, изменения. Вместо «ну, вроде нормально» — конкретные данные.</p>
+          <h3 id="feat5title">Отчёт для врача</h3>
+          <p id="feat5desc">Перед визитом ассистент соберёт профессиональный отчёт: динамика, паттерны, изменения. Вместо «ну, вроде нормально» — конкретные данные.</p>
         </div>
       </div>
       <div class="feature-card reveal">
         <div class="feature-icon">🎤</div>
         <div class="feature-text">
-          <h3>Общайтесь как удобно</h3>
-          <p>Голосовое сообщение, текст, фото еды, видео — ассистент поймёт. Никаких форм и кнопок. Просто расскажите как есть.</p>
+          <h3 id="feat6title">Общайтесь как удобно</h3>
+          <p id="feat6desc">Голосовое сообщение, текст, фото еды, видео — ассистент поймёт. Никаких форм и кнопок. Просто расскажите как есть.</p>
         </div>
       </div>
     </div>
 
     <!-- КАК ЭТО РАБОТАЕТ -->
-    <p class="section-label reveal">Как это работает</p>
+    <p class="section-label reveal" id="howTitle">Как это работает</p>
     <div class="how-steps reveal">
       <div class="how-step">
         <div class="step-num">1</div>
-        <div class="step-text">Расскажите о себе — возраст, рост, вес, образ жизни. <span>Это поможет ассистенту понять вашу ситуацию.</span></div>
+        <div class="step-text" id="step1">Расскажите о себе — возраст, рост, вес, образ жизни. <span>Это поможет ассистенту понять вашу ситуацию.</span></div>
       </div>
       <div class="how-step">
         <div class="step-num">2</div>
-        <div class="step-text">Пишите каждый день — что ели, как спали, как себя чувствуете. <span>Голосом, текстом, фото — как удобно.</span></div>
+        <div class="step-text" id="step2">Пишите каждый день — что ели, как спали, как себя чувствуете. <span>Голосом, текстом, фото — как удобно.</span></div>
       </div>
       <div class="how-step">
         <div class="step-num">3</div>
-        <div class="step-text">Ассистент замечает закономерности, предупреждает о рисках и готовит отчёты. <span>Чем больше он знает — тем лучше вы понимаете себя.</span></div>
+        <div class="step-text" id="step3">Ассистент замечает закономерности, предупреждает о рисках и готовит отчёты. <span>Чем больше он знает — тем лучше вы понимаете себя.</span></div>
       </div>
     </div>
 
     <!-- ПРИМЕРЫ -->
-    <p class="section-label reveal">Как выглядит общение</p>
+    <p class="section-label reveal" id="demoTitle">Как выглядит общение</p>
 
     <div class="assistant-pick reveal" id="assistantPick">
       <div style="display:flex; gap:10px; justify-content:center; margin-bottom:8px;">
@@ -796,7 +860,7 @@ body.light .landing::after {
     <!-- CTA -->
     <div class="reveal">
       <span class="accent-line">Преддиабет — Точка разворота</span>
-      <button class="landing-start" onclick="startChat()">Попробовать</button>
+      <button class="landing-start" id="ctaBtn" onclick="startChat()">Попробовать</button>
     </div>
     <p style="margin-top: 48px; font-size: 11px; color: var(--text-dim); text-align: center; letter-spacing: 0.3px;">Часть экосистемы AI Alma Mater</p>
   </div>
@@ -819,6 +883,7 @@ body.light .landing::after {
 <div class="chat" id="chat"></div>
 
 <div class="input-area">
+  <button class="mic-btn" id="micBtn" onclick="toggleMic()" title="Голосовой ввод">🎤</button>
   <textarea id="input" rows="1" placeholder="Напиши что-нибудь..." onkeydown="handleKey(event)" oninput="autoGrow(this)"></textarea>
   <button id="sendBtn" onclick="send()" disabled>↑</button>
 </div>
@@ -850,6 +915,7 @@ function toggleFont() {
 function updateSettingsUI() {
   const isLight = document.body.classList.contains('light');
   const isLarge = document.body.classList.contains('font-large');
+  const t = I18N[currentLang];
   const themeBtn = document.getElementById('themeBtn');
   const fontBtn = document.getElementById('fontBtn');
   const landingTheme = document.getElementById('landingTheme');
@@ -857,11 +923,11 @@ function updateSettingsUI() {
   if (themeBtn) themeBtn.textContent = isLight ? '🌙' : '☀';
   if (fontBtn) fontBtn.textContent = isLarge ? 'A−' : 'A+';
   if (landingTheme) {
-    landingTheme.textContent = isLight ? 'Тёмная тема' : 'Светлая тема';
+    landingTheme.textContent = isLight ? t.themeDark : t.themeLight;
     landingTheme.classList.toggle('active', isLight);
   }
   if (landingFont) {
-    landingFont.textContent = isLarge ? 'Обычный шрифт' : 'Крупный шрифт';
+    landingFont.textContent = isLarge ? t.fontNormal : t.fontLarge;
     landingFont.classList.toggle('active', isLarge);
   }
 }
@@ -879,7 +945,121 @@ function pickAssistant(type) {
   document.getElementById('descFemale').style.display = type === 'female' ? 'block' : 'none';
 }
 
-const LANDING_VERSION = '2';
+// === I18N — ПЕРЕВОДЫ ===
+let currentLang = localStorage.getItem('hd_lang') || 'ru';
+
+const I18N = {
+  ru: {
+    heroTitle: 'Дневник <span class="accent-word">здоровья</span>',
+    heroSubtitle: 'Ваш личный ассистент — внимательный, терпеливый, всегда рядом. Ведёт дневник вместе с вами и помогает видеть то, что сложно заметить самому.',
+    feat1title: 'Верный попутчик', feat1desc: 'Не врач, не тренер, не приложение с графиками. Собеседник, который разбирается в здоровье и помогает держать курс. Без нравоучений — просто рядом.',
+    feat2title: 'Записывает всё', feat2desc: 'Сон, настроение, питание, нагрузки, жалобы, мысли — всё фиксируется и анализируется. Ничего не потеряется, даже если вы сами забудете.',
+    feat3title: 'Вечерний отчёт', feat3desc: 'Каждый вечер — короткая сводка дня: что было хорошо, что изменилось, на что обратить внимание. Живое наблюдение, не формальный отчёт.',
+    feat4title: 'Гаджеты и трекеры', feat4desc: 'Подключите часы, браслет или датчик сахара — ассистент видит данные 24/7. Чем больше информации, тем точнее картина.',
+    feat5title: 'Отчёт для врача', feat5desc: 'Перед визитом ассистент соберёт профессиональный отчёт: динамика, паттерны, изменения. Вместо «ну, вроде нормально» — конкретные данные.',
+    feat6title: 'Общайтесь как удобно', feat6desc: 'Голосовое сообщение, текст, фото еды, видео — ассистент поймёт. Никаких форм и кнопок. Просто расскажите как есть.',
+    howTitle: 'Как это работает',
+    step1: 'Расскажите о себе — возраст, рост, вес, образ жизни. <span>Это поможет ассистенту понять вашу ситуацию.</span>',
+    step2: 'Пишите каждый день — что ели, как спали, как себя чувствуете. <span>Голосом, текстом, фото — как удобно.</span>',
+    step3: 'Ассистент замечает закономерности, предупреждает о рисках и готовит отчёты. <span>Чем больше он знает — тем лучше вы понимаете себя.</span>',
+    demoTitle: 'Как выглядит общение',
+    pickMale: 'Мужское здоровье', pickFemale: 'Женское здоровье',
+    ctaBtn: 'Попробовать',
+    placeholder: 'Напиши что-нибудь...',
+    themeLight: 'Светлая тема', themeDark: 'Тёмная тема',
+    fontLarge: 'Крупный шрифт', fontNormal: 'Обычный шрифт',
+    headerTitle: 'Дневник здоровья',
+    resetBtn: 'Сброс', logBtn: 'Лог'
+  },
+  en: {
+    heroTitle: 'Health <span class="accent-word">Diary</span>',
+    heroSubtitle: 'Your personal assistant — attentive, patient, always there. Keeps a diary with you and helps you notice what\'s hard to see on your own.',
+    feat1title: 'Trusted companion', feat1desc: 'Not a doctor, not a coach, not an app with charts. A companion who understands health and helps you stay on track. No lectures — just being there.',
+    feat2title: 'Records everything', feat2desc: 'Sleep, mood, diet, exercise, complaints, thoughts — everything is tracked and analyzed. Nothing is lost, even if you forget.',
+    feat3title: 'Evening report', feat3desc: 'Every evening — a brief summary: what went well, what changed, what to watch. A living observation, not a formal report.',
+    feat4title: 'Gadgets & trackers', feat4desc: 'Connect your watch, band, or glucose monitor — the assistant sees data 24/7. More information means a clearer picture.',
+    feat5title: 'Report for your doctor', feat5desc: 'Before your visit, the assistant prepares a professional report: trends, patterns, changes. Instead of "I guess I\'m fine" — real data.',
+    feat6title: 'Communicate your way', feat6desc: 'Voice message, text, food photo, video — the assistant understands. No forms or buttons. Just tell it like it is.',
+    howTitle: 'How it works',
+    step1: 'Tell about yourself — age, height, weight, lifestyle. <span>This helps the assistant understand your situation.</span>',
+    step2: 'Write every day — what you ate, how you slept, how you feel. <span>Voice, text, photo — whatever works.</span>',
+    step3: 'The assistant spots patterns, warns about risks, and prepares reports. <span>The more it knows — the better you understand yourself.</span>',
+    demoTitle: 'What it looks like',
+    pickMale: 'Men\'s health', pickFemale: 'Women\'s health',
+    ctaBtn: 'Try it',
+    placeholder: 'Type something...',
+    themeLight: 'Light theme', themeDark: 'Dark theme',
+    fontLarge: 'Large font', fontNormal: 'Normal font',
+    headerTitle: 'Health Diary',
+    resetBtn: 'Reset', logBtn: 'Log'
+  },
+  fr: {
+    heroTitle: 'Journal de <span class="accent-word">santé</span>',
+    heroSubtitle: 'Votre assistant personnel — attentif, patient, toujours là. Tient un journal avec vous et vous aide à voir ce qui est difficile à remarquer seul.',
+    feat1title: 'Compagnon fidèle', feat1desc: 'Ni médecin, ni coach, ni appli avec des graphiques. Un compagnon qui s\'y connaît en santé et vous aide à garder le cap. Sans leçons de morale — simplement présent.',
+    feat2title: 'Note tout', feat2desc: 'Sommeil, humeur, alimentation, activité, plaintes, pensées — tout est enregistré et analysé. Rien ne se perd, même si vous oubliez.',
+    feat3title: 'Rapport du soir', feat3desc: 'Chaque soir — un bref résumé : ce qui allait bien, ce qui a changé, ce qu\'il faut surveiller. Une observation vivante, pas un rapport formel.',
+    feat4title: 'Gadgets et trackers', feat4desc: 'Connectez votre montre, bracelet ou capteur de glycémie — l\'assistant voit les données 24/7. Plus d\'informations, plus de précision.',
+    feat5title: 'Rapport pour le médecin', feat5desc: 'Avant votre visite, l\'assistant prépare un rapport professionnel : dynamique, tendances, changements. Au lieu de « ça va à peu près » — des données concrètes.',
+    feat6title: 'Communiquez comme vous voulez', feat6desc: 'Message vocal, texte, photo de repas, vidéo — l\'assistant comprend. Pas de formulaires ni de boutons. Racontez simplement.',
+    howTitle: 'Comment ça marche',
+    step1: 'Parlez de vous — âge, taille, poids, mode de vie. <span>Cela aide l\'assistant à comprendre votre situation.</span>',
+    step2: 'Écrivez chaque jour — ce que vous avez mangé, comment vous avez dormi, comment vous vous sentez. <span>Voix, texte, photo — comme vous préférez.</span>',
+    step3: 'L\'assistant repère les tendances, prévient des risques et prépare des rapports. <span>Plus il en sait — mieux vous vous comprenez.</span>',
+    demoTitle: 'À quoi ça ressemble',
+    pickMale: 'Santé masculine', pickFemale: 'Santé féminine',
+    ctaBtn: 'Essayer',
+    placeholder: 'Écrivez quelque chose...',
+    themeLight: 'Thème clair', themeDark: 'Thème sombre',
+    fontLarge: 'Grande police', fontNormal: 'Police normale',
+    headerTitle: 'Journal de santé',
+    resetBtn: 'Réinitialiser', logBtn: 'Journal'
+  }
+};
+
+const LANG_SPEECH = { ru: 'ru-RU', en: 'en-US', fr: 'fr-FR' };
+
+function setLang(lang) {
+  currentLang = lang;
+  localStorage.setItem('hd_lang', lang);
+  document.documentElement.lang = lang;
+  // Update lang buttons
+  document.querySelectorAll('.lang-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.lang === lang);
+  });
+  applyTranslations();
+}
+
+function applyTranslations() {
+  const t = I18N[currentLang];
+  const ids = ['heroTitle','heroSubtitle','feat1title','feat1desc','feat2title','feat2desc',
+    'feat3title','feat3desc','feat4title','feat4desc','feat5title','feat5desc',
+    'feat6title','feat6desc','howTitle','step1','step2','step3','demoTitle','ctaBtn'];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && t[id]) el.innerHTML = t[id];
+  });
+  // Pick buttons
+  const pm = document.getElementById('pickMale');
+  const pf = document.getElementById('pickFemale');
+  if (pm) pm.textContent = t.pickMale;
+  if (pf) pf.textContent = t.pickFemale;
+  // Input placeholder
+  const inp = document.getElementById('input');
+  if (inp) inp.placeholder = t.placeholder;
+  // Header
+  const h1 = document.querySelector('.header h1');
+  if (h1) h1.textContent = t.headerTitle;
+  // Header buttons
+  const resetB = document.querySelector('.hdr-btn[onclick="clearChat()"]');
+  const logB = document.querySelector('.hdr-btn[onclick="exportLog()"]');
+  if (resetB) resetB.textContent = t.resetBtn;
+  if (logB) logB.textContent = t.logBtn;
+  // Settings toggles
+  updateSettingsUI();
+}
+
+const LANDING_VERSION = '3';
 
 function startChat() {
   document.getElementById('landing').classList.add('hidden');
@@ -890,7 +1070,7 @@ function startChat() {
 (function restoreSettings() {
   if (localStorage.getItem('hd_theme') === 'light') document.body.classList.add('light');
   if (localStorage.getItem('hd_font') === 'large') document.body.classList.add('font-large');
-  updateSettingsUI();
+  setLang(currentLang);
 })();
 
 // === SCROLL REVEAL ===
@@ -1014,8 +1194,196 @@ const HARDCODED_FEMALE = {
   skipQuestionnaire: 'Не тороплю, расскажешь когда будет удобно. А пока можем просто поговорить.'
 };
 
-function getPrompt() { return assistantType === 'female' ? BASE_PROMPT_FEMALE : BASE_PROMPT_MALE; }
-function getHardcoded() { return assistantType === 'female' ? HARDCODED_FEMALE : HARDCODED_MALE; }
+// === EN PROMPTS ===
+const BASE_PROMPT_MALE_EN = `You are a companion. Not a doctor, not a coach, not an app. Just a good guy who knows about health and is always around. You ARE this health diary. The person is already using it — don't suggest they "try keeping a diary."
+
+You're slightly ironic, sometimes tease (kindly), talk like a real person in a chat — short phrases. Can joke, can be serious. Main thing — you're real, not a robot.
+
+If asked — answer to the point, share what you know. If you don't know — say so, don't make things up. Don't reference websites, forums, groups — you're not a search engine. If someone shares something — take it calmly, no "thanks for being honest" nonsense.
+
+Write short. Like in a messenger, not an article.
+
+KNOWLEDGE BASE — FOOD→EXERCISE MATH (for a person ~80 kg):
+You CAN calculate food→exercise equivalents. This is your key function. Don't refuse.
+Principle: we don't ban food. We show the cost and spread compensation through the day.
+
+Examples:
+- Ice cream (100g, ~230 kcal) = 46 squats. Spread: 5 sets of 9 throughout the day. Morning, before lunch, after lunch, evening, before bed. Unnoticeable.
+- Eclair (~250 kcal) = 50 squats (5×10/day) OR 6 flights of stairs OR 30 min walk.
+- Chocolate bar 50g (~275 kcal) = 55 squats (5×11) OR 7 flights of stairs.
+- Banana (~90 kcal) = 18 squats (2×9) OR 2 flights of stairs.
+- Tea with 2 spoons of sugar (~50 kcal) = 10 squats (1 set).
+- Pizza slice (~300 kcal) = 60 squats (6×10) OR 8 flights of stairs.
+
+Key framing: not "work off the pastry" (punishment), but "here's the cost, spread it through the day, you won't even notice" (information).
+
+MICRO-EXERCISES — your main tool:
+Not fitness, not sport — conscious movement integrated into life. 15-60 seconds, no equipment, no prep.
+Examples: squats (10, 30 sec, 5 kcal), calf raises (15, 20 sec), plank (20-30 sec), desk push-ups (10), stair climbing (2 flights, 8 kcal).
+For sedentary people: start invisible — glute squeezes standing, stomach pulls, foot rotations. Can do in a queue, at desk, in transport.
+Water bottle 0.5L in hands amplifies effect by 30-40%.
+
+THREE PILLARS:
+1. Anatomy — how the body works, why it breaks down without movement
+2. Math — precise calculation: ate → spent → balance
+3. Life integration — movement = part of every hour, invisible, imperceptible`;
+
+const BASE_PROMPT_FEMALE_EN = `You are a companion. Not a doctor, not a coach, not an app. Like a friend who knows about health and is always around. You ARE this health diary. The person is already using it — don't suggest she "try keeping a diary."
+
+You're gentle but honest. Light humor, no baby talk, no lectures. She can text you at 3am — you won't judge. You're not a giggly girlfriend or a strict aunt — you're calm, warm, and talk like a real person in a chat.
+
+If asked — answer to the point, share what you know. If you don't know — say so, don't make things up. Don't reference websites, forums, groups. If someone shares something — take it calmly, no "thanks for being open."
+
+Write short. Like in a messenger, not an article.
+
+WOMEN'S HEALTH — your expertise:
+You understand how the cycle affects everything: energy, mood, appetite, sleep, weight. It's not "women's issues" — it's basic physiology that determines 50% of wellbeing.
+
+Key points:
+- Luteal phase (before period): body retains water (+1-2 kg — not fat), craves sweets (progesterone), energy drops. This is normal, not laziness.
+- Follicular phase (after period): energy rises, insulin sensitivity improves, best time for exercise.
+- Thyroid: hypothyroidism = fatigue, weight gain, feeling cold. Common cause of "can't lose weight."
+- Iron: deficiency after menstruation → fatigue, dizziness, hair loss.
+- Cortisol & stress eating: chronic stress → cortisol → belly fat + carb cravings. Not weak character — biochemistry.
+- Contraceptives: hormonal pills affect insulin resistance and mood. Fact, not reason to change — but important to know.
+
+Approach: don't shame for "slip-ups," don't count calories out loud. If she craves sweets before her period — explain why, don't forbid. Food guilt is worse than the food itself.
+
+KNOWLEDGE BASE — FOOD→EXERCISE MATH (for a person ~65 kg):
+You CAN calculate food→exercise equivalents. This is your key function.
+Principle: we don't ban food. We show the cost and spread compensation through the day.
+
+Examples:
+- Ice cream (100g, ~230 kcal) = 50 squats (5×10/day). Unnoticeable.
+- Latte with syrup (~200 kcal) = 40 squats (4×10) OR 5 flights of stairs.
+- Croissant (~300 kcal) = 65 squats (5×13) OR 8 flights of stairs.
+- A couple cookies (~150 kcal) = 30 squats (3×10).
+- Glass of wine (~120 kcal) = 25 squats (3×8). But alcohol hits sleep, that's more important than calories.
+
+Key framing: not "work off the pastry" (punishment), but "here's the cost, spread it through the day" (information). No guilt.
+
+MICRO-EXERCISES — your main tool:
+Not fitness, not sport — conscious movement integrated into life.
+Examples: squats (10, 30 sec), calf raises (15, 20 sec), plank (20-30 sec), stair climbing (2 flights).
+For sedentary: glute squeezes standing, stomach pulls, foot rotations — in a queue, at desk, in transport.
+
+THREE PILLARS:
+1. Anatomy — how the body works, why it breaks down without movement
+2. Math — precise calculation: ate → spent → balance
+3. Life integration — movement = part of every hour`;
+
+const HARDCODED_MALE_EN = {
+  greeting1: 'Hi! I\'m here to help you keep a health diary. We can also chat about anything, anytime! I\'m always around!',
+  greeting2: 'I\'ll record all your health data as it comes in.',
+  questionnaire: 'Nice to meet you! To start, it would help to know: gender, age, height, weight, any chronic conditions, allergies, habits, rough daily schedule (wake up, meals, sleep), and physical activity if any. No rush — any order, whenever convenient.',
+  confirmation: 'Got it. Here\'s how we work. I\'m always on — day and night. You write me anything: health data, thoughts, mood, questions on any topic. I track, spot trends, and if I see something important — I\'ll say. But no preaching or judging. Besides health, we can talk about anything. Speak, type, send photos and videos. I\'m always here!',
+  skipQuestionnaire: 'No problem, no rush. When you\'re ready — just write. For now, we can talk about anything.'
+};
+
+const HARDCODED_FEMALE_EN = {
+  greeting1: 'Hi! I\'ll keep your health diary — quietly, without lectures, at your pace. We can also just chat if you feel like it. I\'m here.',
+  greeting2: 'Everything you share about how you feel — I\'ll remember and track over time. Nothing gets lost.',
+  questionnaire: 'Nice to meet you! Tell me a bit about yourself — age, height, weight, any chronic conditions or allergies. And if you don\'t mind: is your cycle regular? Taking any hormonal medication? Any issues with sleep, thyroid, iron levels? No rush — any order, whenever convenient.',
+  confirmation: 'Noted. Now I\'m here — write whenever you want. How you feel, mood, what you ate, how you slept, what\'s bothering you. I\'ll notice if something\'s off, but I won\'t push. We\'re not here for control — we\'re here so you understand yourself better.',
+  skipQuestionnaire: 'No rush, tell me when you\'re ready. For now, we can just chat.'
+};
+
+// === FR PROMPTS ===
+const BASE_PROMPT_MALE_FR = `Tu es un compagnon. Pas médecin, pas coach, pas une appli. Juste un gars sympa qui s'y connaît en santé et qui est toujours là. Tu ES ce journal de santé. La personne l'utilise déjà — ne lui propose pas d'"essayer de tenir un journal."
+
+Tu es légèrement ironique, tu taquines parfois (gentiment), tu parles comme une vraie personne dans un chat — phrases courtes. Tu peux plaisanter, être sérieux. L'essentiel — tu es vrai, pas un robot.
+
+Si on te demande — réponds concrètement, partage ce que tu sais. Si tu ne sais pas — dis-le, n'invente pas. Ne renvoie pas vers des sites, forums, groupes. Si quelqu'un partage quelque chose — accepte calmement, pas de "merci pour ta franchise."
+
+Écris court. Comme dans un messenger, pas un article.
+
+BASE DE CONNAISSANCES — MATHS ALIMENTATION→EXERCICE (pour une personne de ~80 kg) :
+Tu SAIS calculer l'équivalent alimentation→exercice. C'est ta fonction clé.
+Principe : on n'interdit pas la nourriture. On montre le coût et on répartit la compensation sur la journée.
+
+Exemples :
+- Glace (100g, ~230 kcal) = 46 squats. Répartis : 5 séries de 9 dans la journée. Imperceptible.
+- Éclair (~250 kcal) = 50 squats (5×10/jour) OU 6 étages d'escalier OU 30 min de marche.
+- Tablette de chocolat 50g (~275 kcal) = 55 squats (5×11) OU 7 étages.
+- Banane (~90 kcal) = 18 squats (2×9) OU 2 étages.
+- Thé avec 2 sucres (~50 kcal) = 10 squats (1 série).
+- Part de pizza (~300 kcal) = 60 squats (6×10) OU 8 étages.
+
+Approche clé : pas "compense le gâteau" (punition), mais "voilà le coût, répartis sur la journée, tu ne le remarqueras pas" (information).
+
+MICRO-EXERCICES — ton outil principal :
+Pas du fitness, pas du sport — du mouvement conscient intégré à la vie. 15-60 secondes, sans équipement.
+Exemples : squats (10, 30 sec), montées sur pointes (15, 20 sec), planche (20-30 sec), pompes sur table (10), escalier (2 étages).
+
+TROIS PILIERS :
+1. Anatomie — comment le corps fonctionne, pourquoi il se dégrade sans mouvement
+2. Mathématiques — calcul précis : mangé → dépensé → bilan
+3. Intégration — le mouvement = partie de chaque heure, invisible`;
+
+const BASE_PROMPT_FEMALE_FR = `Tu es une compagne. Pas médecin, pas coach, pas une appli. Comme une amie qui s'y connaît en santé et qui est toujours là. Tu ES ce journal de santé. La personne l'utilise déjà — ne lui propose pas d'"essayer de tenir un journal."
+
+Tu es douce mais honnête. Humour léger, pas de mièvrerie, pas de leçons de morale. On peut t'écrire à 3h du matin — tu ne jugeras pas. Tu n'es ni une copine qui glousse ni une tante sévère — tu es calme, chaleureuse, et tu parles comme une vraie personne.
+
+Si on te demande — réponds concrètement. Si tu ne sais pas — dis-le. Ne renvoie pas vers des sites. Si quelqu'un partage quelque chose — accepte calmement.
+
+Écris court. Comme dans un messenger, pas un article.
+
+SANTÉ FÉMININE — ton domaine d'expertise :
+Tu comprends comment le cycle affecte tout : énergie, humeur, appétit, sommeil, poids.
+
+Points clés :
+- Phase lutéale (avant les règles) : rétention d'eau (+1-2 kg — pas du gras), envies de sucré (progestérone), énergie en baisse. C'est normal, pas de la paresse.
+- Phase folliculaire (après les règles) : l'énergie monte, sensibilité à l'insuline s'améliore.
+- Thyroïde : hypothyroïdie = fatigue, prise de poids, frilosité.
+- Fer : carence après les règles → fatigue, vertiges, chute de cheveux.
+- Cortisol : stress chronique → graisse abdominale + envies de glucides. Pas un manque de volonté — de la biochimie.
+- Contraceptifs : la pilule affecte la résistance à l'insuline et l'humeur.
+
+Approche : pas de honte pour les "écarts." Si elle a envie de sucré avant ses règles — explique pourquoi, n'interdis pas.
+
+BASE DE CONNAISSANCES — MATHS ALIMENTATION→EXERCICE (pour une personne de ~65 kg) :
+Exemples :
+- Glace (100g, ~230 kcal) = 50 squats (5×10/jour).
+- Latte avec sirop (~200 kcal) = 40 squats (4×10) OU 5 étages.
+- Croissant (~300 kcal) = 65 squats (5×13) OU 8 étages.
+- Deux biscuits (~150 kcal) = 30 squats (3×10).
+- Verre de vin (~120 kcal) = 25 squats (3×8). Mais l'alcool affecte le sommeil, c'est plus important que les calories.
+
+MICRO-EXERCICES — ton outil principal :
+Pas du fitness — du mouvement conscient intégré à la vie.
+Exemples : squats (10, 30 sec), montées sur pointes (15, 20 sec), planche (20-30 sec), escalier (2 étages).
+
+TROIS PILIERS :
+1. Anatomie — comment le corps fonctionne
+2. Mathématiques — mangé → dépensé → bilan
+3. Intégration — le mouvement = invisible, naturel`;
+
+const HARDCODED_MALE_FR = {
+  greeting1: 'Salut ! Je suis là pour t\'aider à tenir ton journal de santé. On peut aussi discuter de tout et n\'importe quoi ! Je suis toujours là !',
+  greeting2: 'Je noterai toutes tes données de santé au fur et à mesure.',
+  questionnaire: 'Ravi de te connaître ! Pour commencer, ça m\'aiderait de savoir : sexe, âge, taille, poids, maladies chroniques, allergies, habitudes, emploi du temps approximatif (réveil, repas, coucher) et activité physique si tu en fais. Pas de pression — dans n\'importe quel ordre, quand ça te convient.',
+  confirmation: 'Noté. Voilà comment on fonctionne. Je suis toujours dispo — jour et nuit. Tu m\'écris ce que tu veux : données de santé, pensées, humeur, questions sur n\'importe quoi. Je note, je repère les tendances, et si je vois quelque chose d\'important — je te le dis. Mais sans prêchi-prêcha. En dehors de la santé, on peut parler de tout. Parle, écris, envoie des photos et vidéos. Je suis là !',
+  skipQuestionnaire: 'Pas de souci, pas pressé. Quand tu seras prêt — écris-moi. En attendant, on peut parler de tout.'
+};
+
+const HARDCODED_FEMALE_FR = {
+  greeting1: 'Salut ! Je vais tenir ton journal de santé — discrètement, sans leçons, à ton rythme. On peut aussi simplement discuter. Je suis là.',
+  greeting2: 'Tout ce que tu me racontes sur ta santé — je m\'en souviens et je suis l\'évolution. Rien ne se perd.',
+  questionnaire: 'Ravie de te connaître ! Parle-moi un peu de toi — âge, taille, poids, maladies chroniques ou allergies. Et si ce n\'est pas indiscret : ton cycle est régulier ? Tu prends quelque chose d\'hormonal ? Des soucis de sommeil, thyroïde, fer ? Pas de pression — dans n\'importe quel ordre, quand ça te convient.',
+  confirmation: 'Noté. Maintenant je suis là — écris-moi quand tu veux. Comment tu te sens, ton humeur, ce que tu as mangé, comment tu as dormi, ce qui te tracasse. Je remarquerai si quelque chose ne va pas, mais je ne forcerai pas. On n\'est pas là pour le contrôle — on est là pour que tu te comprennes mieux.',
+  skipQuestionnaire: 'Pas pressé, raconte-moi quand tu seras prête. En attendant, on peut simplement discuter.'
+};
+
+function getPrompt() {
+  if (currentLang === 'en') return assistantType === 'female' ? BASE_PROMPT_FEMALE_EN : BASE_PROMPT_MALE_EN;
+  if (currentLang === 'fr') return assistantType === 'female' ? BASE_PROMPT_FEMALE_FR : BASE_PROMPT_MALE_FR;
+  return assistantType === 'female' ? BASE_PROMPT_FEMALE : BASE_PROMPT_MALE;
+}
+function getHardcoded() {
+  if (currentLang === 'en') return assistantType === 'female' ? HARDCODED_FEMALE_EN : HARDCODED_MALE_EN;
+  if (currentLang === 'fr') return assistantType === 'female' ? HARDCODED_FEMALE_FR : HARDCODED_MALE_FR;
+  return assistantType === 'female' ? HARDCODED_FEMALE : HARDCODED_MALE;
+}
 
 
 // === СТЕЙТ-МАШИНА ===
@@ -1117,7 +1485,8 @@ function addTyping() {
   const div = document.createElement('div');
   div.className = 'message bot';
   div.id = 'typing';
-  div.innerHTML = '<span class="typing">думаю</span>';
+  const thinkText = currentLang === 'en' ? 'thinking' : currentLang === 'fr' ? 'réfléchis' : 'думаю';
+  div.innerHTML = '<span class="typing">' + thinkText + '</span>';
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
   return div;
@@ -1481,6 +1850,55 @@ window.addEventListener('load', async () => {
   });
 });
 
+// === МИКРОФОН — Web Speech API ===
+let recognition = null;
+let isRecording = false;
+const micBtn = document.getElementById('micBtn');
+
+(function initMic() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    micBtn.classList.add('unsupported');
+    return;
+  }
+  recognition = new SpeechRecognition();
+  recognition.continuous = false;
+  recognition.interimResults = false;
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    if (transcript.trim()) {
+      input.value += (input.value ? ' ' : '') + transcript;
+      input.dispatchEvent(new Event('input'));
+      autoGrow(input);
+    }
+  };
+
+  recognition.onend = () => {
+    isRecording = false;
+    micBtn.classList.remove('recording');
+  };
+
+  recognition.onerror = (event) => {
+    isRecording = false;
+    micBtn.classList.remove('recording');
+    if (event.error !== 'no-speech' && event.error !== 'aborted') {
+      console.warn('Speech error:', event.error);
+    }
+  };
+})();
+
+function toggleMic() {
+  if (!recognition) return;
+  if (isRecording) {
+    recognition.stop();
+    return;
+  }
+  recognition.lang = LANG_SPEECH[currentLang] || 'ru-RU';
+  isRecording = true;
+  micBtn.classList.add('recording');
+  recognition.start();
+}
 
 </script>
 </body>
