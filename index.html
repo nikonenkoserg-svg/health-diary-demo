@@ -1192,6 +1192,9 @@ function startChat() {
   localStorage.setItem('hd_landing_seen', LANDING_VERSION);
 }
 
+// === ВЫБОР АССИСТЕНТА (до restoreSettings — нужен для applyI18nBlocks) ===
+let assistantType = localStorage.getItem('hd_assistant') || 'male'; // 'male' | 'female'
+
 // Восстановление настроек
 (function restoreSettings() {
   if (localStorage.getItem('hd_theme') === 'light') document.body.classList.add('light');
@@ -1229,8 +1232,7 @@ refreshReveal();
 
 // === ПРОТОКОЛ — управляет поведением, модель только генерирует содержание ===
 
-// === ВЫБОР АССИСТЕНТА ===
-let assistantType = localStorage.getItem('hd_assistant') || 'male'; // 'male' | 'female'
+// === ВЫБОР АССИСТЕНТА (перенесён выше, перед restoreSettings) ===
 
 const BASE_PROMPT_MALE = `Ты — попутчик. Не врач, не тренер, не приложение. Просто свой человек, который разбирается в теме и всегда рядом. Ты — этот дневник здоровья. Человек уже в нём, не предлагай ему "попробовать вести дневник".
 
