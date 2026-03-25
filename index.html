@@ -879,9 +879,11 @@ function pickAssistant(type) {
   document.getElementById('descFemale').style.display = type === 'female' ? 'block' : 'none';
 }
 
+const LANDING_VERSION = '2';
+
 function startChat() {
   document.getElementById('landing').classList.add('hidden');
-  localStorage.setItem('hd_landing_seen', '1');
+  localStorage.setItem('hd_landing_seen', LANDING_VERSION);
 }
 
 // Восстановление настроек
@@ -1447,8 +1449,13 @@ window.addEventListener('load', async () => {
   const hasSavedChat = loadChat();
 
   // Лендинг: показываем только новым пользователям
-  if (hasSavedChat || localStorage.getItem('hd_landing_seen') === '1') {
+  const landingSeen = localStorage.getItem('hd_landing_seen');
+  if (hasSavedChat || landingSeen === LANDING_VERSION) {
     landing.classList.add('hidden');
+  } else if (landingSeen && landingSeen !== LANDING_VERSION) {
+    // Лендинг обновился — сбросить старое состояние, показать новый
+    localStorage.removeItem('hd_landing_seen');
+    localStorage.removeItem(STORAGE_KEY);
   }
 
   if (hasSavedChat) return;
