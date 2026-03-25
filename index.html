@@ -381,17 +381,8 @@ body.light .landing::after {
   z-index: 1;
 }
 
-/* Scroll reveal animation */
-.reveal {
-  opacity: 0;
-  transform: translateY(24px);
-  transition: opacity 0.6s ease, transform 0.6s ease;
-}
-
-.reveal.visible {
-  opacity: 1;
-  transform: translateY(0);
-}
+/* Scroll reveal — disabled, was breaking i18n */
+.reveal { opacity: 1; transform: none; }
 
 /* Hero section */
 .hero {
