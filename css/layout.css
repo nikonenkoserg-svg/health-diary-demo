@@ -1,0 +1,100 @@
+#app {
+  display: flex;
+  flex-direction: column;
+  height: var(--app-height);
+  max-width: 480px;
+  margin: 0 auto;
+  position: relative;
+}
+
+/* Header */
+#header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  padding-top: max(12px, env(safe-area-inset-top));
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  z-index: 10;
+  flex-shrink: 0;
+}
+.header-left, .header-right { width: 40px; }
+.header-center { text-align: center; flex: 1; }
+.header-title { font-size: 17px; font-weight: 600; }
+.icon-btn {
+  background: none; border: none; color: var(--text-dim);
+  font-size: 20px; cursor: pointer; padding: 4px;
+  border-radius: 8px; transition: background 0.2s;
+}
+.icon-btn:active { background: var(--surface); }
+
+/* Screens */
+#screens { flex: 1; overflow: hidden; position: relative; }
+.screen {
+  position: absolute; inset: 0;
+  display: none; flex-direction: column;
+}
+.screen.active { display: flex; }
+
+/* Tabbar */
+#tabbar {
+  display: flex;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+  flex-shrink: 0;
+  z-index: 10;
+}
+.tab {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; gap: 2px;
+  padding: 8px 0 4px;
+  background: none; border: none; color: var(--text-dim);
+  font-size: 10px; cursor: pointer;
+  transition: color 0.2s;
+}
+.tab.active { color: var(--accent); }
+.tab-icon { font-size: 22px; }
+.tab-label { font-size: 10px; }
+
+/* Settings panel */
+.settings-panel {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 100;
+  display: flex; align-items: flex-end;
+  transition: opacity 0.2s;
+}
+.settings-panel.hidden { display: none; }
+.settings-content {
+  width: 100%; background: var(--bg);
+  border-top: 1px solid var(--border);
+  border-radius: 16px 16px 0 0;
+  padding: 20px 16px;
+  padding-bottom: max(20px, env(safe-area-inset-bottom));
+}
+.settings-header {
+  display: flex; justify-content: space-between;
+  align-items: center; margin-bottom: 16px;
+  font-weight: 600; font-size: 17px;
+}
+.settings-item {
+  display: flex; justify-content: space-between;
+  align-items: center; padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 15px;
+}
+.settings-btn {
+  background: var(--surface); border: none; color: var(--text);
+  padding: 8px 16px; border-radius: 8px; cursor: pointer;
+  font-size: 15px;
+}
+.settings-btn.danger { color: var(--accent); }
+.settings-btn:active { background: var(--surface-hover); }
+
+/* Placeholders */
+.placeholder-text {
+  text-align: center; color: var(--text-dim);
+  padding: 40px 20px; font-size: 15px;
+}

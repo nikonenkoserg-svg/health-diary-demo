@@ -1,0 +1,52 @@
+:root {
+  --bg: #0f0f1a;
+  --surface: rgba(255,255,255,0.06);
+  --surface-hover: rgba(255,255,255,0.10);
+  --text: #f0f0f5;
+  --text-dim: #7a8599;
+  --accent: #ff4d6d;
+  --accent2: #c77dff;
+  --user-bg: rgba(99,102,241,0.15);
+  --bot-bg: rgba(255,255,255,0.04);
+  --input-bg: rgba(255,255,255,0.08);
+  --border: rgba(255,255,255,0.08);
+  --shadow: 0 2px 12px rgba(0,0,0,0.3);
+  --radius: 18px;
+  --radius-sm: 12px;
+  --glass-blur: 16px;
+  --font: -apple-system, 'Segoe UI', system-ui, sans-serif;
+  --font-size: 15px;
+  --app-height: 100vh;
+}
+
+[data-theme="light"] {
+  --bg: #f8f9fc;
+  --surface: rgba(0,0,0,0.04);
+  --surface-hover: rgba(0,0,0,0.07);
+  --text: #1a1a2e;
+  --text-dim: #6b7280;
+  --accent: #e63956;
+  --accent2: #9b59b6;
+  --user-bg: rgba(99,102,241,0.10);
+  --bot-bg: rgba(0,0,0,0.03);
+  --input-bg: rgba(0,0,0,0.05);
+  --border: rgba(0,0,0,0.08);
+  --shadow: 0 2px 12px rgba(0,0,0,0.08);
+  --glass-blur: 12px;
+}
+
+.font-large {
+  --font-size: 20px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font);
+  font-size: var(--font-size);
+  background: var(--bg);
+  color: var(--text);
+  height: var(--app-height);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
