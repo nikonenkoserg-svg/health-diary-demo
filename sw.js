@@ -1,4 +1,4 @@
-const CACHE = 'diary-v3';
+const CACHE = 'diary-v4';
 const ASSETS = [
   '/',
   '/index.html',
@@ -8,6 +8,7 @@ const ASSETS = [
   '/js/storage.js',
   '/js/theme.js',
   '/js/voice.js',
+  '/knowledge/core-style.js',
   '/js/assistant.js',
   '/js/chat.js',
   '/js/app.js',

@@ -98,7 +98,8 @@ const Chat = {
       const systemPrompt = Assistant.buildSystemPrompt(
         currentProfile,
         this.chatData.userMsgCount,
-        this.chatData.questionCount
+        this.chatData.questionCount,
+        this.chatData.messages
       );
 
       const apiMessages = [

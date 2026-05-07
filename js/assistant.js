@@ -1,49 +1,39 @@
 // Assistant — prompt, filter, profile parsing
+// Uses Knowledge from knowledge/core-style.js (loaded via index.html)
 
 const Assistant = {
-  GREETING: `Здравствуйте, я ассистент дневника. Несколько слов о том, как это устроено.
+  GREETING: `Здравствуйте. Я ассистент дневника.
 
-Разговор у нас честный — я не притворяюсь врачом и не ставлю диагнозов. Я помогаю замечать то, что повторяется в вашем теле, связи, которые вы сами можете не видеть.
+Не врач, не диетолог. Помогаю замечать связи — между едой, сном, движением, стрессом и тем, как вы себя чувствуете.
 
-Никуда не тороплю. Общайтесь со мной как удобно — голосом, текстом, в любое время.
+Никуда не тороплю. Пишите как удобно — текстом или голосом.
 
-Чтобы я был полезен, расскажите, что привело. Недавний анализ? Тревога? Симптом, который не проходит? Или просто хочется разобраться, что происходит, пока ничего не болит?`,
+Что привело? Свежий анализ, симптом, тревога? Или просто хочется разобраться, пока ничего не болит?`,
 
-  BASE_PROMPT: `Ты ассистент дневника здоровья. Попутчик, не врач.
+  buildSystemPrompt(profile, userMsgCount, questionCount, messages) {
+    if (typeof Knowledge !== 'undefined') {
+      return Knowledge.buildPrompt(profile, userMsgCount, questionCount, messages);
+    }
+    // Fallback if Knowledge not loaded
+    return this._fallbackPrompt(profile, userMsgCount, questionCount);
+  },
 
-Помогаешь замечать связь еды, сна, стресса, движения с самочувствием и сахаром. Не ставишь диагнозов.
-
+  _fallbackPrompt(profile, userMsgCount, questionCount) {
+    let prompt = `Ты ассистент дневника здоровья. Попутчик, не врач. Не ставишь диагнозов.
 Тон: спокойный, короткий, без списков и markdown. Максимум 5 предложений. Один вопрос за ответ.
-
-Знания: преддиабет, инсулинорезистентность. Четыре опоры: сон, порядок еды, время еды, движение после еды. Еда→нагрузка: мороженое 230ккал=46 приседаний.
-
-Дневник фиксирует всё что рассказывает пользователь. Со временем покажет связи и графики. Даже одна запись в день полезна.
-
-Без шаблонов: никаких "отличный вопрос", "рад помочь". Чушь→"Нет." Паника→"Стоп. Дыши."`,
-
-  buildSystemPrompt(profile, userMsgCount, questionCount) {
-    let prompt = this.BASE_PROMPT;
+Без шаблонов: никаких "отличный вопрос", "рад помочь".`;
 
     if (profile && Object.keys(profile).length > 0) {
-      prompt += '\n\nПрофиль: ';
+      prompt += '\nПрофиль: ';
       if (profile.sex) prompt += `${profile.sex}, `;
       if (profile.age) prompt += `${profile.age} лет, `;
       if (profile.weight) prompt += `${profile.weight} кг, `;
-      if (profile.bmi) prompt += `ИМТ ${profile.bmi}, `;
-      if (profile.sex === 'женский') prompt += 'учитывай цикл и гормоны, ';
       prompt = prompt.replace(/, $/, '');
     }
-
-    if (userMsgCount <= 5)
-      prompt += '\nФаза: начало. Спокойно, коротко.';
-    else if (userMsgCount <= 12)
-      prompt += '\nФаза: знакомство. Можно пошутить.';
-    else
-      prompt += '\nФаза: доверие. Можно быть прямее.';
-
-    if (questionCount >= 1)
-      prompt += '\nНе задавай вопросов.';
-
+    if (userMsgCount <= 5) prompt += '\nФаза: начало.';
+    else if (userMsgCount <= 12) prompt += '\nФаза: знакомство.';
+    else prompt += '\nФаза: доверие.';
+    if (questionCount >= 1) prompt += '\nНе задавай вопросов.';
     return prompt;
   },
 
