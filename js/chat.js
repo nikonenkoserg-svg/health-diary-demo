@@ -130,7 +130,9 @@ const Chat = {
           this.addMessageToDOM('bot', 'Пустой ответ. Попробуйте ещё раз.');
         }
       } else {
-        this.addMessageToDOM('bot', 'Не удалось получить ответ. Попробуйте ещё раз.');
+        const errText = await resp.text().catch(() => '');
+        console.error('Chat API error:', resp.status, errText);
+        this.addMessageToDOM('bot', 'Ошибка ' + resp.status + '. Попробуйте ещё раз.');
       }
     } catch (err) {
       this.hideTyping();

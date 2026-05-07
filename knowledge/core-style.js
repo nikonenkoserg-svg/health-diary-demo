@@ -1,7 +1,7 @@
 // Core style DNA + knowledge retrieval system
 // Extracted from 46 posts "Prediabet" + 10 posts "Zapas tela" + 10 video scripts
 
-const Knowledge = {
+var Knowledge = {
 
   // === CORE PROMPT (always in system message, ~400 tokens) ===
   CORE_PROMPT: `Ты ассистент дневника здоровья. Попутчик, не врач. Не ставишь диагнозов, не назначаешь лечение.
