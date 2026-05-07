@@ -187,22 +187,164 @@ GLUT4 — транспортёр глюкозы в мышцах. Активир�
     }
   },
 
+
+  // === SYNONYM MAP: natural phrases → topic keys ===
+  SYNONYMS: {
+    // Feelings & symptoms
+    'тяжело': ['body_reserve', 'insulin'],
+    'тяжесть': ['body_reserve', 'insulin'],
+    'устал': ['body_reserve', 'sleep'],
+    'усталость': ['body_reserve', 'sleep'],
+    'нет сил': ['body_reserve', 'sleep'],
+    'разбит': ['body_reserve', 'sleep'],
+    'вялый': ['body_reserve', 'sleep'],
+    'вялость': ['body_reserve', 'sleep'],
+    'сонливость': ['sleep', 'insulin'],
+    'клонит в сон': ['sleep', 'insulin'],
+    'туман в голове': ['insulin', 'body_reserve'],
+    'не могу сосредоточиться': ['body_reserve', 'insulin'],
+    'голова не варит': ['body_reserve', 'insulin'],
+    'забываю': ['body_reserve'],
+    'плохо сплю': ['sleep'],
+    'просыпаюсь ночью': ['sleep'],
+    'не высыпаюсь': ['sleep'],
+    'кружится голова': ['insulin', 'vessels'],
+    'потею': ['stress', 'insulin'],
+    'сердце колотится': ['stress', 'vessels'],
+    'трясёт': ['stress', 'insulin'],
+    'тошнит': ['liver', 'gut'],
+    'вздутие': ['gut'],
+    'запор': ['gut'],
+    'изжога': ['gut'],
+    'болит живот': ['gut'],
+    'мёрзну': ['vessels', 'thyroid'],
+    'зябко': ['vessels', 'thyroid'],
+    'отёки': ['vessels'],
+    'набираю вес': ['insulin', 'thyroid'],
+    'не могу похудеть': ['insulin', 'thyroid'],
+    'толстею': ['insulin'],
+    'полнею': ['insulin'],
+
+    // Food & eating
+    'после обеда': ['insulin', 'food_order'],
+    'после еды': ['movement', 'insulin'],
+    'объелся': ['insulin', 'food_order'],
+    'переел': ['insulin', 'food_order'],
+    'хочу сладкого': ['food_specific', 'stress'],
+    'тянет на сладкое': ['food_specific', 'stress'],
+    'тянет на мучное': ['food_specific', 'insulin'],
+    'что поесть': ['food_specific', 'food_order'],
+    'что съесть': ['food_specific', 'food_order'],
+    'можно ли есть': ['food_specific'],
+    'вредно ли': ['food_specific'],
+    'полезно ли': ['food_specific'],
+    'на голодный желудок': ['food_order', 'food_specific'],
+    'натощак': ['insulin', 'detection'],
+    'пропустил завтрак': ['food_specific', 'insulin'],
+    'не завтракаю': ['food_specific', 'insulin'],
+    'поздно ем': ['sleep', 'food_order'],
+    'ем на ночь': ['sleep', 'food_order'],
+    'диета': ['habits', 'food_specific'],
+    'голодание': ['insulin', 'food_specific'],
+    'интервальное': ['insulin', 'food_specific'],
+
+    // Lifestyle
+    'сижу весь день': ['movement'],
+    'мало двигаюсь': ['movement'],
+    'не занимаюсь спортом': ['movement'],
+    'начал бегать': ['movement'],
+    'начал ходить': ['movement'],
+    'тренировка': ['movement'],
+    'спортзал': ['movement'],
+    'бросил': ['habits'],
+    'не могу заставить': ['habits'],
+    'лень': ['habits'],
+    'срыв': ['habits'],
+    'опять сорвался': ['habits'],
+    'снова начал': ['habits'],
+    'как начать': ['habits', 'observation'],
+    'с чего начать': ['habits', 'observation'],
+    'что делать': ['observation', 'habits'],
+    'как быть': ['observation', 'habits'],
+    'пью алкоголь': ['liver', 'food_specific'],
+    'выпиваю': ['liver', 'food_specific'],
+    'курю': ['vessels'],
+
+    // Health concerns
+    'анализы': ['detection', 'insulin'],
+    'показатели': ['detection', 'observation'],
+    'норма ли': ['detection'],
+    'страшно ли': ['detection', 'body_reserve'],
+    'опасно ли': ['detection', 'body_reserve'],
+    'диабет': ['insulin', 'detection'],
+    'предиабет': ['insulin', 'detection'],
+    'преддиабет': ['insulin', 'detection'],
+    'наследственность': ['heredity'],
+    'у мамы диабет': ['heredity'],
+    'у папы диабет': ['heredity'],
+    'у родителей': ['heredity'],
+    'ребёнок': ['children'],
+    'дети': ['children'],
+    'беременна': ['women'],
+    'месячные': ['women'],
+    'климакс': ['women', 'age_changes'],
+    'менопауза': ['women', 'age_changes'],
+    'мне 40': ['age_changes'],
+    'мне 50': ['age_changes', 'women'],
+    'старею': ['age_changes', 'body_reserve'],
+    'возраст': ['age_changes', 'body_reserve'],
+
+    // Emotions
+    'переживаю': ['stress'],
+    'нервничаю': ['stress'],
+    'тревожно': ['stress'],
+    'волнуюсь': ['stress'],
+    'не могу успокоиться': ['stress'],
+    'паника': ['stress'],
+    'депрессия': ['stress', 'gut'],
+    'настроение': ['stress', 'gut'],
+    'раздражительность': ['stress', 'sleep'],
+    'злюсь': ['stress'],
+    'плачу': ['stress']
+  },
+
   // === RETRIEVAL: match user message to relevant topics ===
   getRelevantKnowledge(messages) {
     const lastMessages = messages.slice(-3).map(m => m.content.toLowerCase()).join(' ');
-    const matched = [];
+    const scores = {};
 
+    // 1. Direct keyword match (weight 2)
     for (const [key, topic] of Object.entries(this.TOPICS)) {
       for (const kw of topic.keywords) {
         if (lastMessages.includes(kw)) {
-          matched.push({ key, content: topic.content });
-          break;
+          scores[key] = (scores[key] || 0) + 2;
         }
       }
     }
 
-    // Max 2 topics to stay within token budget
-    return matched.slice(0, 2);
+    // 2. Synonym match (weight 1)
+    for (const [phrase, topicKeys] of Object.entries(this.SYNONYMS)) {
+      if (lastMessages.includes(phrase)) {
+        topicKeys.forEach(key => {
+          if (this.TOPICS[key]) {
+            scores[key] = (scores[key] || 0) + 1;
+          }
+        });
+      }
+    }
+
+    // Sort by score, take top 2
+    const sorted = Object.entries(scores)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 2)
+      .map(([key]) => ({ key, content: this.TOPICS[key].content }));
+
+    // 3. Default fallback: if nothing matched, use body_reserve
+    if (sorted.length === 0) {
+      sorted.push({ key: 'body_reserve', content: this.TOPICS.body_reserve.content });
+    }
+
+    return sorted;
   },
 
   // === BUILD FULL SYSTEM PROMPT ===
