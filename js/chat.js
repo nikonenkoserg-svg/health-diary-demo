@@ -104,7 +104,7 @@ const Chat = {
 
       const apiMessages = [
         { role: 'system', content: systemPrompt },
-        ...this.chatData.messages.slice(-20)
+        ...this.chatData.messages.slice(-6)
       ];
 
       const resp = await fetch('/api/chat', {
@@ -112,7 +112,7 @@ const Chat = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: apiMessages,
-          max_tokens: this.chatData.userMsgCount <= 5 ? 200 : 300
+          max_tokens: 100
         })
       });
 
