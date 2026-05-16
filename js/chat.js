@@ -8,17 +8,20 @@ const Chat = {
     this.chatData = Storage.getChat();
     this.restoreMessages();
 
-    if (this.chatData.state === 'init') {
+    const state = this.chatData.state;
+    const hasMessages = this.chatData.messages.length > 0;
+
+    if (state === 'init' || (state === 'pre_register' && !hasMessages)) {
       this.showGreeting();
-    } else if (this.chatData.state === 'post_register') {
+    } else if (state === 'post_register') {
       this.playMonologue();
     }
   },
 
   async showGreeting() {
+    await this.typeMessage(Onboarding.GREETING, 'bot');
     this.chatData.state = 'pre_register';
     Storage.saveChat(this.chatData);
-    await this.typeMessage(Onboarding.GREETING, 'bot');
   },
 
   async playMonologue() {
@@ -29,7 +32,6 @@ const Chat = {
       await new Promise(r => setTimeout(r, i === 0 ? 500 : 2000));
       await this.typeMessage(Onboarding.MONOLOGUE[i], 'bot');
     }
-    // Monologue done — enter bridge phase
     this.chatData.state = 'bridge';
     this.chatData.bridgeCount = 0;
     Storage.saveChat(this.chatData);
@@ -107,12 +109,9 @@ const Chat = {
       const reply = Onboarding.RESPONSES[category];
 
       if (category === 'aggressive') {
-        // Don't push — just respond and wait
         await this.typeMessage(reply, 'bot');
       } else {
         await this.typeMessage(reply, 'bot');
-        // Transition to post-register (simulate registration)
-        // In real app: trigger registration UI here
         this.chatData.state = 'post_register';
         this.chatData.monologueIdx = 0;
         Storage.saveChat(this.chatData);
@@ -139,7 +138,7 @@ const Chat = {
         this.chatData.userMsgCount,
         this.chatData.questionCount,
         this.chatData.messages,
-        this.chatData.state // pass state for bridge detection
+        this.chatData.state
       );
 
       const apiMessages = [
@@ -167,7 +166,6 @@ const Chat = {
           else this.chatData.questionCount = 0;
           await this.typeMessage(reply, 'bot');
 
-          // Bridge counter — after 3 exchanges, move to active
           if (this.chatData.state === 'bridge') {
             this.chatData.bridgeCount = (this.chatData.bridgeCount || 0) + 1;
             if (this.chatData.bridgeCount >= 3) {
