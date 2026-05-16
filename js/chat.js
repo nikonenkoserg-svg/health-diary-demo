@@ -103,21 +103,52 @@ const Chat = {
     Storage.saveChat(this.chatData);
     this.scrollToBottom();
 
-    // === PRE-REGISTER: scripted response ===
+    // === PRE-REGISTER ===
     if (this.chatData.state === 'pre_register') {
       const category = Onboarding.classifyResponse(text);
-      const reply = Onboarding.RESPONSES[category];
 
       if (category === 'aggressive') {
-        await this.typeMessage(reply, 'bot');
-      } else {
-        await this.typeMessage(reply, 'bot');
-        this.chatData.state = 'post_register';
-        this.chatData.monologueIdx = 0;
-        Storage.saveChat(this.chatData);
-        await new Promise(r => setTimeout(r, 1500));
-        await this.playMonologue();
+        await this.typeMessage(Onboarding.RESPONSES.aggressive, 'bot');
+        this.isSending = false;
+        return;
       }
+
+      // LLM response with pre-register prompt
+      this.showTyping();
+      try {
+        const apiMessages = [
+          { role: 'system', content: Onboarding.PRE_REGISTER_PROMPT },
+          ...this.chatData.messages.slice(-4)
+        ];
+
+        const resp = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: apiMessages, max_tokens: 200 })
+        });
+
+        this.hideTyping();
+
+        if (resp.ok) {
+          const data = await resp.json();
+          const raw = data.choices?.[0]?.message?.content;
+          if (raw) {
+            const reply = Assistant.filterResponse(raw);
+            await this.typeMessage(reply, 'bot');
+          }
+        }
+      } catch (err) {
+        this.hideTyping();
+        console.error('Pre-register LLM error:', err);
+      }
+
+      // Transition to post-register
+      this.chatData.state = 'post_register';
+      this.chatData.monologueIdx = 0;
+      Storage.saveChat(this.chatData);
+      await new Promise(r => setTimeout(r, 1500));
+      await this.playMonologue();
+
       this.isSending = false;
       return;
     }
