@@ -45,22 +45,22 @@ const Onboarding = {
   classifyResponse(text) {
     const t = text.toLowerCase().trim();
 
-    // Aggressive / ironic
+    // Aggressive / ironic — check first
     const aggro = /развод|впихив|подписк|разводка|бред|чушь|фигня|обман|нафиг|пошёл|пошел|отвали/;
     if (aggro.test(t)) return 'aggressive';
 
-    // Question back
-    const quest = /зачем|что (я |мне )?получу|для чего|смысл|почему|а что/;
-    if (quest.test(t) || (t.endsWith('?') && t.length < 80)) return 'question';
-
-    // Mood described
-    const mood = /настроение|хорош|нормальн|отличн|так себе|паршив|плох|супер|бодр|устал|вымотан|энерги|спокойн|тревожн|грустн/;
+    // Mood — check BEFORE skeptic questions (someone talking about mood = engaged)
+    const mood = /настроение|хорош|нормальн|отличн|так себе|паршив|плох|супер|бодр|устал|вымотан|энерги|спокойн|тревожн|грустн|весел|радост|сонн|разбит/;
     if (mood.test(t)) return 'mood';
 
-    // Vague / short
-    if (t.length < 30 || /не знаю|нечего|как обычно|ладно|ок$|окей|давай|ну/.test(t)) return 'vague';
+    // Skeptical pushback — "зачем мне это", "что получу", "какой смысл"
+    const skeptic = /зачем|что (я |мне )?получу|для чего|какой смысл/;
+    if (skeptic.test(t)) return 'question';
 
-    // Default — treat as mood (they shared something)
+    // Vague / very short
+    if (t.length < 20 || /^(не знаю|нечего|как обычно|ладно|ок|окей|давай|ну|угу|ага|да|нет)\.?$/.test(t)) return 'vague';
+
+    // Any other engagement (including questions about the topic) — treat as mood
     return 'mood';
   },
 

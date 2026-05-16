@@ -1,4 +1,4 @@
-const CACHE = 'diary-v14';
+const CACHE = 'diary-v15';
 const ASSETS = [
   '/',
   '/index.html',
