@@ -1,24 +1,24 @@
 // Assistant — prompt, filter, profile parsing
 // Uses Knowledge from knowledge/core-style.js (loaded via index.html)
+// Uses Onboarding from js/onboarding.js
 
 const Assistant = {
-  GREETING: `Привет. Я рядом, в любое время.
 
-Я покажу как работают связи внутри твоего организма и как этим можно управлять. Но чтобы это стало возможным, мне нужно понять тебя.
-
-Начну с настроения — на него влияет всё: сон, еда, нагрузки, люди, погода. Через него я увижу, что происходит именно с тобой.
-
-Если не против — давай начнём разговор.`,
-
-  buildSystemPrompt(profile, userMsgCount, questionCount, messages) {
+  buildSystemPrompt(profile, userMsgCount, questionCount, messages, state) {
     if (typeof Knowledge !== 'undefined') {
-      return Knowledge.buildPrompt(profile, userMsgCount, questionCount, messages);
+      let prompt = Knowledge.buildPrompt(profile, userMsgCount, questionCount, messages);
+
+      // Bridge phase: add extra instructions for first interactions
+      if (state === 'bridge' && typeof Onboarding !== 'undefined') {
+        prompt += Onboarding.BRIDGE_PROMPT;
+      }
+
+      return prompt;
     }
-    // Fallback if Knowledge not loaded
-    return this._fallbackPrompt(profile, userMsgCount, questionCount);
+    return this._fallbackPrompt(profile, userMsgCount, questionCount, state);
   },
 
-  _fallbackPrompt(profile, userMsgCount, questionCount) {
+  _fallbackPrompt(profile, userMsgCount, questionCount, state) {
     let prompt = `Ты — попутчик. Не врач, не коуч, не справочник. Слушай, запоминай, замечай.
 Формат: 2-3 предложения. Каждое на отдельной строке. Без списков, двоеточий с перечислениями, эмодзи, markdown.
 Тон: спокойный, внимательный. Никаких "отличный вопрос", "молодец", "рад помочь".`;
@@ -34,6 +34,11 @@ const Assistant = {
     else if (userMsgCount <= 12) prompt += '\nФаза: знакомство.';
     else prompt += '\nФаза: доверие.';
     if (questionCount >= 1) prompt += '\nНе задавай вопросов.';
+
+    if (state === 'bridge' && typeof Onboarding !== 'undefined') {
+      prompt += Onboarding.BRIDGE_PROMPT;
+    }
+
     return prompt;
   },
 

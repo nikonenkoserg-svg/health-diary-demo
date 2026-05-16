@@ -10,13 +10,29 @@ const Chat = {
 
     if (this.chatData.state === 'init') {
       this.showGreeting();
+    } else if (this.chatData.state === 'post_register') {
+      this.playMonologue();
     }
   },
 
   async showGreeting() {
-    this.chatData.state = 'active';
+    this.chatData.state = 'pre_register';
     Storage.saveChat(this.chatData);
-    await this.typeMessage(Assistant.GREETING, 'bot');
+    await this.typeMessage(Onboarding.GREETING, 'bot');
+  },
+
+  async playMonologue() {
+    const startIdx = this.chatData.monologueIdx || 0;
+    for (let i = startIdx; i < Onboarding.MONOLOGUE.length; i++) {
+      this.chatData.monologueIdx = i + 1;
+      Storage.saveChat(this.chatData);
+      await new Promise(r => setTimeout(r, i === 0 ? 500 : 2000));
+      await this.typeMessage(Onboarding.MONOLOGUE[i], 'bot');
+    }
+    // Monologue done — enter bridge phase
+    this.chatData.state = 'bridge';
+    this.chatData.bridgeCount = 0;
+    Storage.saveChat(this.chatData);
   },
 
   restoreMessages() {
@@ -85,6 +101,29 @@ const Chat = {
     Storage.saveChat(this.chatData);
     this.scrollToBottom();
 
+    // === PRE-REGISTER: scripted response ===
+    if (this.chatData.state === 'pre_register') {
+      const category = Onboarding.classifyResponse(text);
+      const reply = Onboarding.RESPONSES[category];
+
+      if (category === 'aggressive') {
+        // Don't push — just respond and wait
+        await this.typeMessage(reply, 'bot');
+      } else {
+        await this.typeMessage(reply, 'bot');
+        // Transition to post-register (simulate registration)
+        // In real app: trigger registration UI here
+        this.chatData.state = 'post_register';
+        this.chatData.monologueIdx = 0;
+        Storage.saveChat(this.chatData);
+        await new Promise(r => setTimeout(r, 1500));
+        await this.playMonologue();
+      }
+      this.isSending = false;
+      return;
+    }
+
+    // === NORMAL FLOW (bridge + active) ===
     const profile = Assistant.parseProfile(text);
     if (profile) {
       const existing = Storage.getProfile();
@@ -99,7 +138,8 @@ const Chat = {
         currentProfile,
         this.chatData.userMsgCount,
         this.chatData.questionCount,
-        this.chatData.messages
+        this.chatData.messages,
+        this.chatData.state // pass state for bridge detection
       );
 
       const apiMessages = [
@@ -126,6 +166,15 @@ const Chat = {
           if (reply.includes('?')) this.chatData.questionCount++;
           else this.chatData.questionCount = 0;
           await this.typeMessage(reply, 'bot');
+
+          // Bridge counter — after 3 exchanges, move to active
+          if (this.chatData.state === 'bridge') {
+            this.chatData.bridgeCount = (this.chatData.bridgeCount || 0) + 1;
+            if (this.chatData.bridgeCount >= 3) {
+              this.chatData.state = 'active';
+            }
+            Storage.saveChat(this.chatData);
+          }
         } else {
           this.addMessageToDOM('bot', 'Пустой ответ. Попробуйте ещё раз.');
         }
