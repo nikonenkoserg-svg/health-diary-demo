@@ -2,7 +2,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { model, messages, temperature, max_tokens } = req.body;
-  const models = model ? [model] : ['anthropic/claude-3.5-haiku', 'deepseek/deepseek-chat'];
+  const models = model ? [model] : ['google/gemini-2.0-flash-001', 'anthropic/claude-3.5-haiku'];
 
   // Token budget protection: estimate tokens and trim history if needed
   // ~4 chars per token for Russian text, budget ~1000 tokens for prompt
