@@ -39,7 +39,47 @@ const Chart = {
   },
 
   _draw(ctx, w, h, data) {
-    const pad = { top: 12, right: 12, bottom: 28, left: 36 };
+    const pad = { top: 12, right: 12, bottom: 28, left: 36   // Обновить постоянную панель графика
+  updatePanel(chartData) {
+    const panel = document.getElementById('chart-panel');
+    const canvas = document.getElementById('chartMain');
+    if (!panel || !canvas) return;
+
+    if (!chartData || !chartData.points || chartData.points.length < 2) {
+      panel.classList.add('hidden');
+      return;
+    }
+
+    panel.classList.remove('hidden');
+
+    const wrap = document.getElementById('chart-canvas-wrap');
+    const dpr = window.devicePixelRatio || 1;
+    const width = wrap.clientWidth || 320;
+    const height = 160;
+
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.width = width + 'px';
+    canvas.style.height = height + 'px';
+
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.scale(dpr, dpr);
+
+    this._draw(ctx, width, height, chartData);
+  },
+
+  // Инициализация кнопки сворачивания
+  initPanel() {
+    const btn = document.getElementById('btnToggleChart');
+    const panel = document.getElementById('chart-panel');
+    if (btn && panel) {
+      btn.addEventListener('click', () => {
+        panel.classList.toggle('collapsed');
+      });
+    }
+  }
+};
     const plotW = w - pad.left - pad.right;
     const plotH = h - pad.top - pad.bottom;
 

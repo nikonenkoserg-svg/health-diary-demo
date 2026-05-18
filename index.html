@@ -30,6 +30,15 @@
 
   <main id="screens">
     <section id="screen-chat" class="screen active">
+      <div id="chart-panel" class="chart-panel hidden">
+        <div class="chart-panel-header">
+          <span class="chart-panel-title">Сегодня</span>
+          <button id="btnToggleChart" class="chart-toggle" aria-label="Свернуть">▼</button>
+        </div>
+        <div id="chart-canvas-wrap" class="chart-canvas-wrap">
+          <canvas id="chartMain"></canvas>
+        </div>
+      </div>
       <div id="chat" class="chat-area"></div>
       <div class="input-area">
         <button id="btnMic" class="mic-btn" aria-label="Голосовой ввод">🎤</button>

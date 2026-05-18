@@ -113,3 +113,52 @@
   border-radius: 12px;
   display: block;
 }
+
+/* Chart panel — persistent above chat */
+.chart-panel {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  transition: max-height 0.3s ease;
+  overflow: hidden;
+}
+.chart-panel.hidden {
+  display: none;
+}
+.chart-panel.collapsed .chart-canvas-wrap {
+  max-height: 0;
+  overflow: hidden;
+}
+.chart-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+}
+.chart-panel-title {
+  font-size: 12px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.chart-toggle {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 8px;
+  transition: transform 0.3s;
+}
+.chart-panel.collapsed .chart-toggle {
+  transform: rotate(-90deg);
+}
+.chart-canvas-wrap {
+  padding: 0 8px 8px;
+  transition: max-height 0.3s ease;
+}
+.chart-canvas-wrap canvas {
+  width: 100%;
+  border-radius: 8px;
+  display: block;
+}

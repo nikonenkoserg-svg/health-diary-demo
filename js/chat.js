@@ -36,13 +36,14 @@ const Chat = {
     const chat = document.getElementById('chat');
     chat.innerHTML = '';
     this.chatData.messages.forEach(m => {
-      if (m.chartData) {
-        // Восстанавливаем график из сохранённых данных
-        Chart.render(m.chartData, chat);
-      } else {
-        this.addMessageToDOM(m.role === 'user' ? 'user' : 'bot', m.content);
-      }
+      if (m.chartData) return; // графики теперь в панели
+      this.addMessageToDOM(m.role === 'user' ? 'user' : 'bot', m.content);
     });
+    // Восстанавливаем панель графика из последних данных
+    const lastChart = [...this.chatData.messages].reverse().find(m => m.chartData);
+    if (lastChart && typeof Chart !== 'undefined') {
+      Chart.updatePanel(lastChart.chartData);
+    }
     this.scrollToBottom();
   },
 
@@ -93,20 +94,14 @@ const Chat = {
     chat.scrollTop = chat.scrollHeight;
   },
 
-  // Вставить график в ленту чата
-  renderChart(chartData) {
-    const chat = document.getElementById('chat');
-    const wrapper = Chart.render(chartData, chat);
-    if (wrapper) {
-      // Сохраняем данные графика в историю
-      this.chatData.messages.push({
-        role: 'assistant',
-        content: '[график]',
-        chartData: chartData
-      });
-      Storage.saveChat(this.chatData);
-      this.scrollToBottom();
-    }
+  // Сохранить данные графика для восстановления
+  saveChartData(chartData) {
+    this.chatData.messages.push({
+      role: 'assistant',
+      content: '[график]',
+      chartData: chartData
+    });
+    Storage.saveChat(this.chatData);
   },
 
   async send(text) {
@@ -273,9 +268,10 @@ const Chat = {
           if (reply.includes('?')) this.chatData.questionCount++;
           else this.chatData.questionCount = 0;
 
-          // Сначала график, потом короткий текст
-          if (chartData) {
-            this.renderChart(chartData);
+          // Обновляем постоянную панель графика
+          if (chartData && typeof Chart !== 'undefined') {
+            Chart.updatePanel(chartData);
+            this.saveChartData(chartData);
           }
 
           await this.typeMessage(reply, 'bot');

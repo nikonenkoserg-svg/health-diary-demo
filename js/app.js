@@ -9,6 +9,7 @@ const App = {
     // Init modules
     Theme.init();
     Chat.init();
+    if (typeof Chart !== "undefined") Chart.initPanel();
 
     // Bind events
     this.bindEvents();
