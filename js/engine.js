@@ -334,7 +334,11 @@ const Engine = {
     const eventMarkers = this._dayEvents.map(e => ({
       minute: e.hour * 60 + e.minute,
       label: e.foods.map(f => f.name).join(', '),
-      kcal: e.foods.reduce((s, f) => s + f.kcal, 0)
+      kcal: e.foods.reduce((s, f) => s + f.kcal, 0),
+      effects: e.foods.reduce((acc, f) => {
+        if (f.gi === 0 && f.kcal > 50) acc.push('белок');
+        return acc;
+      }, [])
     }));
 
     return { points, events: eventMarkers, baseline };
@@ -342,14 +346,10 @@ const Engine = {
 
   // === БЫСТРЫЙ АНАЛИЗ + ТОЧКИ ДЛЯ ГРАФИКА ===
   analyzeWithChart(text, profile) {
-  // analyzeWithChart body replaced
     const analysis = this.analyze(text, profile);
     if (!analysis) return null;
 
-    // График только если есть продукт с ощутимым влиянием на глюкозу
-    const hasGlucoseImpact = analysis.foods.some(f => f.gi > 15 && f.curve.peak > 5.5);
-    if (!hasGlucoseImpact) return { analysis, chartData: null };
-
+    // График для ВСЕГО что попадает внутрь — мясо, вода, кофе тоже
     this.addEvent(text, profile);
     const chartData = this.getCurvePoints(profile);
 

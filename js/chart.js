@@ -214,6 +214,14 @@ const Chart = {
       ctx.fillText(label, x, y - 10);
     }
 
+    // === Аннотация для плоской кривой ===
+    if (peakG <= 5.3 && events.length > 0) {
+      ctx.fillStyle = isDark ? 'rgba(72, 199, 142, 0.6)' : 'rgba(72, 199, 142, 0.8)';
+      ctx.font = '11px -apple-system, system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('не влияет на сахар', pad.left + plotW / 2, pad.top + plotH * 0.35);
+    }
+
     // === Пик — отметка ===
     const peakPoint = points.reduce((best, p) => p.glucose > best.glucose ? p : best);
     if (peakPoint.glucose > 5.5) {
