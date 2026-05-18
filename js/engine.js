@@ -49,11 +49,28 @@ const Engine = {
   },
 
   // === ПАРСЕР ЕДЫ ИЗ ТЕКСТА ===
+  // Стемминг: обрезаем русские окончания для сравнения
+  _stem(word) {
+    if (word.length <= 3) return word;
+    return word.replace(/(ами|ями|ой|ей|ом|ем|ов|ев|ах|ях|ую|юю|ые|ие|ых|их|ий|ый|ая|яя|ое|ее|у|ю|а|я|о|е|ы|и)$/, '');
+  },
+
   parseFood(text) {
     const t = text.toLowerCase();
     const found = [];
+    // Разбиваем текст на слова для стемминга
+    const words = t.split(/[\s,.:;!?()]+/).filter(w => w.length > 2);
+    const stems = words.map(w => this._stem(w));
+
     for (const [name, data] of Object.entries(this.FOOD_DB)) {
+      // Прямое вхождение
       if (t.includes(name)) {
+        found.push({ name, ...data });
+        continue;
+      }
+      // Стемминг: сравниваем основу названия с основами слов текста
+      const nameStem = this._stem(name);
+      if (nameStem.length >= 3 && stems.some(s => s === nameStem || s.startsWith(nameStem) || nameStem.startsWith(s) && s.length >= 3)) {
         found.push({ name, ...data });
       }
     }
@@ -325,8 +342,13 @@ const Engine = {
 
   // === БЫСТРЫЙ АНАЛИЗ + ТОЧКИ ДЛЯ ГРАФИКА ===
   analyzeWithChart(text, profile) {
+  // analyzeWithChart body replaced
     const analysis = this.analyze(text, profile);
     if (!analysis) return null;
+
+    // График только если есть продукт с ощутимым влиянием на глюкозу
+    const hasGlucoseImpact = analysis.foods.some(f => f.gi > 15 && f.curve.peak > 5.5);
+    if (!hasGlucoseImpact) return { analysis, chartData: null };
 
     this.addEvent(text, profile);
     const chartData = this.getCurvePoints(profile);
