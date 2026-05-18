@@ -125,7 +125,7 @@ const Chat = {
       }
 
       // Check if user agrees to create profile
-      const agree = /да|давай|ок|окей|хорошо|ладно|погнали|начн|созд|профиль|готов|поехали|let|start|go/i;
+      const agree = /да|давай|ок|окей|хорошо|ладно|погнали|начн|созд|профиль|готов|поехали|регистр|зарег|сделан|done|let|start|go/i;
       if (agree.test(text.toLowerCase().trim())) {
         this.chatData.state = 'questionnaire_intro';
         Storage.saveChat(this.chatData);
