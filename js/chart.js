@@ -234,6 +234,55 @@ const Chart = {
       ctx.fillText(peakPoint.glucose.toFixed(1), px, py - 14);
     }
 
+    // === Вторичные процессы (белок, кофеин, гидратация, жир) ===
+    const secondary = data.secondary || [];
+    if (secondary.length > 0) {
+      // Рисуем вторичные кривые в нижней трети графика
+      const secH = plotH * 0.25; // 25% высоты для вторичных
+      const secBase = pad.top + plotH - secH * 0.1;
+
+      for (const proc of secondary) {
+        if (proc.points.length < 2) continue;
+        const maxVal = Math.max(...proc.points.map(p => p.value), 0.01);
+
+        ctx.beginPath();
+        const firstPt = proc.points[0];
+        ctx.moveTo(xScale(firstPt.minute), secBase - (firstPt.value / maxVal) * secH);
+
+        for (let i = 0; i < proc.points.length - 1; i++) {
+          const p1 = proc.points[i];
+          const p2 = proc.points[i + 1];
+          const x1 = xScale(p1.minute);
+          const y1 = secBase - (p1.value / maxVal) * secH;
+          const x2 = xScale(p2.minute);
+          const y2 = secBase - (p2.value / maxVal) * secH;
+          const cx = (x1 + x2) / 2;
+          ctx.quadraticCurveTo(x1, y1, cx, (y1 + y2) / 2);
+        }
+        const lastPt = proc.points[proc.points.length - 1];
+        ctx.lineTo(xScale(lastPt.minute), secBase - (lastPt.value / maxVal) * secH);
+
+        ctx.strokeStyle = proc.color;
+        ctx.lineWidth = 1.5;
+        ctx.globalAlpha = 0.6;
+        ctx.setLineDash([3, 3]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 1;
+
+        // Подпись процесса
+        const peakPt = proc.points.reduce((best, p) => p.value > best.value ? p : best);
+        const px = xScale(peakPt.minute);
+        const py = secBase - (peakPt.value / maxVal) * secH;
+        ctx.fillStyle = proc.color;
+        ctx.font = '9px -apple-system, system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.globalAlpha = 0.8;
+        ctx.fillText(proc.label, px, py - 6);
+        ctx.globalAlpha = 1;
+      }
+    }
+
     // === Ось X — время ===
     ctx.fillStyle = isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)';
     ctx.font = '10px -apple-system, system-ui, sans-serif';

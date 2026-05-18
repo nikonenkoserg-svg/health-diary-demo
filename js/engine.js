@@ -180,6 +180,132 @@ const Engine = {
     return { modifier: 1.3, note: 'Ночь — чувствительность к инсулину минимальная, еда ляжет тяжелее' };
   },
 
+  // === ВТОРИЧНЫЕ ПРОЦЕССЫ (не глюкоза) ===
+  secondaryProcess(food) {
+    const processes = [];
+    const portion = food.portion || 100;
+
+    // Белок: аминокислоты → синтез → спад
+    const proteinG = (food.protein || 0) * portion / 100;
+    if (proteinG > 5) {
+      const timeline = [];
+      const peakTime = 150; // 2.5ч до пика аминокислот
+      const duration = 300; // 5ч общая длительность
+      for (let t = 0; t <= duration; t += 15) {
+        let level;
+        if (t <= peakTime) {
+          level = (proteinG / 30) * Math.sin((Math.PI / 2) * (t / peakTime));
+        } else {
+          level = (proteinG / 30) * Math.cos((Math.PI / 2) * ((t - peakTime) / (duration - peakTime)));
+        }
+        timeline.push({ t, value: Math.round(Math.max(0, level) * 100) / 100 });
+      }
+      processes.push({
+        type: 'protein',
+        label: 'белок',
+        color: '#64b5f6', // голубой
+        peakTime,
+        duration,
+        intensity: Math.min(proteinG / 30, 1),
+        timeline,
+        description: proteinG.toFixed(0) + 'г белка → синтез мышц ' + Math.round(duration / 60) + 'ч'
+      });
+    }
+
+    // Кофеин: быстрый пик → долгий полураспад
+    if (food.caffeine) {
+      const timeline = [];
+      const peakTime = 40;
+      const halfLife = 300; // 5 часов
+      for (let t = 0; t <= 480; t += 15) {
+        let level;
+        if (t <= peakTime) {
+          level = Math.sin((Math.PI / 2) * (t / peakTime));
+        } else {
+          level = Math.exp(-0.693 * (t - peakTime) / halfLife);
+        }
+        timeline.push({ t, value: Math.round(level * 100) / 100 });
+      }
+      processes.push({
+        type: 'caffeine',
+        label: 'кофеин',
+        color: '#ffb74d', // оранжевый
+        peakTime,
+        duration: 480,
+        intensity: 0.8,
+        timeline,
+        description: 'пик бодрости через 40 мин, действует ~5ч'
+      });
+    }
+
+    // Гидратация
+    if (food.hydration) {
+      const timeline = [];
+      for (let t = 0; t <= 120; t += 15) {
+        let level;
+        if (t <= 20) {
+          level = t / 20;
+        } else {
+          level = Math.max(0, 1 - (t - 20) / 100);
+        }
+        timeline.push({ t, value: Math.round(level * 100) / 100 });
+      }
+      processes.push({
+        type: 'hydration',
+        label: 'гидратация',
+        color: '#4fc3f7', // синий
+        peakTime: 20,
+        duration: 120,
+        intensity: 0.6,
+        timeline,
+        description: 'усвоение воды ~20 мин'
+      });
+    }
+
+    // Жир: медленное переваривание
+    const fatG = (food.fat || 0) * portion / 100;
+    if (fatG > 5) {
+      const timeline = [];
+      const peakTime = 180; // 3ч
+      const duration = 360; // 6ч
+      for (let t = 0; t <= duration; t += 15) {
+        let level;
+        if (t <= peakTime) {
+          level = (fatG / 25) * Math.sin((Math.PI / 2) * (t / peakTime));
+        } else {
+          level = (fatG / 25) * Math.cos((Math.PI / 2) * ((t - peakTime) / (duration - peakTime)));
+        }
+        timeline.push({ t, value: Math.round(Math.max(0, level) * 100) / 100 });
+      }
+      processes.push({
+        type: 'fat',
+        label: 'жиры',
+        color: '#ce93d8', // сиреневый
+        peakTime,
+        duration,
+        intensity: Math.min(fatG / 25, 1),
+        timeline,
+        description: fatG.toFixed(0) + 'г жира → переваривание ' + Math.round(duration / 60) + 'ч'
+      });
+    }
+
+    // Клетчатка: замедляет всасывание
+    if (food.fiber) {
+      processes.push({
+        type: 'fiber',
+        label: 'клетчатка',
+        color: '#81c784', // зелёный
+        peakTime: 0,
+        duration: 0,
+        intensity: 0.3,
+        timeline: [],
+        description: 'замедляет всасывание углеводов'
+      });
+    }
+
+    return processes;
+  },
+
   // === ГЛАВНЫЙ МЕТОД: анализ события ===
   analyze(text, profile) {
     const foods = this.parseFood(text);
@@ -192,13 +318,15 @@ const Engine = {
     const results = foods.map(food => {
       const curve = this.glucoseCurve(food, coeff);
       const exchange = this.exerciseExchange(food, profile || {});
+      const secondary = this.secondaryProcess(food);
       return {
         name: food.name,
         portion: food.portion,
         kcal: Math.round(food.kcal * food.portion / 100),
         gi: food.gi,
         curve,
-        exchange
+        exchange,
+        secondary
       };
     });
 
@@ -242,6 +370,15 @@ const Engine = {
       text += `\n\nИтого: ${analysis.summary.totalKcal} ккал, пик ${analysis.summary.peakLevel} (~${analysis.summary.maxPeak})`;
     }
 
+    // Вторичные процессы
+    for (const food of analysis.foods) {
+      if (food.secondary && food.secondary.length > 0) {
+        for (const proc of food.secondary) {
+          text += `\n${food.name}: ${proc.description}`;
+        }
+      }
+    }
+
     text += '\n\nИспользуй эти данные в ответе — проговори последствия во времени, не показывай цифры напрямую (кроме ккал и минут ходьбы). Говори как друг, не как калькулятор.';
     text += '\n[/РАСЧЁТ ДВИЖКА]';
 
@@ -275,7 +412,8 @@ const Engine = {
         gi: food.gi,
         carbs: food.carbs,
         kcal: Math.round(food.kcal * food.portion / 100),
-        curve: this.glucoseCurve(food, coeff)
+        curve: this.glucoseCurve(food, coeff),
+        secondary: this.secondaryProcess(food)
       }))
     };
 
@@ -341,7 +479,41 @@ const Engine = {
       }, [])
     }));
 
-    return { points, events: eventMarkers, baseline };
+    // Собираем вторичные процессы для графика
+    const secondaryTimelines = {};
+    for (const event of this._dayEvents) {
+      const eventMinute = event.hour * 60 + event.minute;
+      for (const food of event.foods) {
+        if (!food.secondary) continue;
+        for (const proc of food.secondary) {
+          if (!proc.timeline || proc.timeline.length === 0) continue;
+          if (!secondaryTimelines[proc.type]) {
+            secondaryTimelines[proc.type] = { label: proc.label, color: proc.color, points: {} };
+          }
+          for (const p of proc.timeline) {
+            const absMin = eventMinute + p.t;
+            const snapMin = Math.round(absMin / 10) * 10;
+            if (snapMin < 1440) {
+              secondaryTimelines[proc.type].points[snapMin] =
+                Math.max(secondaryTimelines[proc.type].points[snapMin] || 0, p.value);
+            }
+          }
+        }
+      }
+    }
+
+    // Конвертируем в массивы точек
+    const secondary = Object.entries(secondaryTimelines).map(([type, data]) => ({
+      type,
+      label: data.label,
+      color: data.color,
+      points: Object.entries(data.points)
+        .map(([m, v]) => ({ minute: Number(m), value: v }))
+        .filter(p => p.minute >= startMin && p.minute <= endMin)
+        .sort((a, b) => a.minute - b.minute)
+    })).filter(s => s.points.length >= 2);
+
+    return { points, events: eventMarkers, baseline, secondary };
   },
 
   // === БЫСТРЫЙ АНАЛИЗ + ТОЧКИ ДЛЯ ГРАФИКА ===
