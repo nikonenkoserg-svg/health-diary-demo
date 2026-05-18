@@ -56,6 +56,31 @@ const App = {
     document.getElementById('btnCloseSettings').addEventListener('click', () => this.toggleSettings(false));
     document.getElementById('btnFont').addEventListener('click', () => Theme.toggleFont());
     document.getElementById('btnExport').addEventListener('click', () => Storage.exportAll());
+    document.getElementById('btnCopyChat').addEventListener('click', () => {
+      const chat = Storage.getChat();
+      const text = (chat.messages || []).map(m => {
+        const who = m.role === 'user' ? 'Я' : 'Ассистент';
+        return who + ': ' + m.content;
+      }).join('\n\n');
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = document.getElementById('btnCopyChat');
+        btn.textContent = '✅';
+        setTimeout(() => btn.textContent = '📋', 1500);
+      }).catch(() => {
+        // Fallback for iOS
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        const btn = document.getElementById('btnCopyChat');
+        btn.textContent = '✅';
+        setTimeout(() => btn.textContent = '📋', 1500);
+      });
+    });
     document.getElementById('btnImport').addEventListener('click', () => {
       document.getElementById('fileImport').click();
     });
