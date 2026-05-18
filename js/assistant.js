@@ -13,6 +13,17 @@ const Assistant = {
         prompt += Onboarding.BRIDGE_PROMPT;
       }
 
+      // Engine: analyze food in last user message
+      if (typeof Engine !== 'undefined' && messages && messages.length > 0) {
+        const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
+        if (lastUserMsg) {
+          const analysis = Engine.analyze(lastUserMsg.content, profile || {});
+          if (analysis) {
+            prompt += Engine.formatForPrompt(analysis);
+          }
+        }
+      }
+
       return prompt;
     }
     return this._fallbackPrompt(profile, userMsgCount, questionCount, state);
