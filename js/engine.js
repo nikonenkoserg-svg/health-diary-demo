@@ -63,25 +63,22 @@ const Engine = {
   // === ПЕРСОНАЛЬНЫЕ КОЭФФИЦИЕНТЫ ===
   getCoefficients(profile) {
     const coeff = {
-      insulinSensitivity: 1.0,  // 1.0 = норма, <1 = резистентность
-      metabolicRate: 1.0,       // скорость метаболизма
-      peakModifier: 1.0,        // модификатор пика глюкозы
+      insulinSensitivity: 1.0,
+      metabolicRate: 1.0,
+      peakModifier: 1.0,
     };
 
-    // Преддиабет — чувствительность снижена
     if (profile.prediabetes) {
       coeff.insulinSensitivity = 0.7;
       coeff.peakModifier = 1.3;
     }
 
-    // Возраст >45 — метаболизм замедляется
     const age = parseInt(profile.age) || 35;
     if (age > 45) {
       coeff.metabolicRate = 1 - (age - 45) * 0.005;
       coeff.peakModifier *= 1 + (age - 45) * 0.01;
     }
 
-    // Активность ускоряет метаболизм
     if (profile.activity === 'active' || profile.activity === 'активный') {
       coeff.insulinSensitivity *= 1.2;
       coeff.metabolicRate *= 1.15;
@@ -91,14 +88,12 @@ const Engine = {
       coeff.peakModifier *= 1.1;
     }
 
-    // Плохой сон ухудшает чувствительность
     const sleepHours = parseInt(profile.sleepHours) || 7;
     if (sleepHours < 6) {
       coeff.insulinSensitivity *= 0.75;
       coeff.peakModifier *= 1.2;
     }
 
-    // ИМТ
     const bmi = parseFloat(profile.bmi) || 25;
     if (bmi > 30) {
       coeff.insulinSensitivity *= 0.7;
@@ -112,43 +107,30 @@ const Engine = {
   },
 
   // === ГЛЮКОЗНАЯ КРИВАЯ ===
-  // Возвращает массив точек: [{t: минуты, glucose: ммоль/л}]
   glucoseCurve(food, coeff) {
-    const baseline = 5.0; // нормальный сахар натощак
+    const baseline = 5.0;
     const carbsTotal = (food.carbs * food.portion / 100);
     const gi = food.gi;
 
     if (gi === 0 || carbsTotal < 1) {
-      // Белок/жир — минимальное влияние
       return { peak: baseline + 0.3, peakTime: 60, returnTime: 120, timeline: [] };
     }
 
-    // Гликемическая нагрузка
     const gl = (gi * carbsTotal) / 100;
-
-    // Пик: базовый + GL * модификатор / масса тела (упрощённо)
     const peakRise = (gl * 0.12) * coeff.peakModifier;
-    const peak = Math.min(baseline + peakRise, 15); // потолок
-
-    // Время до пика: высокий GI = быстрый пик
-    const peakTime = gi > 70 ? 35 : gi > 50 ? 50 : 70; // минут
-
-    // Время возврата: зависит от чувствительности к инсулину
+    const peak = Math.min(baseline + peakRise, 15);
+    const peakTime = gi > 70 ? 35 : gi > 50 ? 50 : 70;
     const returnTime = peakTime + Math.round(90 / coeff.insulinSensitivity);
 
-    // Генерация кривой (точки каждые 15 мин на 4 часа)
     const timeline = [];
     for (let t = 0; t <= 240; t += 15) {
       let glucose;
       if (t <= peakTime) {
-        // Подъём (парабола)
         glucose = baseline + peakRise * Math.sin((Math.PI / 2) * (t / peakTime));
       } else if (t <= returnTime) {
-        // Спад
         const progress = (t - peakTime) / (returnTime - peakTime);
         glucose = peak - (peak - baseline) * progress;
       } else {
-        // После возврата — возможен провал ниже базы
         const overshoot = peakRise > 2 ? 0.3 : 0;
         glucose = baseline - overshoot * Math.exp(-(t - returnTime) / 60);
       }
@@ -164,13 +146,8 @@ const Engine = {
     const kcal = (food.kcal * food.portion / 100);
     const weight = parseInt(profile.weight) || 75;
 
-    // Приседания: ~0.5 ккал/приседание при 75кг
     const squats = Math.round(kcal / (0.5 * weight / 75));
-
-    // Ходьба: ~4 ккал/мин при 75кг
     const walkMinutes = Math.round(kcal / (4 * weight / 75));
-
-    // Бег: ~10 ккал/мин при 75кг
     const runMinutes = Math.round(kcal / (10 * weight / 75));
 
     return { squats, walkMinutes, runMinutes, kcal: Math.round(kcal), carbsG: Math.round(carbsTotal) };
@@ -193,8 +170,6 @@ const Engine = {
 
     const coeff = this.getCoefficients(profile || {});
     const timeEffect = this.timeOfDayEffect();
-
-    // Применяем время суток
     coeff.peakModifier *= timeEffect.modifier;
 
     const results = foods.map(food => {
@@ -210,7 +185,6 @@ const Engine = {
       };
     });
 
-    // Суммарный эффект
     const totalKcal = results.reduce((s, r) => s + r.kcal, 0);
     const maxPeak = Math.max(...results.map(r => r.curve.peak));
     const maxPeakTime = Math.max(...results.map(r => r.curve.peakTime));
@@ -255,11 +229,9 @@ const Engine = {
     text += '\n[/РАСЧЁТ ДВИЖКА]';
 
     return text;
-  }
-};
+  },
 
   // === НАКОПЛЕНИЕ СОБЫТИЙ ЗА ДЕНЬ ===
-  // Хранит все события дня для построения общей кривой
   _dayEvents: [],
 
   clearDay() {
@@ -295,16 +267,13 @@ const Engine = {
   },
 
   // === ТОЧКИ ДЛЯ ГРАФИКА ===
-  // Возвращает массив {hour, glucose, events[]} для отрисовки дневной кривой
   getCurvePoints(profile) {
     const baseline = 5.0;
-    // Сетка: каждые 10 минут, 24 часа
     const grid = {};
     for (let m = 0; m < 1440; m += 10) {
       grid[m] = baseline;
     }
 
-    // Накладываем все события
     for (const event of this._dayEvents) {
       const eventMinute = event.hour * 60 + event.minute;
       for (const food of event.foods) {
@@ -313,7 +282,6 @@ const Engine = {
         for (const point of timeline) {
           const absMin = eventMinute + point.t;
           if (absMin >= 1440) continue;
-          // Округляем до ближайших 10 мин
           const snapMin = Math.round(absMin / 10) * 10;
           if (snapMin < 1440) {
             grid[snapMin] = Math.max(grid[snapMin], baseline + (point.glucose - baseline) + (grid[snapMin] - baseline) * 0.3);
@@ -322,11 +290,9 @@ const Engine = {
       }
     }
 
-    // Конвертируем в массив точек
     const points = [];
     const minutes = Object.keys(grid).map(Number).sort((a, b) => a - b);
 
-    // Определяем диапазон отображения: от первого события - 1 час до последнего + 4 часа
     let startMin = 0;
     let endMin = 1440;
     if (this._dayEvents.length > 0) {
@@ -348,7 +314,6 @@ const Engine = {
       });
     }
 
-    // Добавляем маркеры событий
     const eventMarkers = this._dayEvents.map(e => ({
       minute: e.hour * 60 + e.minute,
       label: e.foods.map(f => f.name).join(', '),
@@ -363,11 +328,9 @@ const Engine = {
     const analysis = this.analyze(text, profile);
     if (!analysis) return null;
 
-    // Добавляем событие в накопитель
     this.addEvent(text, profile);
-
-    // Получаем точки для графика
     const chartData = this.getCurvePoints(profile);
 
     return { analysis, chartData };
   }
+};
