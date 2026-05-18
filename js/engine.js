@@ -32,9 +32,13 @@ const Engine = {
     'мясо':        { gi: 0, carbs: 0, fat: 10, protein: 26, kcal: 200, portion: 200 },
     'курица':      { gi: 0, carbs: 0, fat: 4, protein: 31, kcal: 165, portion: 200 },
     'рыба':        { gi: 0, carbs: 0, fat: 5, protein: 22, kcal: 130, portion: 200 },
-    'сыр':         { gi: 0, carbs: 1, fat: 25, protein: 25, kcal: 350, portion: 50 },
-    'творог':      { gi: 30, carbs: 3, fat: 5, protein: 17, kcal: 120, portion: 150 },
-    'молоко':      { gi: 30, carbs: 5, fat: 3.2, protein: 3, kcal: 60, portion: 250 },
+    'сыр':         { gi: 0, carbs: 1, fat: 25, protein: 25, kcal: 350, portion: 50, dairy: true },
+    'творог':      { gi: 30, carbs: 3, fat: 5, protein: 17, kcal: 120, portion: 150, dairy: true },
+    'молоко':      { gi: 30, carbs: 5, fat: 3.2, protein: 3, kcal: 60, portion: 250, dairy: true },
+    'кефир':       { gi: 15, carbs: 4, fat: 3.2, protein: 3, kcal: 56, portion: 250, dairy: true },
+    'йогурт':      { gi: 35, carbs: 7, fat: 3, protein: 5, kcal: 65, portion: 200, dairy: true },
+    'сметана':     { gi: 20, carbs: 3, fat: 20, protein: 2.5, kcal: 206, portion: 50, dairy: true },
+    'ряженка':     { gi: 15, carbs: 4, fat: 4, protein: 3, kcal: 67, portion: 250, dairy: true },
     'орехи':       { gi: 15, carbs: 20, fat: 50, protein: 15, kcal: 600, portion: 30 },
     'бутерброд':   { gi: 65, carbs: 30, fat: 10, protein: 10, kcal: 260, portion: 100 },
 
@@ -300,6 +304,32 @@ const Engine = {
         intensity: 0.3,
         timeline: [],
         description: 'замедляет всасывание углеводов'
+      });
+    }
+
+    // Молочные продукты: кальций + казеин (медленный белок)
+    if (food.dairy) {
+      const timeline = [];
+      const peakTime = 120; // кальций усваивается 2ч
+      const duration = 240;
+      for (let t = 0; t <= duration; t += 15) {
+        let level;
+        if (t <= peakTime) {
+          level = 0.7 * Math.sin((Math.PI / 2) * (t / peakTime));
+        } else {
+          level = 0.7 * Math.cos((Math.PI / 2) * ((t - peakTime) / (duration - peakTime)));
+        }
+        timeline.push({ t, value: Math.round(Math.max(0, level) * 100) / 100 });
+      }
+      processes.push({
+        type: 'dairy',
+        label: 'кальций',
+        color: '#e0e0e0', // светло-серый
+        peakTime,
+        duration,
+        intensity: 0.5,
+        timeline,
+        description: 'кальций + казеин → усвоение 2-4ч'
       });
     }
 
