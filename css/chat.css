@@ -103,3 +103,13 @@
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Chart in chat */
+.chart-message {
+  padding: 8px;
+  max-width: 90%;
+}
+.chart-message canvas {
+  border-radius: 12px;
+  display: block;
+}

@@ -36,7 +36,12 @@ const Chat = {
     const chat = document.getElementById('chat');
     chat.innerHTML = '';
     this.chatData.messages.forEach(m => {
-      this.addMessageToDOM(m.role === 'user' ? 'user' : 'bot', m.content);
+      if (m.chartData) {
+        // Восстанавливаем график из сохранённых данных
+        Chart.render(m.chartData, chat);
+      } else {
+        this.addMessageToDOM(m.role === 'user' ? 'user' : 'bot', m.content);
+      }
     });
     this.scrollToBottom();
   },
@@ -88,6 +93,22 @@ const Chat = {
     chat.scrollTop = chat.scrollHeight;
   },
 
+  // Вставить график в ленту чата
+  renderChart(chartData) {
+    const chat = document.getElementById('chat');
+    const wrapper = Chart.render(chartData, chat);
+    if (wrapper) {
+      // Сохраняем данные графика в историю
+      this.chatData.messages.push({
+        role: 'assistant',
+        content: '[график]',
+        chartData: chartData
+      });
+      Storage.saveChat(this.chatData);
+      this.scrollToBottom();
+    }
+  },
+
   async send(text) {
     if (this.isSending || !text.trim()) return;
     this.isSending = true;
@@ -111,7 +132,6 @@ const Chat = {
       // Check if user agrees to create profile
       const agree = /да|давай|ок|окей|хорошо|ладно|погнали|начн|созд|профиль|готов|поехали|let|start|go/i;
       if (agree.test(text.toLowerCase().trim())) {
-        // Transition to questionnaire
         this.chatData.state = 'questionnaire_intro';
         Storage.saveChat(this.chatData);
         await new Promise(r => setTimeout(r, 500));
@@ -120,7 +140,7 @@ const Chat = {
         return;
       }
 
-      // LLM response — answer question, guide back to profile
+      // LLM response
       this.showTyping();
       try {
         const apiMessages = [
@@ -152,9 +172,8 @@ const Chat = {
       return;
     }
 
-    // === QUESTIONNAIRE: LLM checks answers, follows up on missing items ===
+    // === QUESTIONNAIRE ===
     if (this.chatData.state === 'questionnaire') {
-      // Parse and save profile data
       const profile = Assistant.parseProfile(text);
       if (profile) {
         const existing = Storage.getProfile();
@@ -183,7 +202,6 @@ const Chat = {
             const reply = Assistant.filterResponse(raw);
             await this.typeMessage(reply, 'bot');
 
-            // Check if questionnaire is complete (LLM says "можно начинать" or similar)
             const done = /начинать работать|картина есть|достаточно|можем начинать|приступ/i;
             if (done.test(reply)) {
               this.chatData.state = 'bridge';
@@ -208,6 +226,16 @@ const Chat = {
       Storage.saveProfile({ ...existing, ...profile });
     }
 
+    // --- ГРАФИК: проверяем еду в сообщении ---
+    let chartData = null;
+    if (typeof Engine !== 'undefined' && (this.chatData.state === 'active' || this.chatData.state === 'bridge')) {
+      const currentProfile = Storage.getProfile() || {};
+      const result = Engine.analyzeWithChart(text, currentProfile);
+      if (result) {
+        chartData = result.chartData;
+      }
+    }
+
     this.showTyping();
 
     try {
@@ -217,12 +245,13 @@ const Chat = {
         this.chatData.userMsgCount,
         this.chatData.questionCount,
         this.chatData.messages,
-        this.chatData.state
+        this.chatData.state,
+        !!chartData  // hasChart flag
       );
 
       const apiMessages = [
         { role: 'system', content: systemPrompt },
-        ...this.chatData.messages.slice(-12)
+        ...this.chatData.messages.filter(m => !m.chartData).slice(-12)
       ];
 
       const resp = await fetch('/api/chat', {
@@ -230,7 +259,7 @@ const Chat = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: apiMessages,
-          max_tokens: 300
+          max_tokens: chartData ? 150 : 300  // Короче если есть график
         })
       });
 
@@ -243,6 +272,12 @@ const Chat = {
           const reply = Assistant.filterResponse(raw);
           if (reply.includes('?')) this.chatData.questionCount++;
           else this.chatData.questionCount = 0;
+
+          // Сначала график, потом короткий текст
+          if (chartData) {
+            this.renderChart(chartData);
+          }
+
           await this.typeMessage(reply, 'bot');
 
           if (this.chatData.state === 'bridge') {

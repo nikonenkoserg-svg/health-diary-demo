@@ -257,3 +257,117 @@ const Engine = {
     return text;
   }
 };
+
+  // === НАКОПЛЕНИЕ СОБЫТИЙ ЗА ДЕНЬ ===
+  // Хранит все события дня для построения общей кривой
+  _dayEvents: [],
+
+  clearDay() {
+    this._dayEvents = [];
+  },
+
+  addEvent(text, profile, timestamp) {
+    const foods = this.parseFood(text);
+    if (foods.length === 0) return null;
+
+    const ts = timestamp || Date.now();
+    const coeff = this.getCoefficients(profile || {});
+    const hour = new Date(ts).getHours();
+    const timeEffect = this.timeOfDayEffect(hour);
+    coeff.peakModifier *= timeEffect.modifier;
+
+    const event = {
+      ts,
+      hour,
+      minute: new Date(ts).getMinutes(),
+      foods: foods.map(food => ({
+        name: food.name,
+        portion: food.portion,
+        gi: food.gi,
+        carbs: food.carbs,
+        kcal: Math.round(food.kcal * food.portion / 100),
+        curve: this.glucoseCurve(food, coeff)
+      }))
+    };
+
+    this._dayEvents.push(event);
+    return event;
+  },
+
+  // === ТОЧКИ ДЛЯ ГРАФИКА ===
+  // Возвращает массив {hour, glucose, events[]} для отрисовки дневной кривой
+  getCurvePoints(profile) {
+    const baseline = 5.0;
+    // Сетка: каждые 10 минут, 24 часа
+    const grid = {};
+    for (let m = 0; m < 1440; m += 10) {
+      grid[m] = baseline;
+    }
+
+    // Накладываем все события
+    for (const event of this._dayEvents) {
+      const eventMinute = event.hour * 60 + event.minute;
+      for (const food of event.foods) {
+        const timeline = food.curve.timeline;
+        if (!timeline || timeline.length === 0) continue;
+        for (const point of timeline) {
+          const absMin = eventMinute + point.t;
+          if (absMin >= 1440) continue;
+          // Округляем до ближайших 10 мин
+          const snapMin = Math.round(absMin / 10) * 10;
+          if (snapMin < 1440) {
+            grid[snapMin] = Math.max(grid[snapMin], baseline + (point.glucose - baseline) + (grid[snapMin] - baseline) * 0.3);
+          }
+        }
+      }
+    }
+
+    // Конвертируем в массив точек
+    const points = [];
+    const minutes = Object.keys(grid).map(Number).sort((a, b) => a - b);
+
+    // Определяем диапазон отображения: от первого события - 1 час до последнего + 4 часа
+    let startMin = 0;
+    let endMin = 1440;
+    if (this._dayEvents.length > 0) {
+      const firstEvent = Math.min(...this._dayEvents.map(e => e.hour * 60 + e.minute));
+      const lastEvent = Math.max(...this._dayEvents.map(e => e.hour * 60 + e.minute));
+      startMin = Math.max(0, firstEvent - 60);
+      endMin = Math.min(1440, lastEvent + 240);
+    }
+
+    for (const m of minutes) {
+      if (m < startMin || m > endMin) continue;
+      const h = Math.floor(m / 60);
+      const min = m % 60;
+      points.push({
+        minute: m,
+        hour: h,
+        label: `${h}:${min.toString().padStart(2, '0')}`,
+        glucose: Math.round(grid[m] * 10) / 10
+      });
+    }
+
+    // Добавляем маркеры событий
+    const eventMarkers = this._dayEvents.map(e => ({
+      minute: e.hour * 60 + e.minute,
+      label: e.foods.map(f => f.name).join(', '),
+      kcal: e.foods.reduce((s, f) => s + f.kcal, 0)
+    }));
+
+    return { points, events: eventMarkers, baseline };
+  },
+
+  // === БЫСТРЫЙ АНАЛИЗ + ТОЧКИ ДЛЯ ГРАФИКА ===
+  analyzeWithChart(text, profile) {
+    const analysis = this.analyze(text, profile);
+    if (!analysis) return null;
+
+    // Добавляем событие в накопитель
+    this.addEvent(text, profile);
+
+    // Получаем точки для графика
+    const chartData = this.getCurvePoints(profile);
+
+    return { analysis, chartData };
+  }

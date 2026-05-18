@@ -1,4 +1,4 @@
-const CACHE = 'diary-v25';
+const CACHE = 'diary-v26';
 const ASSETS = [
   '/',
   '/index.html',
@@ -9,7 +9,10 @@ const ASSETS = [
   '/js/theme.js',
   '/js/voice.js',
   '/knowledge/core-style.js',
+  '/js/engine.js',
+  '/js/chart.js',
   '/js/assistant.js',
+  '/js/onboarding.js',
   '/js/chat.js',
   '/js/app.js',
   '/manifest.json'
@@ -30,12 +33,10 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
-  // API calls — network only
   if (e.request.url.includes('/api/')) {
     e.respondWith(fetch(e.request));
     return;
   }
-  // Static assets — cache first
   e.respondWith(
     caches.match(e.request).then(r => r || fetch(e.request))
   );

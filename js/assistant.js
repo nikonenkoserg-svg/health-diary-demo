@@ -4,11 +4,11 @@
 
 const Assistant = {
 
-  buildSystemPrompt(profile, userMsgCount, questionCount, messages, state) {
+  buildSystemPrompt(profile, userMsgCount, questionCount, messages, state, hasChart) {
     if (typeof Knowledge !== 'undefined') {
       let prompt = Knowledge.buildPrompt(profile, userMsgCount, questionCount, messages);
 
-      // Bridge phase: add extra instructions for first interactions
+      // Bridge phase
       if (state === 'bridge' && typeof Onboarding !== 'undefined') {
         prompt += Onboarding.BRIDGE_PROMPT;
       }
@@ -22,6 +22,19 @@ const Assistant = {
             prompt += Engine.formatForPrompt(analysis);
           }
         }
+      }
+
+      // Если есть график — изменить формат ответа
+      if (hasChart) {
+        prompt += `\n\n[РЕЖИМ ГРАФИКА]
+Пользователь видит график глюкозной кривой прямо в чате. График уже показывает: пик, динамику, время возврата.
+НЕ описывай то что на графике — человек это видит.
+Твоя задача — сказать то, чего график НЕ покажет:
+- На что обратить внимание (рычаг, совет, связь с другими факторами)
+- Что можно сделать прямо сейчас (10 мин ходьбы, стакан воды)
+- Вопрос к человеку если уместно
+Максимум 2-3 коротких предложения. Каждое на отдельной строке.
+[/РЕЖИМ ГРАФИКА]`;
       }
 
       return prompt;
