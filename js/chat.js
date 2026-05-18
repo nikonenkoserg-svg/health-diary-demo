@@ -13,8 +13,8 @@ const Chat = {
 
     if (state === 'init' || (state === 'pre_register' && !hasMessages)) {
       this.showGreeting();
-    } else if (state === 'post_register') {
-      this.playMonologue();
+    } else if (state === 'questionnaire_intro') {
+      this.showQuestionnaire();
     }
   },
 
@@ -24,16 +24,11 @@ const Chat = {
     Storage.saveChat(this.chatData);
   },
 
-  async playMonologue() {
-    const startIdx = this.chatData.monologueIdx || 0;
-    for (let i = startIdx; i < Onboarding.MONOLOGUE.length; i++) {
-      this.chatData.monologueIdx = i + 1;
-      Storage.saveChat(this.chatData);
-      await new Promise(r => setTimeout(r, i === 0 ? 500 : 2000));
-      await this.typeMessage(Onboarding.MONOLOGUE[i], 'bot');
-    }
-    this.chatData.state = 'bridge';
-    this.chatData.bridgeCount = 0;
+  async showQuestionnaire() {
+    await this.typeMessage(Onboarding.QUESTIONNAIRE_INTRO, 'bot');
+    await new Promise(r => setTimeout(r, 1500));
+    await this.typeMessage(Onboarding.QUESTIONNAIRE_TEXT, 'bot');
+    this.chatData.state = 'questionnaire';
     Storage.saveChat(this.chatData);
   },
 
@@ -103,7 +98,7 @@ const Chat = {
     Storage.saveChat(this.chatData);
     this.scrollToBottom();
 
-    // === PRE-REGISTER ===
+    // === PRE-REGISTER: user asks questions before creating profile ===
     if (this.chatData.state === 'pre_register') {
       const category = Onboarding.classifyResponse(text);
 
@@ -113,18 +108,70 @@ const Chat = {
         return;
       }
 
-      // LLM response with pre-register prompt
+      // Check if user agrees to create profile
+      const agree = /да|давай|ок|окей|хорошо|ладно|погнали|начн|созд|профиль|готов|поехали|let|start|go/i;
+      if (agree.test(text.toLowerCase().trim())) {
+        // Transition to questionnaire
+        this.chatData.state = 'questionnaire_intro';
+        Storage.saveChat(this.chatData);
+        await new Promise(r => setTimeout(r, 500));
+        await this.showQuestionnaire();
+        this.isSending = false;
+        return;
+      }
+
+      // LLM response — answer question, guide back to profile
       this.showTyping();
       try {
         const apiMessages = [
           { role: 'system', content: Onboarding.PRE_REGISTER_PROMPT },
-          ...this.chatData.messages.slice(-4)
+          ...this.chatData.messages.slice(-6)
         ];
 
         const resp = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: apiMessages, max_tokens: 200 })
+          body: JSON.stringify({ messages: apiMessages, max_tokens: 250 })
+        });
+
+        this.hideTyping();
+
+        if (resp.ok) {
+          const data = await resp.json();
+          const raw = data.choices?.[0]?.message?.content;
+          if (raw) {
+            await this.typeMessage(Assistant.filterResponse(raw), 'bot');
+          }
+        }
+      } catch (err) {
+        this.hideTyping();
+        console.error('Pre-register LLM error:', err);
+      }
+
+      this.isSending = false;
+      return;
+    }
+
+    // === QUESTIONNAIRE: LLM checks answers, follows up on missing items ===
+    if (this.chatData.state === 'questionnaire') {
+      // Parse and save profile data
+      const profile = Assistant.parseProfile(text);
+      if (profile) {
+        const existing = Storage.getProfile();
+        Storage.saveProfile({ ...existing, ...profile });
+      }
+
+      this.showTyping();
+      try {
+        const apiMessages = [
+          { role: 'system', content: Onboarding.QUESTIONNAIRE_PROMPT },
+          ...this.chatData.messages.slice(-10)
+        ];
+
+        const resp = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: apiMessages, max_tokens: 300 })
         });
 
         this.hideTyping();
@@ -135,19 +182,20 @@ const Chat = {
           if (raw) {
             const reply = Assistant.filterResponse(raw);
             await this.typeMessage(reply, 'bot');
+
+            // Check if questionnaire is complete (LLM says "можно начинать" or similar)
+            const done = /начинать работать|картина есть|достаточно|можем начинать|приступ/i;
+            if (done.test(reply)) {
+              this.chatData.state = 'bridge';
+              this.chatData.bridgeCount = 0;
+              Storage.saveChat(this.chatData);
+            }
           }
         }
       } catch (err) {
         this.hideTyping();
-        console.error('Pre-register LLM error:', err);
+        console.error('Questionnaire LLM error:', err);
       }
-
-      // Transition to post-register
-      this.chatData.state = 'post_register';
-      this.chatData.monologueIdx = 0;
-      Storage.saveChat(this.chatData);
-      await new Promise(r => setTimeout(r, 1500));
-      await this.playMonologue();
 
       this.isSending = false;
       return;
