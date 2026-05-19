@@ -124,9 +124,16 @@ const Chat = {
         return;
       }
 
-      // Check if user agrees to create profile
-      const agree = /да|давай|ок|окей|хорошо|ладно|погнали|начн|созд|профиль|готов|поехали|регистр|зарег|сделан|done|let|start|go/i;
-      if (agree.test(text.toLowerCase().trim())) {
+      // Check if user agrees to create profile — пословно, только короткие сообщения
+      const words = text.toLowerCase().trim().split(/[\s,.!?;:()«»"]+/).filter(Boolean);
+      const agreeWords = ['да','ага','давай','давайте','ок','окей','окай','хорошо','хорошо','ладно','погнали','готов','готова','готовы','поехали','профиль','done','start','go','yes','ok','го'];
+      const agreeStem = ['созд','зарег','регистр','начн','сделал','сделан','оформ','готов'];
+      const isQuestion = text.includes('?');
+      const isAgree = !isQuestion && words.length <= 4 && (
+        words.some(w => agreeWords.includes(w)) ||
+        words.some(w => agreeStem.some(s => w.startsWith(s)))
+      );
+      if (isAgree) {
         this.chatData.state = 'questionnaire_intro';
         Storage.saveChat(this.chatData);
         await new Promise(r => setTimeout(r, 500));
