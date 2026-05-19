@@ -1,4 +1,4 @@
-const CACHE = 'diary-v37';
+const CACHE = 'diary-v38';
 const ASSETS = [
   '/',
   '/index.html',
@@ -33,11 +33,22 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
+  // API — только сеть
   if (e.request.url.includes('/api/')) {
     e.respondWith(fetch(e.request));
     return;
   }
+  // Всё остальное — сеть первой, кеш только запасной для офлайна
   e.respondWith(
-    caches.match(e.request).then(r => r || fetch(e.request))
+    fetch(e.request)
+      .then(resp => {
+        // Обновляем кеш свежей версией
+        if (resp && resp.status === 200) {
+          const clone = resp.clone();
+          caches.open(CACHE).then(c => c.put(e.request, clone));
+        }
+        return resp;
+      })
+      .catch(() => caches.match(e.request))
   );
 });
