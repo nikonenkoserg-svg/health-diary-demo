@@ -204,8 +204,12 @@ const Chat = {
             const reply = Assistant.filterResponse(raw);
             await this.typeMessage(reply, 'bot');
 
+            // Завершение опросника: по собранным данным, не по словам LLM
+            const fullProfile = Storage.getProfile() || {};
+            const hasEssentials = fullProfile.sex && fullProfile.age &&
+                                  fullProfile.weight && fullProfile.height;
             const done = /начинать работать|картина есть|достаточно|можем начинать|приступ/i;
-            if (done.test(reply)) {
+            if (hasEssentials || done.test(reply)) {
               this.chatData.state = 'bridge';
               this.chatData.bridgeCount = 0;
               Storage.saveChat(this.chatData);
