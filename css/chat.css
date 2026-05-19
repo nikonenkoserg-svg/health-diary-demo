@@ -211,3 +211,33 @@
     transform: scale(1);
   }
 }
+
+/* Event tooltip on chart */
+.chart-event-tooltip {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  z-index: 10;
+}
+.chart-event-tooltip.visible {
+  opacity: 1;
+}
+
+/* Now marker — ярче */
+.chart-now-marker {
+  width: 12px; height: 12px;
+  margin-left: -6px; margin-top: -6px;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+  box-shadow: 0 0 0 0 rgba(255,77,109,0.7);
+}

@@ -163,10 +163,10 @@ const Chart = {
       ctx.globalAlpha = 1;
     }
 
-    // === Вторичные процессы — в нижней части ===
+    // === Вторичные процессы — тонкие фоновые линии, без подписей ===
     const secondary = data.secondary || [];
     if (secondary.length > 0) {
-      const secH = plotH * 0.22;
+      const secH = plotH * 0.18;
       const secBase = pad.top + plotH - secH * 0.1;
       for (const proc of secondary) {
         if (proc.points.length < 2) continue;
@@ -178,19 +178,9 @@ const Chart = {
         ctx.beginPath();
         this._spline(ctx, ptsSec);
         ctx.strokeStyle = proc.color;
-        ctx.globalAlpha = 0.55;
-        ctx.lineWidth = 1.5 * Math.min(S, 1.5);
-        ctx.setLineDash([3, 3]);
+        ctx.globalAlpha = 0.22;
+        ctx.lineWidth = 1.2 * Math.min(S, 1.4);
         ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.globalAlpha = 1;
-
-        const peakPt = ptsSec.reduce((b, p) => p.y < b.y ? p : b);
-        ctx.fillStyle = proc.color;
-        ctx.font = font(8.5);
-        ctx.textAlign = 'center';
-        ctx.globalAlpha = 0.85;
-        ctx.fillText(proc.label, peakPt.x, peakPt.y - 5 * S);
         ctx.globalAlpha = 1;
       }
     }
@@ -208,11 +198,6 @@ const Chart = {
       ctx.stroke();
       ctx.setLineDash([]);
 
-      ctx.fillStyle = txtDim;
-      ctx.font = font(8.5);
-      ctx.textAlign = nx > pad.left + plotW - 40 * S ? 'right' : 'left';
-      ctx.fillText('сейчас', nx + (ctx.textAlign === 'right' ? -3 : 3), pad.top + 9 * S);
-
       const nowGl = points.reduce((b, p) =>
         Math.abs(p.minute - nowMin) < Math.abs(b.minute - nowMin) ? p : b);
       nowPoint = { x: nx, y: yScale(nowGl.glucose) };
@@ -221,7 +206,8 @@ const Chart = {
       nowPoint = { x: xScale(last.minute), y: yScale(last.glucose) };
     }
 
-    // === Маркеры событий (еда) ===
+    // === Маркеры событий — только точки, текст по тапу ===
+    const eventHits = [];
     for (const ev of events) {
       const x = xScale(ev.minute);
       if (x < pad.left - 2 || x > pad.left + plotW + 2) continue;
@@ -229,20 +215,27 @@ const Chart = {
         Math.abs(p.minute - ev.minute) < Math.abs(b.minute - ev.minute) ? p : b);
       const ey = yScale(closest.glucose);
 
+      const r = 5 * Math.min(S, 1.7);
+      // Внешний бледный нимб — чтобы точка читалась на любой кривой
       ctx.beginPath();
-      ctx.arc(x, ey, 4 * Math.min(S, 1.6), 0, Math.PI * 2);
+      ctx.arc(x, ey, r + 3, 0, Math.PI * 2);
+      ctx.fillStyle = isDark ? 'rgba(15,15,26,0.7)' : 'rgba(248,249,252,0.7)';
+      ctx.fill();
+      // Точка
+      ctx.beginPath();
+      ctx.arc(x, ey, r, 0, Math.PI * 2);
       ctx.fillStyle = lineColor;
       ctx.fill();
-      ctx.strokeStyle = isDark ? '#1a1a2e' : '#f8f9fc';
+      ctx.strokeStyle = isDark ? '#fff' : '#1a1a2e';
       ctx.lineWidth = 1.5;
       ctx.stroke();
 
-      ctx.fillStyle = txtBright;
-      ctx.font = font(9);
-      ctx.textAlign = 'center';
-      const name = ev.label.length > 14 ? ev.label.slice(0, 13) + '…' : ev.label;
-      const labelText = (ev.certain === false ? '~' : '') + ev.timeLabel + ' ' + name;
-      ctx.fillText(labelText, x, ey - 11 * S);
+      eventHits.push({
+        x, y: ey,
+        radius: r + 8,
+        timeLabel: (ev.certain === false ? '~' : '') + ev.timeLabel,
+        label: ev.label
+      });
     }
 
     // Плоская кривая — поясняем
@@ -297,7 +290,7 @@ const Chart = {
     ctx.fillStyle = txtDim;
     ctx.fillText('сахар, ммоль/л', pad.left, pad.top - 5 * S);
 
-    return { nowPoint };
+    return { nowPoint, eventHits };
   },
 
   // === ПОСТОЯННАЯ ПАНЕЛЬ ===
@@ -333,6 +326,7 @@ const Chart = {
       ctx.scale(dpr, dpr);
 
       const meta = this._draw(ctx, width, height, data);
+      this._lastMeta = meta;
       this._placeNowMarker(meta);
     });
   },
@@ -352,6 +346,30 @@ const Chart = {
     marker.style.top = meta.nowPoint.y + 'px';
   },
 
+  // Показать подсказку события
+  _showEventTooltip(hit) {
+    const wrap = document.getElementById('chart-canvas-wrap');
+    if (!wrap) return;
+    let tip = document.getElementById('chart-event-tooltip');
+    if (!tip) {
+      tip = document.createElement('div');
+      tip.id = 'chart-event-tooltip';
+      tip.className = 'chart-event-tooltip';
+      wrap.appendChild(tip);
+    }
+    tip.textContent = hit.timeLabel + ' · ' + hit.label;
+    tip.style.left = hit.x + 'px';
+    tip.style.top = (hit.y - 14) + 'px';
+    tip.classList.add('visible');
+    clearTimeout(this._tipTimer);
+    this._tipTimer = setTimeout(() => tip.classList.remove('visible'), 3000);
+  },
+
+  _hideEventTooltip() {
+    const tip = document.getElementById('chart-event-tooltip');
+    if (tip) tip.classList.remove('visible');
+  },
+
   // Инициализация: сворачивание + fullscreen по тапу
   initPanel() {
     const btn = document.getElementById('btnToggleChart');
@@ -365,7 +383,24 @@ const Chart = {
       });
     }
     if (canvas && panel) {
-      canvas.addEventListener('click', () => {
+      canvas.addEventListener('click', (e) => {
+        // Координаты клика относительно canvas (в CSS px)
+        const rect = canvas.getBoundingClientRect();
+        const cx = e.clientX - rect.left;
+        const cy = e.clientY - rect.top;
+        const hits = (this._lastMeta && this._lastMeta.eventHits) || [];
+        let nearest = null, bestDist = Infinity;
+        for (const h of hits) {
+          const dx = h.x - cx, dy = h.y - cy;
+          const d = Math.sqrt(dx*dx + dy*dy);
+          if (d <= h.radius && d < bestDist) { nearest = h; bestDist = d; }
+        }
+        if (nearest) {
+          this._showEventTooltip(nearest);
+          return;
+        }
+        // Клик не по событию — toggle fullscreen
+        this._hideEventTooltip();
         panel.classList.toggle('expanded');
         this.updatePanel();
       });
