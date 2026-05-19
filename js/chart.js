@@ -50,7 +50,7 @@ const Chart = {
     const minMin = points[0].minute;
     const maxMin = points[points.length - 1].minute;
     const minG = Math.min(4.0, Math.min(...points.map(p => p.glucose)) - 0.3);
-    const maxG = Math.max(8.5, Math.max(...points.map(p => p.glucose)) + 0.5);
+    const maxG = Math.max(8.5, Math.max(...points.map(p => p.glucose)) + 1.2);
 
     const xScale = (m) => pad.left + ((m - minMin) / (maxMin - minMin)) * plotW;
     const yScale = (g) => pad.top + plotH - ((g - minG) / (maxG - minG)) * plotH;
@@ -315,15 +315,36 @@ const Chart = {
       const y = yScale(g);
       ctx.fillText(g.toFixed(1), pad.left - 4, y + 3);
     }
+
+    // === Точка «сейчас» — где организм находится в текущий момент ===
+    const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
+    let nowPoint = null;
+    if (nowMin >= minMin && nowMin <= maxMin) {
+      const nowGlucose = points.reduce((best, p) =>
+        Math.abs(p.minute - nowMin) < Math.abs(best.minute - nowMin) ? p : best
+      );
+      nowPoint = { x: xScale(nowMin), y: yScale(nowGlucose.glucose) };
+    } else {
+      // вне диапазона — ставим на последнюю точку кривой
+      const last = points[points.length - 1];
+      nowPoint = { x: xScale(last.minute), y: yScale(last.glucose) };
+    }
+
+    return { nowPoint };
   },
 
   // Обновить постоянную панель графика
+  _lastChartData: null,
+
   updatePanel(chartData) {
     const panel = document.getElementById('chart-panel');
     const canvas = document.getElementById('chartMain');
     if (!panel || !canvas) return;
 
-    if (!chartData || !chartData.points || chartData.points.length < 2) {
+    if (chartData) this._lastChartData = chartData;
+    const data = this._lastChartData;
+
+    if (!data || !data.points || data.points.length < 2) {
       panel.classList.add('hidden');
       return;
     }
@@ -332,8 +353,9 @@ const Chart = {
 
     const wrap = document.getElementById('chart-canvas-wrap');
     const dpr = window.devicePixelRatio || 1;
+    const expanded = panel.classList.contains('expanded');
     const width = wrap.clientWidth || 320;
-    const height = 160;
+    const height = expanded ? Math.max(wrap.clientHeight || 300, 300) : 160;
 
     canvas.width = width * dpr;
     canvas.height = height * dpr;
@@ -344,17 +366,47 @@ const Chart = {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.scale(dpr, dpr);
 
-    this._draw(ctx, width, height, chartData);
+    const meta = this._draw(ctx, width, height, data);
+    this._placeNowMarker(meta, width, height);
   },
 
-  // Инициализация кнопки сворачивания
+  // Пульсирующая точка «сейчас» — CSS-слой поверх canvas
+  _placeNowMarker(meta, w, h) {
+    const wrap = document.getElementById('chart-canvas-wrap');
+    if (!wrap || !meta || !meta.nowPoint) return;
+    let marker = document.getElementById('chart-now-marker');
+    if (!marker) {
+      marker = document.createElement('div');
+      marker.id = 'chart-now-marker';
+      marker.className = 'chart-now-marker';
+      wrap.appendChild(marker);
+    }
+    marker.style.left = meta.nowPoint.x + 'px';
+    marker.style.top = meta.nowPoint.y + 'px';
+  },
+
+  // Инициализация: сворачивание + fullscreen по тапу
   initPanel() {
     const btn = document.getElementById('btnToggleChart');
     const panel = document.getElementById('chart-panel');
+    const canvas = document.getElementById('chartMain');
+
     if (btn && panel) {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
         panel.classList.toggle('collapsed');
       });
     }
+
+    if (canvas && panel) {
+      canvas.addEventListener('click', () => {
+        panel.classList.toggle('expanded');
+        this.updatePanel();
+      });
+    }
+
+    window.addEventListener('resize', () => {
+      if (this._lastChartData) this.updatePanel();
+    });
   }
 };
