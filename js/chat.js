@@ -6,6 +6,7 @@ const Chat = {
 
   init() {
     this.chatData = Storage.getChat();
+    this.replayDayLog();
     this.restoreMessages();
 
     const state = this.chatData.state;
@@ -39,10 +40,14 @@ const Chat = {
       if (m.chartData) return; // графики теперь в панели
       this.addMessageToDOM(m.role === 'user' ? 'user' : 'bot', m.content);
     });
-    // Восстанавливаем панель графика из последних данных
-    const lastChart = [...this.chatData.messages].reverse().find(m => m.chartData);
-    if (lastChart && typeof Chart !== 'undefined') {
-      Chart.updatePanel(lastChart.chartData);
+    // Панель графика: из движка (если события дня восстановлены) либо из сохранённого
+    if (typeof Chart !== 'undefined') {
+      if (typeof Engine !== 'undefined' && Engine._dayEvents && Engine._dayEvents.length > 0) {
+        Chart.updatePanel(Engine.getCurvePoints(Storage.getProfile() || {}));
+      } else {
+        const lastChart = [...this.chatData.messages].reverse().find(m => m.chartData);
+        if (lastChart) Chart.updatePanel(lastChart.chartData);
+      }
     }
     this.scrollToBottom();
   },
@@ -102,6 +107,106 @@ const Chat = {
       chartData: chartData
     });
     Storage.saveChat(this.chatData);
+  },
+
+  // === ИЗВЛЕЧЕНИЕ СОБЫТИЙ ПИТАНИЯ (LLM) ===
+
+  hmToMin(hm) {
+    if (typeof hm !== 'string') return null;
+    const m = hm.match(/(\d{1,2})[:.]?(\d{2})?/);
+    if (!m) return null;
+    const h = parseInt(m[1]);
+    const mm = m[2] ? parseInt(m[2]) : 0;
+    if (h > 23 || mm > 59) return null;
+    return h * 60 + mm;
+  },
+
+  minToHM(min) {
+    const h = Math.floor(min / 60);
+    return h + ':' + (min % 60).toString().padStart(2, '0');
+  },
+
+  ensureDayLog() {
+    const today = new Date().toISOString().slice(0, 10);
+    if (!this.chatData.dayLog || this.chatData.dayLog.date !== today) {
+      this.chatData.dayLog = { date: today, wake: null, events: [] };
+    }
+  },
+
+  // Сообщение похоже на запись о еде?
+  looksLikeFood(text) {
+    if (typeof Engine !== 'undefined' && Engine.parseFood(text).length > 0) return true;
+    return /\b(ел|ела|съел|съела|поел|поела|выпил|выпила|пил|пила|перекус|завтрак|обед|ужин|кушал|покушал|позавтракал|пообедал|поужинал)/i.test(text);
+  },
+
+  // LLM извлекает приёмы пищи с временем → {wake, events:[{time,certain,foods}]}
+  async extractDayEvents(text) {
+    const now = new Date();
+    const hhmm = now.getHours() + ':' + now.getMinutes().toString().padStart(2, '0');
+
+    let sys = `Ты извлекаешь приёмы пищи и напитков из сообщения пользователя.
+Текущее время: ${hhmm}.`;
+    if (this.chatData.dayLog && this.chatData.dayLog.wake != null) {
+      sys += `\nВремя подъёма сегодня: ${this.minToHM(this.chatData.dayLog.wake)}.`;
+    }
+    sys += `
+
+Верни ТОЛЬКО валидный JSON, без markdown и пояснений:
+{"wake":"ЧЧ:ММ" или null,"events":[{"time":"ЧЧ:ММ","certain":true,"foods":"продукты"}]}
+
+Правила:
+- Каждый приём пищи или напиток — отдельный элемент events
+- Время словами переводи в цифры: "три пятнадцать"→"3:15", "пол девятого"→"8:30"
+- Относительное время разворачивай по цепочке: если "в 4 начал, через 2 часа молоко" — молоко в "6:00"
+- "N часов назад" — отсчитывай от текущего времени
+- Точное время → certain:true. Расплывчатое ("утром","днём","вечером") или вычисленное приблизительно → certain:false
+- Совсем нет времени → time текущее, certain:false
+- foods — простые названия через запятую (блины, кофе, молоко, мясо). Без описаний и количеств
+- wake — время подъёма, если есть "проснулся/встал в..."
+- Нет еды в сообщении → {"wake":null,"events":[]}`;
+
+    try {
+      const resp = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [
+            { role: 'system', content: sys },
+            { role: 'user', content: text }
+          ],
+          max_tokens: 500
+        })
+      });
+      if (!resp.ok) return null;
+      const data = await resp.json();
+      let raw = data.choices?.[0]?.message?.content || '';
+      raw = raw.replace(/```json|```/g, '').trim();
+      const match = raw.match(/\{[\s\S]*\}/);
+      if (!match) return null;
+      const parsed = JSON.parse(match[0]);
+      if (!parsed || !Array.isArray(parsed.events)) return null;
+      return parsed;
+    } catch (err) {
+      console.error('extractDayEvents error:', err);
+      return null;
+    }
+  },
+
+  // Восстановить события дня в движок при загрузке
+  replayDayLog() {
+    if (typeof Engine === 'undefined') return false;
+    const today = new Date().toISOString().slice(0, 10);
+    if (!this.chatData.dayLog || this.chatData.dayLog.date !== today) {
+      this.chatData.dayLog = null;
+      return false;
+    }
+    const profile = Storage.getProfile() || {};
+    Engine.clearDay();
+    if (this.chatData.dayLog.wake != null) Engine.setDayStart(this.chatData.dayLog.wake);
+    for (const e of this.chatData.dayLog.events) {
+      Engine.addEvent(e.foods, profile, { minute: e.minute, certain: e.certain });
+    }
+    return this.chatData.dayLog.events.length > 0;
   },
 
   async send(text) {
@@ -231,15 +336,41 @@ const Chat = {
       Storage.saveProfile({ ...existing, ...profile });
     }
 
-    // --- ГРАФИК: проверяем еду в сообщении ---
+    // --- ГРАФИК: извлекаем события питания ---
     let chartData = null;
     let timeUncertain = false;
-    if (typeof Engine !== 'undefined' && (this.chatData.state === 'active' || this.chatData.state === 'bridge')) {
-      const currentProfile = Storage.getProfile() || {};
-      const result = Engine.analyzeWithChart(text, currentProfile);
-      if (result) {
-        chartData = result.chartData;
-        timeUncertain = result.timeUncertain;
+    if (typeof Engine !== 'undefined' &&
+        (this.chatData.state === 'active' || this.chatData.state === 'bridge') &&
+        this.looksLikeFood(text)) {
+      const foodProfile = Storage.getProfile() || {};
+      // LLM извлекает события с временем
+      const extracted = await this.extractDayEvents(text);
+      if (extracted && extracted.events.length > 0) {
+        this.ensureDayLog();
+        if (extracted.wake) {
+          const wm = this.hmToMin(extracted.wake);
+          if (wm != null) { Engine.setDayStart(wm); this.chatData.dayLog.wake = wm; }
+        }
+        for (const ev of extracted.events) {
+          const mn = this.hmToMin(ev.time);
+          if (mn == null || !ev.foods) continue;
+          const certain = ev.certain !== false;
+          const dup = this.chatData.dayLog.events.some(
+            e => e.minute === mn && e.foods === ev.foods);
+          if (dup) continue;
+          Engine.addEvent(ev.foods, foodProfile, { minute: mn, certain });
+          this.chatData.dayLog.events.push({ foods: ev.foods, minute: mn, certain });
+          if (!certain) timeUncertain = true;
+        }
+        chartData = Engine.getCurvePoints(foodProfile);
+        Storage.saveChat(this.chatData);
+      } else {
+        // Запасной путь — regex-движок
+        const result = Engine.analyzeWithChart(text, foodProfile);
+        if (result) {
+          chartData = result.chartData;
+          timeUncertain = result.timeUncertain;
+        }
       }
     }
 

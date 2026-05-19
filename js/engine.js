@@ -144,7 +144,7 @@ const Engine = {
     const returnTime = peakTime + Math.round(90 / coeff.insulinSensitivity);
 
     const timeline = [];
-    for (let t = 0; t <= 240; t += 15) {
+    for (let t = 0; t <= 240; t += 10) {
       let glucose;
       if (t <= peakTime) {
         glucose = baseline + peakRise * Math.sin((Math.PI / 2) * (t / peakTime));
@@ -195,7 +195,7 @@ const Engine = {
       const timeline = [];
       const peakTime = 150; // 2.5ч до пика аминокислот
       const duration = 300; // 5ч общая длительность
-      for (let t = 0; t <= duration; t += 15) {
+      for (let t = 0; t <= duration; t += 10) {
         let level;
         if (t <= peakTime) {
           level = (proteinG / 30) * Math.sin((Math.PI / 2) * (t / peakTime));
@@ -221,7 +221,7 @@ const Engine = {
       const timeline = [];
       const peakTime = 40;
       const halfLife = 300; // 5 часов
-      for (let t = 0; t <= 480; t += 15) {
+      for (let t = 0; t <= 480; t += 10) {
         let level;
         if (t <= peakTime) {
           level = Math.sin((Math.PI / 2) * (t / peakTime));
@@ -245,7 +245,7 @@ const Engine = {
     // Гидратация
     if (food.hydration) {
       const timeline = [];
-      for (let t = 0; t <= 120; t += 15) {
+      for (let t = 0; t <= 120; t += 10) {
         let level;
         if (t <= 20) {
           level = t / 20;
@@ -272,7 +272,7 @@ const Engine = {
       const timeline = [];
       const peakTime = 180; // 3ч
       const duration = 360; // 6ч
-      for (let t = 0; t <= duration; t += 15) {
+      for (let t = 0; t <= duration; t += 10) {
         let level;
         if (t <= peakTime) {
           level = (fatG / 25) * Math.sin((Math.PI / 2) * (t / peakTime));
@@ -312,7 +312,7 @@ const Engine = {
       const timeline = [];
       const peakTime = 120; // кальций усваивается 2ч
       const duration = 240;
-      for (let t = 0; t <= duration; t += 15) {
+      for (let t = 0; t <= duration; t += 10) {
         let level;
         if (t <= peakTime) {
           level = 0.7 * Math.sin((Math.PI / 2) * (t / peakTime));
