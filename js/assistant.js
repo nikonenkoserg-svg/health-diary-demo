@@ -77,8 +77,12 @@ const Assistant = {
     const p = {};
     const t = text.toLowerCase();
 
-    if (/\b(мужчина|мужской|муж|парень)\b/.test(t)) p.sex = 'мужской';
-    else if (/\b(женщина|женский|жен|девушка)\b/.test(t)) p.sex = 'женский';
+    // \b не работает с кириллицей в JS — сравниваем по словам
+    const profileWords = t.split(/[^а-яёa-z]+/i).filter(Boolean);
+    const maleWords = ['мужчина','мужской','мужчин','муж','парень','м'];
+    const femaleWords = ['женщина','женский','женщин','жен','девушка','ж'];
+    if (profileWords.some(w => maleWords.includes(w))) p.sex = 'мужской';
+    else if (profileWords.some(w => femaleWords.includes(w))) p.sex = 'женский';
 
     const ageMatch = t.match(/(\d{1,2})\s*(лет|года|год)/);
     if (ageMatch) p.age = parseInt(ageMatch[1]);

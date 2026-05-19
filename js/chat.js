@@ -206,8 +206,7 @@ const Chat = {
 
             // Завершение опросника: по собранным данным, не по словам LLM
             const fullProfile = Storage.getProfile() || {};
-            const hasEssentials = fullProfile.sex && fullProfile.age &&
-                                  fullProfile.weight && fullProfile.height;
+            const hasEssentials = fullProfile.age && fullProfile.weight && fullProfile.height;
             const done = /начинать работать|картина есть|достаточно|можем начинать|приступ/i;
             if (hasEssentials || done.test(reply)) {
               this.chatData.state = 'bridge';
