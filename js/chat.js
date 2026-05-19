@@ -233,11 +233,13 @@ const Chat = {
 
     // --- ГРАФИК: проверяем еду в сообщении ---
     let chartData = null;
+    let timeUncertain = false;
     if (typeof Engine !== 'undefined' && (this.chatData.state === 'active' || this.chatData.state === 'bridge')) {
       const currentProfile = Storage.getProfile() || {};
       const result = Engine.analyzeWithChart(text, currentProfile);
       if (result) {
         chartData = result.chartData;
+        timeUncertain = result.timeUncertain;
       }
     }
 
@@ -251,7 +253,8 @@ const Chat = {
         this.chatData.questionCount,
         this.chatData.messages,
         this.chatData.state,
-        !!chartData  // hasChart flag
+        !!chartData,  // hasChart flag
+        timeUncertain
       );
 
       const apiMessages = [

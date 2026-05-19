@@ -414,28 +414,113 @@ const Engine = {
 
     return text;
   },
-
-  // === НАКОПЛЕНИЕ СОБЫТИЙ ЗА ДЕНЬ ===
+  // === ЯКОРЬ ДНЯ + НАКОПЛЕНИЕ СОБЫТИЙ ===
   _dayEvents: [],
+  dayStart: null,   // минута дня — время подъёма, начало оси графика
 
   clearDay() {
     this._dayEvents = [];
+    this.dayStart = null;
   },
 
-  addEvent(text, profile, timestamp) {
+  setDayStart(minute) {
+    if (typeof minute === 'number' && minute >= 0 && minute < 1440) {
+      this.dayStart = minute;
+    }
+  },
+
+  // === ПАРСИНГ ВРЕМЕНИ ИЗ ТЕКСТА ===
+  // Возвращает { minute, certain } или null
+  parseEventTime(text) {
+    const t = text.toLowerCase();
+    const now = new Date();
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    let m;
+
+    // "только что", "сейчас", "прямо сейчас"
+    if (/только что|прямо сейчас|сию минуту|пару минут назад/.test(t)) {
+      return { minute: nowMin, certain: true };
+    }
+
+    // "N часов назад"
+    if (m = t.match(/(\d+)\s*(час|часа|часов)\s*назад/)) {
+      return { minute: nowMin - parseInt(m[1]) * 60, certain: true };
+    }
+    if (/(?:^|\s)час назад/.test(t)) return { minute: nowMin - 60, certain: true };
+    if (/полчаса назад|пол часа назад/.test(t)) return { minute: nowMin - 30, certain: true };
+
+    // "N минут назад"
+    if (m = t.match(/(\d+)\s*(минут|минуты|мин)\s*назад/)) {
+      return { minute: nowMin - parseInt(m[1]), certain: true };
+    }
+
+    // Явное время "8:30", "в 14.00"
+    if (m = t.match(/\b(\d{1,2})[:.](\d{2})\b/)) {
+      const h = parseInt(m[1]), mm = parseInt(m[2]);
+      if (h < 24 && mm < 60) return { minute: h * 60 + mm, certain: true };
+    }
+
+    // "в 8 утра", "в 14 часов", "в 7 вечера"
+    if (m = t.match(/в\s+(\d{1,2})\s*(?:час|часа|часов)?\s*(утра|дня|вечера|ночи)?/)) {
+      let h = parseInt(m[1]);
+      const period = m[2];
+      if ((period === 'дня' || period === 'вечера') && h < 12) h += 12;
+      if (period === 'ночи' && h === 12) h = 0;
+      if (period === 'утра' && h === 12) h = 0;
+      if (h < 24) return { minute: h * 60, certain: true };
+    }
+
+    return null;
+  },
+
+  // Поймать время подъёма: "встал в 7", "проснулся в 6:30"
+  detectWake(text) {
+    const t = text.toLowerCase();
+    if (/встал|проснул|подъём|подъем|просыпа/.test(t)) {
+      const time = this.parseEventTime(text);
+      if (time && time.certain) {
+        this.setDayStart(time.minute);
+        return time.minute;
+      }
+    }
+    return null;
+  },
+
+  addEvent(text, profile, opts) {
     const foods = this.parseFood(text);
     if (foods.length === 0) return null;
 
-    const ts = timestamp || Date.now();
     const coeff = this.getCoefficients(profile || {});
-    const hour = new Date(ts).getHours();
+    const now = new Date();
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+
+    // Определяем время события
+    let eventMinute, timeCertain;
+    if (opts && typeof opts.minute === 'number') {
+      eventMinute = opts.minute;
+      timeCertain = opts.certain !== false;
+    } else {
+      const parsed = this.parseEventTime(text);
+      if (parsed) {
+        eventMinute = parsed.minute;
+        timeCertain = parsed.certain;
+      } else {
+        eventMinute = nowMin;
+        timeCertain = false;   // время не указано — под вопросом
+      }
+    }
+    if (eventMinute < 0) eventMinute = 0;
+    if (eventMinute >= 1440) eventMinute = 1439;
+
+    const hour = Math.floor(eventMinute / 60);
     const timeEffect = this.timeOfDayEffect(hour);
     coeff.peakModifier *= timeEffect.modifier;
 
     const event = {
-      ts,
+      eventMinute,
+      timeCertain,
       hour,
-      minute: new Date(ts).getMinutes(),
+      minute: eventMinute % 60,
       foods: foods.map(food => ({
         name: food.name,
         portion: food.portion,
@@ -454,65 +539,64 @@ const Engine = {
   // === ТОЧКИ ДЛЯ ГРАФИКА ===
   getCurvePoints(profile) {
     const baseline = 5.0;
+    const now = new Date();
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+
     const grid = {};
-    for (let m = 0; m < 1440; m += 10) {
-      grid[m] = baseline;
-    }
+    for (let m = 0; m < 1440; m += 10) grid[m] = baseline;
 
     for (const event of this._dayEvents) {
-      const eventMinute = event.hour * 60 + event.minute;
       for (const food of event.foods) {
         const timeline = food.curve.timeline;
         if (!timeline || timeline.length === 0) continue;
         for (const point of timeline) {
-          const absMin = eventMinute + point.t;
+          const absMin = event.eventMinute + point.t;
           if (absMin >= 1440) continue;
           const snapMin = Math.round(absMin / 10) * 10;
           if (snapMin < 1440) {
-            grid[snapMin] = Math.max(grid[snapMin], baseline + (point.glucose - baseline) + (grid[snapMin] - baseline) * 0.3);
+            grid[snapMin] = Math.max(grid[snapMin],
+              baseline + (point.glucose - baseline) + (grid[snapMin] - baseline) * 0.3);
           }
         }
       }
     }
 
-    const points = [];
-    const minutes = Object.keys(grid).map(Number).sort((a, b) => a - b);
-
-    let startMin = 0;
-    let endMin = 1440;
+    // Диапазон оси: от подъёма (или первого события) до now+2ч (или конца кривых)
+    let startMin = 0, endMin = 1440;
     if (this._dayEvents.length > 0) {
-      const firstEvent = Math.min(...this._dayEvents.map(e => e.hour * 60 + e.minute));
-      const lastEvent = Math.max(...this._dayEvents.map(e => e.hour * 60 + e.minute));
-      startMin = Math.max(0, firstEvent - 60);
-      endMin = Math.min(1440, lastEvent + 240);
+      const firstEvent = Math.min(...this._dayEvents.map(e => e.eventMinute));
+      const lastCurveEnd = Math.max(...this._dayEvents.map(e => e.eventMinute + 240));
+      startMin = this.dayStart != null
+        ? Math.min(this.dayStart, firstEvent - 30)
+        : Math.max(0, firstEvent - 60);
+      endMin = Math.min(1440, Math.max(lastCurveEnd, nowMin + 120));
     }
+    startMin = Math.max(0, startMin);
 
-    for (const m of minutes) {
+    const points = [];
+    for (let m = 0; m < 1440; m += 10) {
       if (m < startMin || m > endMin) continue;
       const h = Math.floor(m / 60);
-      const min = m % 60;
       points.push({
         minute: m,
         hour: h,
-        label: `${h}:${min.toString().padStart(2, '0')}`,
-        glucose: Math.round(grid[m] * 10) / 10
+        label: `${h}:${(m % 60).toString().padStart(2, '0')}`,
+        glucose: Math.round(grid[m] * 10) / 10,
+        fact: m <= nowMin   // true = уже было, false = прогноз
       });
     }
 
     const eventMarkers = this._dayEvents.map(e => ({
-      minute: e.hour * 60 + e.minute,
+      minute: e.eventMinute,
+      timeLabel: `${e.hour}:${(e.eventMinute % 60).toString().padStart(2, '0')}`,
+      certain: e.timeCertain,
       label: e.foods.map(f => f.name).join(', '),
-      kcal: e.foods.reduce((s, f) => s + f.kcal, 0),
-      effects: e.foods.reduce((acc, f) => {
-        if (f.gi === 0 && f.kcal > 50) acc.push('белок');
-        return acc;
-      }, [])
+      kcal: e.foods.reduce((s, f) => s + f.kcal, 0)
     }));
 
-    // Собираем вторичные процессы для графика
+    // Вторичные процессы
     const secondaryTimelines = {};
     for (const event of this._dayEvents) {
-      const eventMinute = event.hour * 60 + event.minute;
       for (const food of event.foods) {
         if (!food.secondary) continue;
         for (const proc of food.secondary) {
@@ -521,7 +605,7 @@ const Engine = {
             secondaryTimelines[proc.type] = { label: proc.label, color: proc.color, points: {} };
           }
           for (const p of proc.timeline) {
-            const absMin = eventMinute + p.t;
+            const absMin = event.eventMinute + p.t;
             const snapMin = Math.round(absMin / 10) * 10;
             if (snapMin < 1440) {
               secondaryTimelines[proc.type].points[snapMin] =
@@ -532,7 +616,6 @@ const Engine = {
       }
     }
 
-    // Конвертируем в массивы точек
     const secondary = Object.entries(secondaryTimelines).map(([type, data]) => ({
       type,
       label: data.label,
@@ -543,18 +626,27 @@ const Engine = {
         .sort((a, b) => a.minute - b.minute)
     })).filter(s => s.points.length >= 2);
 
-    return { points, events: eventMarkers, baseline, secondary };
+    return {
+      points, events: eventMarkers, baseline, secondary,
+      nowMinute: nowMin,
+      dayStart: this.dayStart,
+      hasUncertain: this._dayEvents.some(e => !e.timeCertain)
+    };
   },
 
-  // === БЫСТРЫЙ АНАЛИЗ + ТОЧКИ ДЛЯ ГРАФИКА ===
+  // === АНАЛИЗ + ТОЧКИ ДЛЯ ГРАФИКА ===
   analyzeWithChart(text, profile) {
     const analysis = this.analyze(text, profile);
     if (!analysis) return null;
 
-    // График для ВСЕГО что попадает внутрь — мясо, вода, кофе тоже
-    this.addEvent(text, profile);
+    this.detectWake(text);
+    const event = this.addEvent(text, profile);
     const chartData = this.getCurvePoints(profile);
 
-    return { analysis, chartData };
+    return {
+      analysis,
+      chartData,
+      timeUncertain: event ? !event.timeCertain : false
+    };
   }
 };

@@ -4,7 +4,7 @@
 
 const Assistant = {
 
-  buildSystemPrompt(profile, userMsgCount, questionCount, messages, state, hasChart) {
+  buildSystemPrompt(profile, userMsgCount, questionCount, messages, state, hasChart, timeUncertain) {
     if (typeof Knowledge !== 'undefined') {
       let prompt = Knowledge.buildPrompt(profile, userMsgCount, questionCount, messages);
 
@@ -42,6 +42,11 @@ const Assistant = {
 Пример плохого ответа:
 «Вижу твой ритм — тренировка как точка максимальной концентрации...» — это не про график, это пересказ дня.
 [/РЕЖИМ ГРАФИКА]`;
+      }
+
+      // Время события не указано — попросить уточнить
+      if (timeUncertain) {
+        prompt += '\n\n[ВРЕМЯ НЕ УКАЗАНО]\nПользователь не сказал, во сколько это было. График поставил событие на текущее время — это может быть неточно.\nВ ответе обязательно спроси когда это было: «А во сколько ты это съел?» или «Это было только что или раньше?». Без времени график неточен.\n[/ВРЕМЯ НЕ УКАЗАНО]';
       }
 
       return prompt;
