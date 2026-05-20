@@ -61,9 +61,10 @@ const App = {
     const updateTzLabel = () => {
       const btn = document.getElementById('btnTimezone');
       if (btn && typeof Time !== 'undefined') {
-        const tz = Time.getTz();
-        btn.textContent = tz.split('/').pop().replace(/_/g, ' ');
-        btn.title = tz;
+        const tp = Time.nowParts();
+        const label = Time.tzLabel();
+        btn.textContent = label.split('/').pop().replace(/_/g, ' ') + ' · ' + tp.hour + ':' + String(tp.minute).padStart(2, '0');
+        btn.title = label + ' — сейчас ' + tp.hour + ':' + String(tp.minute).padStart(2, '0');
       }
     };
     updateTzLabel();
