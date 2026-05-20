@@ -51,7 +51,7 @@ const Chart = {
     const events = data.events || [];
     const nowMin = data.nowMinute != null
       ? data.nowMinute
-      : new Date().getHours() * 60 + new Date().getMinutes();
+      : (typeof Time !== 'undefined' ? Time.nowParts().minuteOfDay : new Date().getHours()*60 + new Date().getMinutes());
 
     const minMin = points[0].minute;
     const maxMin = points[points.length - 1].minute;
@@ -230,9 +230,10 @@ const Chart = {
 
       eventHits.push({
         x, y: ey,
-        radius: r + 8,
+        radius: Math.max(28, r + 20),
         timeLabel: (ev.certain === false ? '~' : '') + ev.timeLabel,
-        label: ev.label
+        label: ev.label,
+        kcal: ev.kcal || null
       });
     }
 
@@ -345,28 +346,34 @@ const Chart = {
     marker.style.top = meta.nowPoint.y + 'px';
   },
 
-  // Показать подсказку события
-  _showEventTooltip(hit) {
+  // Карточка события — открывается тапом по точке
+  _showEventCard(hit) {
     const wrap = document.getElementById('chart-canvas-wrap');
     if (!wrap) return;
-    let tip = document.getElementById('chart-event-tooltip');
-    if (!tip) {
-      tip = document.createElement('div');
-      tip.id = 'chart-event-tooltip';
-      tip.className = 'chart-event-tooltip';
-      wrap.appendChild(tip);
+    let card = document.getElementById('chart-event-card');
+    if (!card) {
+      card = document.createElement('div');
+      card.id = 'chart-event-card';
+      card.className = 'chart-event-card';
+      wrap.appendChild(card);
     }
-    tip.textContent = hit.timeLabel + ' · ' + hit.label;
-    tip.style.left = hit.x + 'px';
-    tip.style.top = (hit.y - 14) + 'px';
-    tip.classList.add('visible');
-    clearTimeout(this._tipTimer);
-    this._tipTimer = setTimeout(() => tip.classList.remove('visible'), 3000);
+    const foods = hit.label.split(/\s*,\s*/).map(f => f.trim()).filter(Boolean);
+    const foodList = foods.map(f => '<li>' + f + '</li>').join('');
+    const kcalLine = hit.kcal ? '<div class="chart-card-meta">' + hit.kcal + ' ккал</div>' : '';
+    card.innerHTML =
+      '<button class="chart-card-close" aria-label="Закрыть">×</button>' +
+      '<div class="chart-card-time">' + hit.timeLabel + '</div>' +
+      '<ul class="chart-card-foods">' + foodList + '</ul>' +
+      kcalLine;
+    card.classList.add('visible');
+
+    const closeBtn = card.querySelector('.chart-card-close');
+    if (closeBtn) closeBtn.onclick = (e) => { e.stopPropagation(); this._hideEventCard(); };
   },
 
-  _hideEventTooltip() {
-    const tip = document.getElementById('chart-event-tooltip');
-    if (tip) tip.classList.remove('visible');
+  _hideEventCard() {
+    const card = document.getElementById('chart-event-card');
+    if (card) card.classList.remove('visible');
   },
 
   // Легенда — цветные точки + названия для вторичных кривых
@@ -413,11 +420,17 @@ const Chart = {
           if (d <= h.radius && d < bestDist) { nearest = h; bestDist = d; }
         }
         if (nearest) {
-          this._showEventTooltip(nearest);
+          this._showEventCard(nearest);
           return;
         }
-        // Клик не по событию — toggle fullscreen
-        this._hideEventTooltip();
+        // Клик не по событию.
+        // Если карточка открыта — закрываем её, fullscreen не трогаем
+        const card = document.getElementById('chart-event-card');
+        if (card && card.classList.contains('visible')) {
+          this._hideEventCard();
+          return;
+        }
+        // Иначе — toggle fullscreen
         panel.classList.toggle('expanded');
         this.updatePanel();
       });

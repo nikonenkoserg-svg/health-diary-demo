@@ -127,7 +127,7 @@ const Chat = {
   },
 
   ensureDayLog() {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = (typeof Time !== 'undefined' ? Time.nowParts().dateISO : new Date().toISOString().slice(0,10));
     if (!this.chatData.dayLog || this.chatData.dayLog.date !== today) {
       this.chatData.dayLog = { date: today, wake: null, events: [] };
     }
@@ -141,11 +141,11 @@ const Chat = {
 
   // LLM извлекает приёмы пищи с временем → {wake, events:[{time,certain,foods}]}
   async extractDayEvents(text) {
-    const now = new Date();
-    const hhmm = now.getHours() + ':' + now.getMinutes().toString().padStart(2, '0');
+    const tp = (typeof Time !== 'undefined' ? Time.nowParts() : { hour: new Date().getHours(), minute: new Date().getMinutes(), tz: 'UTC' });
+    const hhmm = tp.hour + ':' + tp.minute.toString().padStart(2, '0');
 
     let sys = `Ты извлекаешь приёмы пищи и напитков из сообщения пользователя.
-Текущее время: ${hhmm}.`;
+Текущее время: ${hhmm} (${tp.tz}).`;
     if (this.chatData.dayLog && this.chatData.dayLog.wake != null) {
       sys += `\nВремя подъёма сегодня: ${this.minToHM(this.chatData.dayLog.wake)}.`;
     }
@@ -195,7 +195,7 @@ const Chat = {
   // Восстановить события дня в движок при загрузке
   replayDayLog() {
     if (typeof Engine === 'undefined') return false;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = (typeof Time !== 'undefined' ? Time.nowParts().dateISO : new Date().toISOString().slice(0,10));
     if (!this.chatData.dayLog || this.chatData.dayLog.date !== today) {
       this.chatData.dayLog = null;
       return false;

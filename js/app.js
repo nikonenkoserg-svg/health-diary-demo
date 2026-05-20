@@ -56,6 +56,36 @@ const App = {
     document.getElementById('btnSettings').addEventListener('click', () => this.toggleSettings(true));
     document.getElementById('btnCloseSettings').addEventListener('click', () => this.toggleSettings(false));
     document.getElementById('btnFont').addEventListener('click', () => Theme.toggleFont());
+
+    // Часовой пояс
+    const updateTzLabel = () => {
+      const btn = document.getElementById('btnTimezone');
+      if (btn && typeof Time !== 'undefined') {
+        const tz = Time.getTz();
+        btn.textContent = tz.split('/').pop().replace(/_/g, ' ');
+        btn.title = tz;
+      }
+    };
+    updateTzLabel();
+    document.getElementById('btnTimezone').addEventListener('click', () => {
+      const cur = (typeof Time !== 'undefined') ? Time.getTz() : 'UTC';
+      const v = window.prompt('IANA часовой пояс (например, America/Sao_Paulo или Europe/Paris):', cur);
+      if (v && v.trim()) {
+        const clean = v.trim();
+        // Проверяем что IANA-строка валидна
+        try {
+          new Intl.DateTimeFormat('en-US', { timeZone: clean });
+          Time.setTz(clean);
+          updateTzLabel();
+          if (typeof Chat !== 'undefined' && Chat.chatData && Chat.chatData.dayLog) {
+            // Перерисовать график с новой tz
+            if (typeof Chart !== 'undefined') Chart.updatePanel();
+          }
+        } catch {
+          window.alert('Неверный часовой пояс. Пример: Europe/Paris, America/Sao_Paulo');
+        }
+      }
+    });
     document.getElementById('btnExport').addEventListener('click', () => Storage.exportAll());
     document.getElementById('btnCopyChat').addEventListener('click', () => {
       const chat = Storage.getChat();

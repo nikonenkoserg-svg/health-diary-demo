@@ -176,7 +176,7 @@ const Engine = {
 
   // === ВРЕМЯ СУТОК — ВЛИЯНИЕ ===
   timeOfDayEffect(hour) {
-    if (hour === undefined || hour === null) hour = new Date().getHours();
+    if (hour === undefined || hour === null) { hour = (typeof Time !== 'undefined' ? Time.nowParts().hour : new Date().getHours()); }
     if (hour >= 6 && hour < 10) return { modifier: 0.9, note: 'Утро — чувствительность к инсулину максимальная' };
     if (hour >= 10 && hour < 14) return { modifier: 1.0, note: 'День — нормальная чувствительность' };
     if (hour >= 14 && hour < 18) return { modifier: 1.05, note: 'После обеда — небольшое снижение чувствительности' };
@@ -433,8 +433,8 @@ const Engine = {
   // Возвращает { minute, certain } или null
   parseEventTime(text) {
     const t = text.toLowerCase();
-    const now = new Date();
-    const nowMin = now.getHours() * 60 + now.getMinutes();
+    const _tp = (typeof Time !== 'undefined' ? Time.nowParts() : null);
+    const nowMin = _tp ? _tp.minuteOfDay : (new Date().getHours()*60 + new Date().getMinutes());
     let m;
 
     // "только что", "сейчас", "прямо сейчас"
@@ -491,8 +491,8 @@ const Engine = {
     if (foods.length === 0) return null;
 
     const coeff = this.getCoefficients(profile || {});
-    const now = new Date();
-    const nowMin = now.getHours() * 60 + now.getMinutes();
+    const _tp4 = (typeof Time !== 'undefined' ? Time.nowParts() : null);
+    const nowMin = _tp4 ? _tp4.minuteOfDay : (new Date().getHours()*60 + new Date().getMinutes());
 
     // Определяем время события
     let eventMinute, timeCertain;
@@ -539,8 +539,8 @@ const Engine = {
   // === ТОЧКИ ДЛЯ ГРАФИКА ===
   getCurvePoints(profile) {
     const baseline = 5.0;
-    const now = new Date();
-    const nowMin = now.getHours() * 60 + now.getMinutes();
+    const _tp2 = (typeof Time !== 'undefined' ? Time.nowParts() : null);
+    const nowMin = _tp2 ? _tp2.minuteOfDay : (new Date().getHours()*60 + new Date().getMinutes());
 
     const grid = {};
     for (let m = 0; m < 1440; m += 10) grid[m] = baseline;

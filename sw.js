@@ -1,4 +1,4 @@
-const CACHE = 'diary-v44';
+const CACHE = 'diary-v45';
 const ASSETS = [
   '/',
   '/index.html',
@@ -6,6 +6,7 @@ const ASSETS = [
   '/css/layout.css',
   '/css/chat.css',
   '/js/storage.js',
+  '/js/time.js',
   '/js/theme.js',
   '/js/voice.js',
   '/knowledge/core-style.js',
