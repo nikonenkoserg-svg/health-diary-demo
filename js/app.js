@@ -1,6 +1,6 @@
 // App — initialization, routing, event binding
 
-const APP_VERSION = 'v49';
+const APP_VERSION = 'v50';
 
 const App = {
   init() {

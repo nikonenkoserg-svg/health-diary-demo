@@ -308,7 +308,7 @@ const Chart = {
     });
   },
 
-  // Пульсирующая точка «сейчас» — CSS-слой
+  // Пульсирующая точка «сейчас» + подпись с системным временем
   _placeNowMarker(meta) {
     const wrap = document.getElementById('chart-canvas-wrap');
     if (!wrap || !meta || !meta.nowPoint) return;
@@ -321,6 +321,21 @@ const Chart = {
     }
     marker.style.left = meta.nowPoint.x + 'px';
     marker.style.top = meta.nowPoint.y + 'px';
+
+    // Подпись «сейчас HH:MM» — чтобы юзер видел что JS считает текущим временем
+    let label = document.getElementById('chart-now-label');
+    if (!label) {
+      label = document.createElement('div');
+      label.id = 'chart-now-label';
+      label.className = 'chart-now-label';
+      wrap.appendChild(label);
+    }
+    const tp = (typeof Time !== 'undefined') ? Time.nowParts() : null;
+    if (tp) {
+      label.textContent = tp.hour + ':' + String(tp.minute).padStart(2,'0');
+      label.style.left = meta.nowPoint.x + 'px';
+      label.style.top = (meta.nowPoint.y + 12) + 'px';
+    }
   },
 
   // Карточка события — открывается тапом по точке

@@ -7,6 +7,11 @@ const Time = {
   getTz() {
     if (typeof Storage === 'undefined') return null;
     const profile = Storage.getProfile() || {};
+    // Миграция: старое поле timezone от v45 автоопределения — снести
+    if (profile.timezone && !profile.tzOverride) {
+      delete profile.timezone;
+      Storage.saveProfile(profile);
+    }
     return profile.tzOverride || null;
   },
 

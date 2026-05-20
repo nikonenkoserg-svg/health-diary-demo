@@ -361,3 +361,18 @@
   color: var(--text-dim);
   font-weight: normal;
 }
+
+/* Now label — текущее системное время рядом с пульсирующей точкой */
+.chart-now-label {
+  position: absolute;
+  transform: translate(-50%, 0);
+  background: rgba(255, 77, 109, 0.9);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 6;
+}
