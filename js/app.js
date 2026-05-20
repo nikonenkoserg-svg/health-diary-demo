@@ -1,5 +1,7 @@
 // App — initialization, routing, event binding
 
+const APP_VERSION = 'v48';
+
 const App = {
   init() {
     // Set app height for iOS
@@ -68,6 +70,27 @@ const App = {
       }
     };
     updateTzLabel();
+    // Версия приложения
+    const verEl = document.getElementById('settingsVersion');
+    if (verEl) verEl.textContent = APP_VERSION;
+    // Кнопка принудительного сброса кеша
+    const forceBtn = document.getElementById('btnForceUpdate');
+    if (forceBtn) {
+      forceBtn.addEventListener('click', async () => {
+        if (!window.confirm('Сбросить кеш приложения и перезагрузиться?')) return;
+        try {
+          if ('caches' in window) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map(k => caches.delete(k)));
+          }
+          if ('serviceWorker' in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map(r => r.unregister()));
+          }
+        } catch (e) { console.error('Cache reset error:', e); }
+        window.location.reload();
+      });
+    }
     document.getElementById('btnTimezone').addEventListener('click', () => {
       const cur = (typeof Time !== 'undefined') ? Time.getTz() : 'UTC';
       const v = window.prompt('IANA часовой пояс (например, America/Sao_Paulo или Europe/Paris):', cur);
