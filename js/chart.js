@@ -326,6 +326,7 @@ const Chart = {
       const meta = this._draw(ctx, width, height, data);
       this._lastMeta = meta;
       this._placeNowMarker(meta);
+      this._updateLegend(data);
     });
   },
 
@@ -366,6 +367,24 @@ const Chart = {
   _hideEventTooltip() {
     const tip = document.getElementById('chart-event-tooltip');
     if (tip) tip.classList.remove('visible');
+  },
+
+  // Легенда — цветные точки + названия для вторичных кривых
+  _updateLegend(data) {
+    const el = document.getElementById('chart-legend');
+    if (!el) return;
+    const items = [];
+    // Главная — сахар
+    items.push({ color: '#ff4d6d', label: 'сахар', main: true });
+    const secondary = data.secondary || [];
+    for (const proc of secondary) {
+      items.push({ color: proc.color, label: proc.label });
+    }
+    el.innerHTML = items.map(it =>
+      '<span class="chart-legend-item' + (it.main ? ' main' : '') + '">' +
+      '<span class="chart-legend-dot" style="background:' + it.color + '"></span>' +
+      it.label + '</span>'
+    ).join('');
   },
 
   // Инициализация: сворачивание + fullscreen по тапу
