@@ -163,28 +163,6 @@ const Chart = {
       ctx.globalAlpha = 1;
     }
 
-    // === Вторичные процессы — тонкие фоновые линии, без подписей ===
-    const secondary = data.secondary || [];
-    if (secondary.length > 0) {
-      const secH = plotH * 0.18;
-      const secBase = pad.top + plotH - secH * 0.1;
-      for (const proc of secondary) {
-        if (proc.points.length < 2) continue;
-        const maxVal = Math.max(...proc.points.map(p => p.value), 0.01);
-        const ptsSec = proc.points.map(p => ({
-          x: xScale(p.minute),
-          y: secBase - (p.value / maxVal) * secH
-        }));
-        ctx.beginPath();
-        this._spline(ctx, ptsSec);
-        ctx.strokeStyle = proc.color;
-        ctx.globalAlpha = 0.22;
-        ctx.lineWidth = 1.2 * Math.min(S, 1.4);
-        ctx.stroke();
-        ctx.globalAlpha = 1;
-      }
-    }
-
     // === Линия «сейчас» ===
     let nowPoint = null;
     if (nowMin >= minMin && nowMin <= maxMin) {
@@ -327,7 +305,6 @@ const Chart = {
       const meta = this._draw(ctx, width, height, data);
       this._lastMeta = meta;
       this._placeNowMarker(meta);
-      this._updateLegend(data);
     });
   },
 

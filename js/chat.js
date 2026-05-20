@@ -339,6 +339,7 @@ const Chat = {
     // --- ГРАФИК: извлекаем события питания ---
     let chartData = null;
     let timeUncertain = false;
+    let leverHint = null;
     if (typeof Engine !== 'undefined' &&
         (this.chatData.state === 'active' || this.chatData.state === 'bridge') &&
         this.looksLikeFood(text)) {
@@ -363,6 +364,9 @@ const Chat = {
           if (!certain) timeUncertain = true;
         }
         chartData = Engine.getCurvePoints(foodProfile);
+        // Подсказка рычага по последнему добавленному событию
+        const lastEvent = Engine._dayEvents[Engine._dayEvents.length - 1];
+        leverHint = Engine.computeLeverHint(lastEvent, foodProfile);
         Storage.saveChat(this.chatData);
       } else {
         // Запасной путь — regex-движок
@@ -370,6 +374,7 @@ const Chat = {
         if (result) {
           chartData = result.chartData;
           timeUncertain = result.timeUncertain;
+          leverHint = result.leverHint || null;
         }
       }
     }
@@ -384,8 +389,9 @@ const Chat = {
         this.chatData.questionCount,
         this.chatData.messages,
         this.chatData.state,
-        !!chartData,  // hasChart flag
-        timeUncertain
+        !!chartData,
+        timeUncertain,
+        leverHint
       );
 
       const apiMessages = [

@@ -161,6 +161,90 @@ const Engine = {
     return { peak: Math.round(peak * 10) / 10, peakTime, returnTime, timeline };
   },
 
+  // === КРИВАЯ ПИКА ДЛЯ ВСЕГО ПРИЁМА ПИЩИ ===
+  // foods: [{name, portion, gi, carbs, fat, protein, fiber, caffeine}]
+  // Модифицирует форму пика с учётом всех макро в одном событии.
+  mealCurve(foods, coeff) {
+    const baseline = 5.0;
+    let totalCarbs = 0, totalFat = 0, totalProtein = 0;
+    let fiberPresent = false, caffeinePresent = false;
+    let giNumerator = 0, giDenominator = 0;
+
+    for (const f of foods) {
+      const portion = f.portion || 100;
+      const carbsG = (f.carbs || 0) * portion / 100;
+      const fatG = (f.fat || 0) * portion / 100;
+      const proteinG = (f.protein || 0) * portion / 100;
+      totalCarbs += carbsG;
+      totalFat += fatG;
+      totalProtein += proteinG;
+      if (f.fiber) fiberPresent = true;
+      if (f.caffeine) caffeinePresent = true;
+      if ((f.gi || 0) > 0 && carbsG > 0) {
+        giNumerator += f.gi * carbsG;
+        giDenominator += carbsG;
+      }
+    }
+
+    if (totalCarbs < 1 || giDenominator === 0) {
+      return { peak: baseline + 0.3, peakTime: 60, returnTime: 120, timeline: [],
+               macros: { carbs: 0, fat: Math.round(totalFat), protein: Math.round(totalProtein),
+                         fiber: fiberPresent, caffeine: caffeinePresent } };
+    }
+
+    const giAvg = giNumerator / giDenominator;
+    const gl = (giAvg * totalCarbs) / 100;
+    const baseRise = (gl * 0.12) * coeff.peakModifier;
+
+    const carbsRef = Math.max(totalCarbs, 10);
+    const fatRatio = totalFat / carbsRef;
+    const proteinRatio = totalProtein / carbsRef;
+
+    const fiberMod = fiberPresent ? 0.85 : 1.0;
+    const fatMod = 1 - Math.min(0.4, fatRatio * 0.5);
+    const proteinMod = 1 - Math.min(0.3, proteinRatio * 0.3);
+    const caffeineMod = caffeinePresent ? 1.05 : 1.0;
+
+    const peakRise = baseRise * fatMod * proteinMod * fiberMod * caffeineMod;
+    const peak = Math.min(baseline + peakRise, 15);
+
+    const baseTime = giAvg > 70 ? 35 : giAvg > 50 ? 50 : 70;
+    const fatDelay = Math.min(30, fatRatio * 30);
+    const fiberDelay = fiberPresent ? 15 : 0;
+    const peakTime = Math.round(baseTime + fatDelay + fiberDelay);
+
+    const baseDecay = Math.round(90 / coeff.insulinSensitivity);
+    const proteinExtension = Math.min(60, totalProtein * 1.5);
+    const returnTime = peakTime + baseDecay + Math.round(proteinExtension);
+
+    const timeline = [];
+    for (let t = 0; t <= 240; t += 10) {
+      let glucose;
+      if (t <= peakTime) {
+        glucose = baseline + peakRise * Math.sin((Math.PI / 2) * (t / peakTime));
+      } else if (t <= returnTime) {
+        const progress = (t - peakTime) / (returnTime - peakTime);
+        glucose = peak - (peak - baseline) * progress;
+      } else {
+        const overshoot = peakRise > 2 ? 0.3 : 0;
+        glucose = baseline - overshoot * Math.exp(-(t - returnTime) / 60);
+      }
+      timeline.push({ t, glucose: Math.round(glucose * 10) / 10 });
+    }
+
+    return {
+      peak: Math.round(peak * 10) / 10,
+      peakTime, returnTime, timeline,
+      macros: {
+        carbs: Math.round(totalCarbs),
+        fat: Math.round(totalFat),
+        protein: Math.round(totalProtein),
+        fiber: fiberPresent,
+        caffeine: caffeinePresent
+      }
+    };
+  },
+
   // === РАСЧЁТ НАГРУЗКИ ДЛЯ ОБМЕНА ===
   exerciseExchange(food, profile) {
     const carbsTotal = (food.carbs * food.portion / 100);
@@ -516,19 +600,22 @@ const Engine = {
     const timeEffect = this.timeOfDayEffect(hour);
     coeff.peakModifier *= timeEffect.modifier;
 
+    // Одна кривая на весь приём пищи — учитывает состав
+    const mealC = this.mealCurve(foods, coeff);
+
     const event = {
       eventMinute,
       timeCertain,
       hour,
       minute: eventMinute % 60,
+      curve: mealC,
+      macros: mealC.macros || null,
       foods: foods.map(food => ({
         name: food.name,
         portion: food.portion,
         gi: food.gi,
         carbs: food.carbs,
-        kcal: Math.round(food.kcal * food.portion / 100),
-        curve: this.glucoseCurve(food, coeff),
-        secondary: this.secondaryProcess(food)
+        kcal: Math.round(food.kcal * food.portion / 100)
       }))
     };
 
@@ -546,17 +633,15 @@ const Engine = {
     for (let m = 0; m < 1440; m += 10) grid[m] = baseline;
 
     for (const event of this._dayEvents) {
-      for (const food of event.foods) {
-        const timeline = food.curve.timeline;
-        if (!timeline || timeline.length === 0) continue;
-        for (const point of timeline) {
-          const absMin = event.eventMinute + point.t;
-          if (absMin >= 1440) continue;
-          const snapMin = Math.round(absMin / 10) * 10;
-          if (snapMin < 1440) {
-            grid[snapMin] = Math.max(grid[snapMin],
-              baseline + (point.glucose - baseline) + (grid[snapMin] - baseline) * 0.3);
-          }
+      const timeline = event.curve && event.curve.timeline;
+      if (!timeline || timeline.length === 0) continue;
+      for (const point of timeline) {
+        const absMin = event.eventMinute + point.t;
+        if (absMin >= 1440) continue;
+        const snapMin = Math.round(absMin / 10) * 10;
+        if (snapMin < 1440) {
+          grid[snapMin] = Math.max(grid[snapMin],
+            baseline + (point.glucose - baseline) + (grid[snapMin] - baseline) * 0.3);
         }
       }
     }
@@ -634,6 +719,40 @@ const Engine = {
     };
   },
 
+  // === ПОДСКАЗКА «РЫЧАГА» ===
+  // Возвращает {needed, peak, peakInMinutes, abstainHours, prediabetes} или null
+  computeLeverHint(event, profile) {
+    if (!event || !event.curve) return null;
+    const peak = event.curve.peak;
+    const isPredia = !!(profile && profile.prediabetes);
+
+    // Триггер: для предиабета чувствительный порог 6.7, иначе 7.8
+    const threshold = isPredia ? 6.7 : 7.8;
+    if (peak < threshold) return null;
+
+    const nowMin = (typeof Time !== 'undefined' ? Time.nowParts().minuteOfDay : new Date().getHours()*60 + new Date().getMinutes());
+    const eventMin = event.eventMinute;
+    // Время от «сейчас» до пика
+    const peakAbsMin = eventMin + event.curve.peakTime;
+    let peakInMinutes = peakAbsMin - nowMin;
+    if (peakInMinutes < 0) peakInMinutes = 0;
+    // Время от «сейчас» до возврата к норме
+    const returnAbsMin = eventMin + event.curve.returnTime;
+    let returnInMinutes = returnAbsMin - nowMin;
+    if (returnInMinutes < 0) returnInMinutes = 0;
+    const abstainHours = Math.max(1, Math.round(returnInMinutes / 60));
+
+    return {
+      needed: true,
+      peak,
+      peakInMinutes,
+      abstainHours,
+      prediabetes: isPredia,
+      // Для предиабета приоритет — воздержание/замедление (скорость пика опасна)
+      preferAbstain: isPredia
+    };
+  },
+
   // === АНАЛИЗ + ТОЧКИ ДЛЯ ГРАФИКА ===
   analyzeWithChart(text, profile) {
     const analysis = this.analyze(text, profile);
@@ -642,11 +761,13 @@ const Engine = {
     this.detectWake(text);
     const event = this.addEvent(text, profile);
     const chartData = this.getCurvePoints(profile);
+    const leverHint = this.computeLeverHint(event, profile);
 
     return {
       analysis,
       chartData,
-      timeUncertain: event ? !event.timeCertain : false
+      timeUncertain: event ? !event.timeCertain : false,
+      leverHint
     };
   }
 };

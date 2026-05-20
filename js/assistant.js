@@ -4,7 +4,7 @@
 
 const Assistant = {
 
-  buildSystemPrompt(profile, userMsgCount, questionCount, messages, state, hasChart, timeUncertain) {
+  buildSystemPrompt(profile, userMsgCount, questionCount, messages, state, hasChart, timeUncertain, leverHint) {
     if (typeof Knowledge !== 'undefined') {
       let prompt = Knowledge.buildPrompt(profile, userMsgCount, questionCount, messages);
 
@@ -47,6 +47,26 @@ const Assistant = {
       // Время события не указано — попросить уточнить
       if (timeUncertain) {
         prompt += '\n\n[ВРЕМЯ НЕ УКАЗАНО]\nПользователь не сказал, во сколько это было. График поставил событие на текущее время — это может быть неточно.\nВ ответе обязательно спроси когда это было: «А во сколько ты это съел?» или «Это было только что или раньше?». Без времени график неточен.\n[/ВРЕМЯ НЕ УКАЗАНО]';
+      }
+
+      // Рычаг при крупном пике
+      if (leverHint && leverHint.needed) {
+        const peakMin = leverHint.peakInMinutes;
+        const hrs = leverHint.abstainHours;
+        const peakDesc = peakMin <= 5 ? 'почти сейчас' :
+                         peakMin < 60 ? 'через ' + peakMin + ' мин' :
+                         'через ~' + Math.round(peakMin/60) + ' ч';
+        prompt += '\n\n[РЫЧАГ — БОЛЬШОЙ ПИК ВПЕРЕДИ]\n';
+        prompt += 'Прогноз пика: ' + leverHint.peak + ' ммоль/л ' + peakDesc + '.\n';
+        if (leverHint.preferAbstain) {
+          prompt += 'У пользователя преддиабет — скорость пика опасна сама по себе. Приоритет: ВОЗДЕРЖАНИЕ от углеводов ' + hrs + ' ч + замедление за счёт белка/жира в следующий приём пищи. Движение упомяни как дополнение, не как замену.\n';
+        } else {
+          prompt += 'Дай рычаг в формате ДВЕ АЛЬТЕРНАТИВЫ:\n';
+          prompt += '— если сейчас доступна нагрузка (20-30 минут движения) → срежешь пик\n';
+          prompt += '— если нет → ' + hrs + ' ч без углеводов, пик спадёт сам\n';
+        }
+        prompt += 'Ответ строго 2-3 короткие фразы. Первая — указание на график. Вторая-третья — рычаг.\n';
+        prompt += '[/РЫЧАГ]';
       }
 
       return prompt;
