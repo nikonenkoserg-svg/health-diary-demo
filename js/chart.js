@@ -216,18 +216,16 @@ const Chart = {
       const ey = yScale(closest.glucose);
 
       const r = 5 * Math.min(S, 1.7);
-      // Внешний бледный нимб — чтобы точка читалась на любой кривой
+      // Внутренняя точка фона
       ctx.beginPath();
-      ctx.arc(x, ey, r + 3, 0, Math.PI * 2);
-      ctx.fillStyle = isDark ? 'rgba(15,15,26,0.7)' : 'rgba(248,249,252,0.7)';
+      ctx.arc(x, ey, r - 1, 0, Math.PI * 2);
+      ctx.fillStyle = isDark ? 'rgba(15,15,26,0.95)' : 'rgba(248,249,252,0.95)';
       ctx.fill();
-      // Точка
+      // Кольцо
       ctx.beginPath();
       ctx.arc(x, ey, r, 0, Math.PI * 2);
-      ctx.fillStyle = lineColor;
-      ctx.fill();
-      ctx.strokeStyle = isDark ? '#fff' : '#1a1a2e';
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = lineColor;
+      ctx.lineWidth = 2;
       ctx.stroke();
 
       eventHits.push({
