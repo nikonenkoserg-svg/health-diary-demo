@@ -407,11 +407,7 @@ const Chart = {
       });
     }
     if (canvas && panel) {
-      canvas.addEventListener('click', (e) => {
-        // Координаты клика относительно canvas (в CSS px)
-        const rect = canvas.getBoundingClientRect();
-        const cx = e.clientX - rect.left;
-        const cy = e.clientY - rect.top;
+      const handleTap = (cx, cy) => {
         const hits = (this._lastMeta && this._lastMeta.eventHits) || [];
         let nearest = null, bestDist = Infinity;
         for (const h of hits) {
@@ -423,16 +419,41 @@ const Chart = {
           this._showEventCard(nearest);
           return;
         }
-        // Клик не по событию.
-        // Если карточка открыта — закрываем её, fullscreen не трогаем
         const card = document.getElementById('chart-event-card');
         if (card && card.classList.contains('visible')) {
           this._hideEventCard();
           return;
         }
-        // Иначе — toggle fullscreen
         panel.classList.toggle('expanded');
         this.updatePanel();
+      };
+
+      canvas.addEventListener('click', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        handleTap(e.clientX - rect.left, e.clientY - rect.top);
+      });
+
+      // iOS Safari: дублируем через touchend на случай если click не доходит
+      let touchStartXY = null;
+      canvas.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1) {
+          touchStartXY = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        }
+      }, { passive: true });
+      canvas.addEventListener('touchend', (e) => {
+        if (!touchStartXY || !e.changedTouches[0]) return;
+        const t = e.changedTouches[0];
+        const dx = t.clientX - touchStartXY.x;
+        const dy = t.clientY - touchStartXY.y;
+        touchStartXY = null;
+        if (Math.sqrt(dx*dx + dy*dy) > 12) return; // это скролл, не тап
+        // click обычно сам сработает следом, но не всегда — обработаем сами с защитой от двойного
+        if (this._tapHandled) { this._tapHandled = false; return; }
+        this._tapHandled = true;
+        setTimeout(() => { this._tapHandled = false; }, 400);
+        const rect = canvas.getBoundingClientRect();
+        handleTap(t.clientX - rect.left, t.clientY - rect.top);
+        e.preventDefault();
       });
     }
     window.addEventListener('resize', () => {
