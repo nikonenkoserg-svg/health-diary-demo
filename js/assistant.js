@@ -4,9 +4,9 @@
 
 const Assistant = {
 
-  buildSystemPrompt(profile, userMsgCount, questionCount, messages, state, hasChart, timeUncertain, leverHint) {
+  async buildSystemPrompt(profile, userMsgCount, questionCount, messages, state, hasChart, timeUncertain, leverHint) {
     if (typeof Knowledge !== 'undefined') {
-      let prompt = Knowledge.buildPrompt(profile, userMsgCount, questionCount, messages);
+      let prompt = await Knowledge.buildPrompt(profile, userMsgCount, questionCount, messages);
 
       // Bridge phase
       if (state === 'bridge' && typeof Onboarding !== 'undefined') {

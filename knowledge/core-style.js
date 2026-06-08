@@ -355,8 +355,19 @@ GLUT4 — транспортёр глюкозы в мышцах. Активир�
   },
 
   // === BUILD FULL SYSTEM PROMPT ===
-  buildPrompt(profile, userMsgCount, questionCount, messages) {
+  async buildPrompt(profile, userMsgCount, questionCount, messages) {
     let prompt = this.CORE_PROMPT;
+
+    // RAG: подкладываем 3 ближайших карточки-эталона как примеры
+    try {
+      const lastUserMsg = (messages || []).slice().reverse().find(function(m){return m.role==='user';});
+      if (lastUserMsg && typeof window !== 'undefined' && window.RAG && window.RAG.isReady()) {
+        const hits = await window.RAG.search(lastUserMsg.content, 3);
+        prompt += window.RAG.formatForPrompt(hits);
+      }
+    } catch (e) {
+      console.warn('[RAG] search failed:', e);
+    }
 
     // Add relevant knowledge (1 topic, truncated to ~400 chars)
     const knowledge = this.getRelevantKnowledge(messages || []);

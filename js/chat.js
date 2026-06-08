@@ -383,7 +383,7 @@ const Chat = {
 
     try {
       const currentProfile = Storage.getProfile();
-      const systemPrompt = Assistant.buildSystemPrompt(
+      const systemPrompt = await Assistant.buildSystemPrompt(
         currentProfile,
         this.chatData.userMsgCount,
         this.chatData.questionCount,
@@ -404,7 +404,7 @@ const Chat = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: apiMessages,
-          max_tokens: chartData ? 150 : 300  // Короче если есть график
+          max_tokens: chartData ? 800 : 1500  // Короче если есть график
         })
       });
 
