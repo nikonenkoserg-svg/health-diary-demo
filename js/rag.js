@@ -33,7 +33,7 @@ const RAG = {
   },
 
   isReady() {
-    return this.cards !== null && this.embedder !== null;
+    return this.cards !== null && this.embedder !== null && this.articles !== null;
   },
 
   async embed(text) {
@@ -75,6 +75,39 @@ const RAG = {
     lines.push('[/ПРИМЕРЫ]');
     return lines.join('\n');
   }
+};
+
+
+// === ARTICLES (ссылки на посты канала) ===
+RAG.articles = null;
+RAG._loadArticles = async function(){
+  if (this.articles) return this.articles;
+  const res = await fetch('knowledge/articles.json');
+  this.articles = await res.json();
+  return this.articles;
+};
+const origInit = RAG.init.bind(RAG);
+RAG.init = async function(){
+  if (this.loadingPromise) return this.loadingPromise;
+  this.loadingPromise = Promise.all([this._loadCards(), this._loadEmbedder(), this._loadArticles()]);
+  await this.loadingPromise;
+  return true;
+};
+RAG.searchArticle = async function(query, minScore){
+  minScore = minScore || 0.45;
+  if (!this.articles || !this.embedder) return null;
+  const qVec = await this.embed(query);
+  let best = null;
+  for (const a of this.articles) {
+    const score = this._cosine(qVec, a.vec);
+    if (!best || score > best.score) best = { ...a, score };
+  }
+  if (!best || best.score < minScore) return null;
+  return best;
+};
+RAG.formatArticleForPrompt = function(article){
+  if (!article) return '';
+  return '\n\n[РЕЛЕВАНТНЫЙ РАЗБОР В КАНАЛЕ]\nПо теме реплики есть пост: ' + article.url + ' · «' + article.title + '».\nЕсли уместно — мягко упомяни ссылку в ответе (например: «по этой теме разбор в канале: ' + article.url + '»). Не лекторствуй сверх ссылки.\n[/РАЗБОР]';
 };
 
 if (typeof window !== 'undefined') window.RAG = RAG;

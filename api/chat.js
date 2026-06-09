@@ -12,7 +12,7 @@ export default async function handler(req, res) {
   for (const m of (Array.isArray(models) ? models : [models])) {
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 25000);
+      const timeout = setTimeout(() => controller.abort(), 45000);
 
       const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
@@ -22,7 +22,7 @@ export default async function handler(req, res) {
           'HTTP-Referer': 'https://health-diary-sooty.vercel.app',
           'X-Title': 'Health Diary'
         },
-        body: JSON.stringify({ model: m, messages: trimmedMessages, temperature: temperature || 0.9, max_tokens: max_tokens || 300 }),
+        body: JSON.stringify({ model: m, messages: trimmedMessages, temperature: temperature || 0.9, max_tokens: max_tokens || 1500 }),
         signal: controller.signal
       });
 

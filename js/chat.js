@@ -60,6 +60,23 @@ const Chat = {
     chat.appendChild(div);
   },
 
+  addArticleLink(url, title) {
+    const chat = document.getElementById('chat');
+    const div = document.createElement('div');
+    div.className = 'message bot';
+    const intro = document.createElement('span');
+    intro.textContent = 'По теме разбор в канале:\n';
+    div.appendChild(intro);
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.textContent = title;
+    div.appendChild(link);
+    chat.appendChild(div);
+    this.scrollToBottom();
+  },
+
   async typeMessage(text, role) {
     const chat = document.getElementById('chat');
     const div = document.createElement('div');
@@ -258,7 +275,7 @@ const Chat = {
         const resp = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: apiMessages, max_tokens: 250 })
+          body: JSON.stringify({ messages: apiMessages, max_tokens: 1200 })
         });
 
         this.hideTyping();
@@ -297,7 +314,7 @@ const Chat = {
         const resp = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: apiMessages, max_tokens: 300 })
+          body: JSON.stringify({ messages: apiMessages, max_tokens: 1500 })
         });
 
         this.hideTyping();
@@ -425,6 +442,16 @@ const Chat = {
           }
 
           await this.typeMessage(reply, 'bot');
+
+          // Постобработка: ссылка на пост канала если найден релевантный
+          try {
+            if (typeof window.RAG !== 'undefined' && window.RAG.isReady && window.RAG.isReady()) {
+              const article = await window.RAG.searchArticle(text);
+              if (article) {
+                this.addArticleLink(article.url, '«' + article.title + '»');
+              }
+            }
+          } catch (e) { console.warn('[RAG] article post failed:', e); }
 
           if (this.chatData.state === 'bridge') {
             this.chatData.bridgeCount = (this.chatData.bridgeCount || 0) + 1;
