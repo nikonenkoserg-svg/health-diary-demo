@@ -93,14 +93,18 @@ RAG.init = async function(){
   await this.loadingPromise;
   return true;
 };
-RAG.searchArticle = async function(query, minScore){
+RAG.searchArticle = async function(query, minScore, opts){
   minScore = minScore || 0.35;
+  opts = opts || {};
+  const userSex = opts.sex;
   if (!this.articles || !this.embedder) return null;
   const qVec = await this.embed(query);
   let best = null;
   for (const a of this.articles) {
+    // Фильтр по полу: женские посты пропускаются для мужчин
+    if (a.gender === 'female' && userSex && userSex !== 'женский') continue;
     const score = this._cosine(qVec, a.vec);
-    if (!best || score > best.score) best = { ...a, score };
+    if (!best || score > best.score) best = { id:a.id, url:a.url, title:a.title, score };
   }
   if (!best || best.score < minScore) return null;
   return best;

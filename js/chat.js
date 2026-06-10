@@ -287,7 +287,7 @@ const Chat = {
             await this.typeMessage(Assistant.filterResponse(raw), 'bot');
             try {
               if (typeof window.RAG !== 'undefined' && window.RAG.isReady && window.RAG.isReady()) {
-                const article = await window.RAG.searchArticle(text);
+                const article = await window.RAG.searchArticle(text, null, { sex: (Storage.getProfile() || {}).sex });
                 if (article) {
                   this.addArticleLink(article.url, '«' + article.title + '»');
                 }
@@ -337,7 +337,7 @@ const Chat = {
             // RAG-постобработка: ссылка на пост канала если найден релевантный
             try {
               if (typeof window.RAG !== 'undefined' && window.RAG.isReady && window.RAG.isReady()) {
-                const article = await window.RAG.searchArticle(text);
+                const article = await window.RAG.searchArticle(text, null, { sex: (Storage.getProfile() || {}).sex });
                 if (article) {
                   this.addArticleLink(article.url, '«' + article.title + '»');
                 }
@@ -460,7 +460,7 @@ const Chat = {
           // Постобработка: ссылка на пост канала если найден релевантный
           try {
             if (typeof window.RAG !== 'undefined' && window.RAG.isReady && window.RAG.isReady()) {
-              const article = await window.RAG.searchArticle(text);
+              const article = await window.RAG.searchArticle(text, null, { sex: (Storage.getProfile() || {}).sex });
               if (article) {
                 this.addArticleLink(article.url, '«' + article.title + '»');
               }
