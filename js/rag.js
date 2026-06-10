@@ -94,7 +94,7 @@ RAG.init = async function(){
   return true;
 };
 RAG.searchArticle = async function(query, minScore){
-  minScore = minScore || 0.45;
+  minScore = minScore || 0.35;
   if (!this.articles || !this.embedder) return null;
   const qVec = await this.embed(query);
   let best = null;

@@ -248,8 +248,8 @@ const Chat = {
 
       // Check if user agrees to create profile — пословно, только короткие сообщения
       const words = text.toLowerCase().trim().split(/[\s,.!?;:()«»"]+/).filter(Boolean);
-      const agreeWords = ['да','ага','давай','давайте','ок','окей','окай','хорошо','хорошо','ладно','погнали','готов','готова','готовы','поехали','профиль','done','start','go','yes','ok','го'];
-      const agreeStem = ['созд','зарег','регистр','начн','сделал','сделан','оформ','готов'];
+      const agreeWords = ['да','ага','давай','давайте','ок','окей','окай','хорошо','хорошо','ладно','погнали','готов','готова','готово','готовы','поехали','профиль','done','start','go','yes','ok','го','начнём','начнем','поехали'];
+      const agreeStem = ['созд','зарег','регистр','начн','сделал','сделан','оформ','готов','поех'];
       const isQuestion = text.includes('?');
       const isAgree = !isQuestion && words.length <= 4 && (
         words.some(w => agreeWords.includes(w)) ||
@@ -285,6 +285,14 @@ const Chat = {
           const raw = data.choices?.[0]?.message?.content;
           if (raw) {
             await this.typeMessage(Assistant.filterResponse(raw), 'bot');
+            try {
+              if (typeof window.RAG !== 'undefined' && window.RAG.isReady && window.RAG.isReady()) {
+                const article = await window.RAG.searchArticle(text);
+                if (article) {
+                  this.addArticleLink(article.url, '«' + article.title + '»');
+                }
+              }
+            } catch (e) { console.warn('[RAG] article post failed:', e); }
           }
         }
       } catch (err) {
@@ -326,15 +334,21 @@ const Chat = {
             const reply = Assistant.filterResponse(raw);
             await this.typeMessage(reply, 'bot');
 
-            // Завершение опросника: по собранным данным, не по словам LLM
-            const fullProfile = Storage.getProfile() || {};
-            const hasEssentials = fullProfile.age && fullProfile.weight && fullProfile.height;
-            const done = /начинать работать|картина есть|достаточно|можем начинать|приступ/i;
-            if (hasEssentials || done.test(reply)) {
-              this.chatData.state = 'bridge';
-              this.chatData.bridgeCount = 0;
-              Storage.saveChat(this.chatData);
-            }
+            // RAG-постобработка: ссылка на пост канала если найден релевантный
+            try {
+              if (typeof window.RAG !== 'undefined' && window.RAG.isReady && window.RAG.isReady()) {
+                const article = await window.RAG.searchArticle(text);
+                if (article) {
+                  this.addArticleLink(article.url, '«' + article.title + '»');
+                }
+              }
+            } catch (e) { console.warn('[RAG] article post failed:', e); }
+
+            // Анкета — один сеанс. После ответа пациента всегда переключаем
+            // на основной режим. Магические фразы не нужны.
+            this.chatData.state = 'bridge';
+            this.chatData.bridgeCount = 0;
+            Storage.saveChat(this.chatData);
           }
         }
       } catch (err) {
