@@ -4,7 +4,7 @@
 
 const Assistant = {
 
-  async buildSystemPrompt(profile, userMsgCount, questionCount, messages, state, hasChart, timeUncertain, leverHint) {
+  async buildSystemPrompt(profile, userMsgCount, questionCount, messages, state, hasChart, timeUncertain, leverHint, unspecifiedFoods) {
     if (typeof Knowledge !== 'undefined') {
       let prompt = await Knowledge.buildPrompt(profile, userMsgCount, questionCount, messages);
 
@@ -42,6 +42,14 @@ const Assistant = {
 Пример плохого ответа:
 «Вижу твой ритм — тренировка как точка максимальной концентрации...» — это не про график, это пересказ дня.
 [/РЕЖИМ ГРАФИКА]`;
+      }
+
+      // Граммовка продуктов не указана — попросить уточнить
+      if (unspecifiedFoods && unspecifiedFoods.length > 0) {
+        prompt += '\n\n[ПОРЦИЯ НЕ УКАЗАНА]\n' +
+          'Пациент назвал продукты без точной граммовки: ' + unspecifiedFoods.join(', ') + '.\n' +
+          'График построен по дефолтной порции — это приблизительно. Если уместно — одной фразой уточни сколько было (граммы или штуки). Не лекторствуй про калории.\n' +
+          '[/ПОРЦИЯ]';
       }
 
       // Время события не указано — попросить уточнить
@@ -89,6 +97,55 @@ const Assistant = {
     if (userMsgCount <= 5) prompt += '\nФаза: начало.';
     else if (userMsgCount <= 12) prompt += '\nФаза: знакомство.';
     else prompt += '\nФаза: доверие.';
+
+      // === ИСТОРИЯ ПАЦИЕНТА: замеры, еда, тренды — для ответов на запросы памяти ===
+      if (typeof Storage !== 'undefined') {
+        const gl = (Storage.getGlucoseLog && Storage.getGlucoseLog()) || [];
+        if (gl.length > 0) {
+          const sorted = gl.slice().sort((a, b) => b.time - a.time);
+          const last10 = sorted.slice(0, 10).reverse();
+          const lines = last10.map(g => {
+            const d = new Date(g.time);
+            const day = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+            const time = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+            const typeMap = { fasting: 'натощак', postprandial: 'после еды', bedtime: 'перед сном', preprandial: 'до еды', random: '' };
+            return '  ' + day + ' ' + time + ' — ' + g.value.toFixed(1) + (typeMap[g.type] ? ' (' + typeMap[g.type] + ')' : '');
+          }).join('\n');
+          // Сводка
+          const last7d = sorted.filter(g => Date.now() - g.time < 7*24*3600*1000);
+          let summary = '';
+          if (last7d.length >= 3) {
+            const avg = (last7d.reduce((s, g) => s + g.value, 0) / last7d.length).toFixed(1);
+            const fasting = last7d.filter(g => g.type === 'fasting');
+            const above78 = last7d.filter(g => g.value >= 7.8).length;
+            summary = '\nСредний за 7 дней: ' + avg;
+            if (fasting.length) {
+              const avgF = (fasting.reduce((s, g) => s + g.value, 0) / fasting.length).toFixed(1);
+              summary += ', натощак ' + avgF;
+            }
+            if (above78 > 0) summary += '. Замеров выше 7.8: ' + above78;
+          }
+          prompt += '\n\n[ИСТОРИЯ ЗАМЕРОВ ПАЦИЕНТА]\n' + lines + summary +
+            '\nЕсли пациент спрашивает про прошлые цифры (вчера, неделя, средний) — отвечай по этим данным точно, не выдумывай.\n[/ИСТОРИЯ]';
+        }
+
+        // История ЕДЫ
+        const fl = (Storage.getFoodLog && Storage.getFoodLog()) || [];
+        if (fl.length > 0) {
+          const sortedF = fl.slice().sort((a, b) => b.time - a.time);
+          const last10F = sortedF.slice(0, 10).reverse();
+          const linesF = last10F.map(f => {
+            const d = new Date(f.time);
+            const day = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+            const time = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+            const kcalStr = f.kcal ? ' · ' + f.kcal + ' ккал' : '';
+            const peakStr = f.peakEstimate ? ' · прогноз пика ' + f.peakEstimate.toFixed(1) : '';
+            return '  ' + day + ' ' + time + ' — ' + f.foods + kcalStr + peakStr;
+          }).join('\n');
+          prompt += '\n\n[ИСТОРИЯ ЕДЫ ПАЦИЕНТА]\n' + linesF +
+            '\nЕсли пациент спрашивает что ел вчера, сколько раз ел сладкое, какой был самый высокий прогноз пика — отвечай по этим данным точно.\n[/ИСТОРИЯ ЕДЫ]';
+        }
+      }
     if (questionCount >= 1) prompt += '\nНе задавай вопросов.';
 
     if (state === 'bridge' && typeof Onboarding !== 'undefined') {

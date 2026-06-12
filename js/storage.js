@@ -5,7 +5,9 @@ const Storage = {
     chat: 'hd_chat',
     profile: 'hd_profile',
     entries: 'hd_entries',
-    settings: 'hd_settings'
+    settings: 'hd_settings',
+    glucose: 'hd_glucose',
+    food: 'hd_food'
   },
 
   get(key) {
@@ -35,6 +37,22 @@ const Storage = {
   getProfile() { return this.get(this.KEYS.profile) || {}; },
   saveProfile(data) { this.set(this.KEYS.profile, data); },
 
+  // Glucose log: [{value, type, time, source, raw}]
+  getGlucoseLog() { return this.get(this.KEYS.glucose) || []; },
+  addGlucose(entry) {
+    const log = this.getGlucoseLog();
+    log.push(entry);
+    this.set(this.KEYS.glucose, log);
+  },
+
+  // Food log: [{time, foods, kcal, peakEstimate, certain}]
+  getFoodLog() { return this.get(this.KEYS.food) || []; },
+  addFood(entry) {
+    const log = this.getFoodLog();
+    log.push(entry);
+    this.set(this.KEYS.food, log);
+  },
+
   // Diary entries
   getEntries() { return this.get(this.KEYS.entries) || []; },
   addEntry(entry) {
@@ -46,7 +64,7 @@ const Storage = {
 
   // Settings
   getSettings() {
-    return this.get(this.KEYS.settings) || { theme: 'dark', fontLarge: false };
+    return this.get(this.KEYS.settings) || { theme: 'light', fontLarge: false };
   },
   saveSettings(data) { this.set(this.KEYS.settings, data); },
 

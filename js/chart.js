@@ -85,7 +85,7 @@ const Chart = {
     ctx.textAlign = 'right';
     ctx.font = font(8.5);
     ctx.fillStyle = isDark ? 'rgba(72,199,142,0.55)' : 'rgba(72,199,142,0.7)';
-    ctx.fillText('норма', pad.left + plotW - 4, normTop + 11 * S);
+    ctx.fillText('допустимо после еды · до 7.8', pad.left + plotW - 4, normTop + 11 * S);
     if (maxG > 6.2) {
       ctx.fillStyle = isDark ? 'rgba(255,183,77,0.6)' : 'rgba(255,183,77,0.75)';
       ctx.fillText('повышено', pad.left + plotW - 4, yScale(7.8) + 11 * S);
@@ -215,6 +215,29 @@ const Chart = {
       });
     }
 
+    // === Точки реальных замеров (Storage.getGlucoseLog) ===
+    const measurements = data.measurements || [];
+    for (const m of measurements) {
+      if (m.minute == null) continue;
+      const mx = xScale(m.minute);
+      if (mx < pad.left - 4 || mx > pad.left + plotW + 4) continue;
+      const my = yScale(m.value);
+      // Чёрная точка с белым контуром (заметная, отличается от кружков событий)
+      const r = 5 * Math.min(S, 1.5);
+      ctx.beginPath();
+      ctx.arc(mx, my, r, 0, Math.PI * 2);
+      ctx.fillStyle = isDark ? '#fafbfc' : '#1c2128';
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = isDark ? '#0d1117' : '#fafbfc';
+      ctx.stroke();
+      // Цифра рядом
+      ctx.fillStyle = isDark ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.75)';
+      ctx.font = font(9, true);
+      ctx.textAlign = 'left';
+      ctx.fillText(m.value.toFixed(1), mx + r + 3, my + 3);
+    }
+
     // Плоская кривая — поясняем
     if (peakG <= 5.3 && events.length > 0) {
       ctx.fillStyle = isDark ? 'rgba(72,199,142,0.6)' : 'rgba(72,199,142,0.8)';
@@ -305,6 +328,7 @@ const Chart = {
       const meta = this._draw(ctx, width, height, data);
       this._lastMeta = meta;
       this._placeNowMarker(meta);
+      if (typeof window.ChartOverlay !== 'undefined') window.ChartOverlay.update(data);
     });
   },
 

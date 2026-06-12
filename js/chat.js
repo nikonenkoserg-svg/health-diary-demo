@@ -236,6 +236,12 @@ const Chat = {
     Storage.saveChat(this.chatData);
     this.scrollToBottom();
 
+    // Парсер замеров глюкозы: тихо сохраняет в Storage
+    if (typeof Engine !== 'undefined' && Engine.parseGlucose) {
+      const g = Engine.parseGlucose(text);
+      if (g) Storage.addGlucose(g);
+    }
+
     // === PRE-REGISTER: user asks questions before creating profile ===
     if (this.chatData.state === 'pre_register') {
       const category = Onboarding.classifyResponse(text);
@@ -285,14 +291,6 @@ const Chat = {
           const raw = data.choices?.[0]?.message?.content;
           if (raw) {
             await this.typeMessage(Assistant.filterResponse(raw), 'bot');
-            try {
-              if (typeof window.RAG !== 'undefined' && window.RAG.isReady && window.RAG.isReady()) {
-                const article = await window.RAG.searchArticle(text, null, { sex: (Storage.getProfile() || {}).sex });
-                if (article) {
-                  this.addArticleLink(article.url, '«' + article.title + '»');
-                }
-              }
-            } catch (e) { console.warn('[RAG] article post failed:', e); }
           }
         }
       } catch (err) {
@@ -333,16 +331,6 @@ const Chat = {
           if (raw) {
             const reply = Assistant.filterResponse(raw);
             await this.typeMessage(reply, 'bot');
-
-            // RAG-постобработка: ссылка на пост канала если найден релевантный
-            try {
-              if (typeof window.RAG !== 'undefined' && window.RAG.isReady && window.RAG.isReady()) {
-                const article = await window.RAG.searchArticle(text, null, { sex: (Storage.getProfile() || {}).sex });
-                if (article) {
-                  this.addArticleLink(article.url, '«' + article.title + '»');
-                }
-              }
-            } catch (e) { console.warn('[RAG] article post failed:', e); }
 
             // Анкета — один сеанс. После ответа пациента всегда переключаем
             // на основной режим. Магические фразы не нужны.
@@ -398,6 +386,19 @@ const Chat = {
         // Подсказка рычага по последнему добавленному событию
         const lastEvent = Engine._dayEvents[Engine._dayEvents.length - 1];
         leverHint = Engine.computeLeverHint(lastEvent, foodProfile);
+        // Сохранить в history лог еды для будущих запросов «что я ел вчера»
+        if (lastEvent) {
+          const now = new Date();
+          const eatTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(),
+            Math.floor(lastEvent.eventMinute / 60), lastEvent.eventMinute % 60).getTime();
+          Storage.addFood({
+            time: eatTime,
+            foods: lastEvent.foods.map(f => f.name).join(', '),
+            kcal: lastEvent.foods.reduce((s, f) => s + (f.kcal || 0), 0),
+            peakEstimate: lastEvent.curve ? lastEvent.curve.peak : null,
+            certain: lastEvent.timeCertain
+          });
+        }
         Storage.saveChat(this.chatData);
       } else {
         // Запасной путь — regex-движок
@@ -414,6 +415,15 @@ const Chat = {
 
     try {
       const currentProfile = Storage.getProfile();
+      // Список продуктов без указанной граммовки — для подсказки модели
+      let unspecifiedFoods = [];
+      if (chartData && chartData.events && chartData.events.length > 0) {
+        const lastEv = chartData.events[chartData.events.length - 1];
+        if (lastEv.unspecifiedFoods && lastEv.unspecifiedFoods.length) {
+          unspecifiedFoods = lastEv.unspecifiedFoods;
+        }
+      }
+
       const systemPrompt = await Assistant.buildSystemPrompt(
         currentProfile,
         this.chatData.userMsgCount,
@@ -422,7 +432,8 @@ const Chat = {
         this.chatData.state,
         !!chartData,
         timeUncertain,
-        leverHint
+        leverHint,
+        unspecifiedFoods
       );
 
       const apiMessages = [
@@ -457,9 +468,11 @@ const Chat = {
 
           await this.typeMessage(reply, 'bot');
 
-          // Постобработка: ссылка на пост канала если найден релевантный
+          // Постобработка: ссылка на пост канала появляется ТОЛЬКО когда пациент
+          // задаёт вопрос. На декларативные констатации ссылок не даём.
           try {
-            if (typeof window.RAG !== 'undefined' && window.RAG.isReady && window.RAG.isReady()) {
+            const isQuestion = /\?|(?:^|\s)(что|как|почему|зачем|когда|где|какой|какая|какие|нужно ли|можно ли|стоит ли|правда ли|почему ли|поможет ли)(?:\s|$|\?|,|\.)/i.test(text);
+            if (isQuestion && typeof window.RAG !== 'undefined' && window.RAG.isReady && window.RAG.isReady()) {
               const article = await window.RAG.searchArticle(text, null, { sex: (Storage.getProfile() || {}).sex });
               if (article) {
                 this.addArticleLink(article.url, '«' + article.title + '»');

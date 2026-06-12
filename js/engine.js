@@ -62,21 +62,70 @@ const Engine = {
   parseFood(text) {
     const t = text.toLowerCase();
     const found = [];
-    // Разбиваем текст на слова для стемминга
     const words = t.split(/[\s,.:;!?()]+/).filter(w => w.length > 2);
     const stems = words.map(w => this._stem(w));
 
+    // Список числовых указаний количества с позицией в тексте
+    const amounts = [];
+    const reAmt = /(\d+(?:[.,]\d+)?)\s*(г|гр|грамм|граммов|мл|миллилитр|кусок|кусоч|штук|шт)(?![а-яёa-z])/gi;
+    let am;
+    while ((am = reAmt.exec(t)) !== null) {
+      const num = parseFloat(am[1].replace(',', '.'));
+      const unit = am[2];
+      let portion = num;
+      // куски/штуки → нет точных грамм, но это маркер «указано»
+      if (/кусок|кусоч|штук|шт/.test(unit)) portion = null;
+      amounts.push({ pos: am.index, num, unit, portion });
+    }
+
+    const matchedFoods = [];
     for (const [name, data] of Object.entries(this.FOOD_DB)) {
-      // Прямое вхождение
+      let pos = -1;
       if (t.includes(name)) {
-        found.push({ name, ...data });
-        continue;
+        pos = t.indexOf(name);
+      } else {
+        const nameStem = this._stem(name);
+        if (nameStem.length >= 3) {
+          for (let i = 0; i < stems.length; i++) {
+            if (stems[i] === nameStem || stems[i].startsWith(nameStem) || (nameStem.startsWith(stems[i]) && stems[i].length >= 3)) {
+              // приблизительная позиция слова в исходном тексте
+              const w = words[i];
+              pos = t.indexOf(w);
+              break;
+            }
+          }
+        }
       }
-      // Стемминг: сравниваем основу названия с основами слов текста
-      const nameStem = this._stem(name);
-      if (nameStem.length >= 3 && stems.some(s => s === nameStem || s.startsWith(nameStem) || nameStem.startsWith(s) && s.length >= 3)) {
-        found.push({ name, ...data });
+      if (pos === -1) continue;
+      matchedFoods.push({ name, data, pos });
+    }
+
+    for (const f of matchedFoods) {
+      // Найти ближайшее количество в окне ±50 символов
+      let best = null;
+      for (const a of amounts) {
+        const dist = Math.abs(a.pos - f.pos);
+        if (dist > 60) continue;
+        if (!best || dist < best.dist) best = { ...a, dist };
       }
+      const item = { name: f.name, ...f.data };
+      if (best && best.portion != null) {
+        // Перерасчёт макросов под фактическую порцию
+        const ratio = best.portion / f.data.portion;
+        item.portion = best.portion;
+        item.kcal = Math.round(f.data.kcal * ratio);
+        item.carbs = +(f.data.carbs * ratio).toFixed(1);
+        item.protein = +(f.data.protein * ratio).toFixed(1);
+        item.fat = +(f.data.fat * ratio).toFixed(1);
+        item.defaultPortion = false;
+      } else if (best && best.portion == null) {
+        // указано как «кусок/штука» — не дефолт, но точная масса неизвестна
+        item.defaultPortion = false;
+        item.portionHint = best.num + ' ' + best.unit;
+      } else {
+        item.defaultPortion = true;
+      }
+      found.push(item);
     }
     return found;
   },
@@ -421,6 +470,44 @@ const Engine = {
   },
 
   // === ГЛАВНЫЙ МЕТОД: анализ события ===
+  // === ПАРСЕР ЗАМЕРОВ ГЛЮКОЗЫ ===
+  // «утром 6.2», «после еды 8.5 ммоль», «натощак 5.4», «вечером 7.1»
+  parseGlucose(text) {
+    if (!text) return null;
+    // Цифра вида X.Y или X,Y в диапазоне глюкозы крови (2.5-25 ммоль/л)
+    const matches = [...text.matchAll(/(\d{1,2})[.,](\d{1,2})\s*(ммоль|ммл|mmol)?/gi)];
+    if (!matches.length) return null;
+    const t = text.toLowerCase();
+    // Исключения: давление 140/90, рост 183 см, вес 77 кг — не глюкоза
+    const isBloodPressure = /\d{2,3}\s*\/\s*\d{2,3}/.test(t);
+    for (const m of matches) {
+      const value = parseFloat(m[1] + '.' + m[2]);
+      if (value < 2.5 || value > 25) continue;
+      // Если рядом «кг» / «см» / «лет» — это не глюкоза
+      const ctx = t.slice(Math.max(0, m.index - 20), m.index + m[0].length + 20);
+      if (/(кг|килограмм|см|сантиметр|лет|года|год)\b/.test(ctx)) continue;
+      if (isBloodPressure && m[2].length === 2 && /\d/.test(t[m.index + m[0].length] || '')) continue;
+      return {
+        value,
+        type: this._detectGlucoseType(t),
+        source: 'manual',
+        time: Date.now(),
+        raw: m[0]
+      };
+    }
+    return null;
+  },
+
+  _detectGlucoseType(t) {
+    // word-boundary не работает с кириллицей, используем lookahead
+    if (/натощак|с утра|утром(?![а-яё])/.test(t)) return 'fasting';
+    if (/после еды|после завтрак|после обед|после ужин|через час после|через 2 часа после|через два часа после/.test(t)) return 'postprandial';
+    if (/перед сном|на ночь|вечером(?![а-яё])/.test(t)) return 'bedtime';
+    if (/до еды|перед едой/.test(t)) return 'preprandial';
+    return 'random';
+  },
+
+  // === АНАЛИЗ ЕДЫ И ПРОДУКТОВ ===
   analyze(text, profile) {
     const foods = this.parseFood(text);
     if (foods.length === 0) return null;
@@ -676,7 +763,9 @@ const Engine = {
       timeLabel: `${e.hour}:${(e.eventMinute % 60).toString().padStart(2, '0')}`,
       certain: e.timeCertain,
       label: e.foods.map(f => f.name).join(', '),
-      kcal: e.foods.reduce((s, f) => s + f.kcal, 0)
+      kcal: e.foods.reduce((s, f) => s + f.kcal, 0),
+      hasDefaultPortion: e.foods.some(f => f.defaultPortion === true),
+      unspecifiedFoods: e.foods.filter(f => f.defaultPortion === true).map(f => f.name)
     }));
 
     // Вторичные процессы
@@ -711,8 +800,23 @@ const Engine = {
         .sort((a, b) => a.minute - b.minute)
     })).filter(s => s.points.length >= 2);
 
+    // Замеры глюкозы из Storage (фактические точки)
+    let measurements = [];
+    if (typeof Storage !== 'undefined' && Storage.getGlucoseLog) {
+      const today = new Date();
+      const dayStartTs = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+      const log = Storage.getGlucoseLog() || [];
+      measurements = log
+        .filter(m => m.time >= dayStartTs)
+        .map(m => {
+          const d = new Date(m.time);
+          return { minute: d.getHours() * 60 + d.getMinutes(), value: m.value, type: m.type };
+        })
+        .filter(m => m.minute >= startMin && m.minute <= endMin);
+    }
+
     return {
-      points, events: eventMarkers, baseline, secondary,
+      points, events: eventMarkers, baseline, secondary, measurements,
       nowMinute: nowMin,
       dayStart: this.dayStart,
       hasUncertain: this._dayEvents.some(e => !e.timeCertain)

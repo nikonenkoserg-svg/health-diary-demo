@@ -32,11 +32,39 @@
     <section id="screen-chat" class="screen active">
       <div id="chart-panel" class="chart-panel hidden">
         <div class="chart-panel-header">
-          <span class="chart-panel-title">Сегодня</span>
+          <span id="chart-phase-label" class="chart-phase-label">СЕГОДНЯ</span>
           <button id="btnToggleChart" class="chart-toggle" aria-label="Свернуть">▼</button>
         </div>
+        <div id="chart-headline" class="chart-headline"></div>
+        <div id="chart-foods-pill" class="chart-foods-pill"></div>
+        <div id="chart-lever-card" class="chart-lever-card hidden">
+          <div id="chart-lever-title" class="chart-lever-title"></div>
+          <div id="chart-lever-body" class="chart-lever-body"></div>
+        </div>
+        <div id="chart-key-numbers" class="chart-key-numbers"></div>
         <div id="chart-canvas-wrap" class="chart-canvas-wrap">
           <canvas id="chartMain"></canvas>
+        </div>
+        <div id="chart-retrospective" class="chart-retrospective hidden">
+          <div class="retro-cards">
+            <div class="retro-card">
+              <div class="retro-card-label">пик</div>
+              <div class="retro-card-value" id="retro-peak-value">—</div>
+              <div class="retro-card-sub" id="retro-peak-time"></div>
+              <div class="retro-card-divider"></div>
+              <div class="retro-card-label">опустился ниже 7.8 в</div>
+              <div class="retro-card-value-small" id="retro-return-time">—</div>
+            </div>
+            <div class="retro-card">
+              <div class="retro-card-label">время в зоне выше нормы</div>
+              <div class="retro-card-value-big" id="retro-zone-time">—</div>
+              <div class="retro-card-sub" id="retro-zone-range"></div>
+            </div>
+          </div>
+          <div class="retro-sparkline-wrap">
+            <div class="retro-sparkline-label">КРИВАЯ ДНЯ</div>
+            <canvas id="retro-sparkline" class="retro-sparkline"></canvas>
+          </div>
         </div>
       </div>
       <div id="chat" class="chat-area"></div>
@@ -47,33 +75,7 @@
       </div>
     </section>
 
-    <section id="screen-diary" class="screen">
-      <div class="diary-area">
-        <p class="placeholder-text">Дневник появится после первого разговора</p>
-      </div>
-    </section>
-
-    <section id="screen-insights" class="screen">
-      <div class="insights-area">
-        <p class="placeholder-text">Инсайты появятся после первых записей</p>
-      </div>
-    </section>
   </main>
-
-  <nav id="tabbar">
-    <button class="tab active" data-screen="chat">
-      <span class="tab-icon">💬</span>
-      <span class="tab-label">Разговор</span>
-    </button>
-    <button class="tab" data-screen="diary">
-      <span class="tab-icon">📋</span>
-      <span class="tab-label">Дневник</span>
-    </button>
-    <button class="tab" data-screen="insights">
-      <span class="tab-icon">📊</span>
-      <span class="tab-label">Инсайты</span>
-    </button>
-  </nav>
 
   <div id="settings-panel" class="settings-panel hidden">
     <div class="settings-content">
@@ -121,6 +123,7 @@
 <script src="/knowledge/core-style.js?v=20260609b"></script>
 <script src="/js/engine.js"></script>
 <script src="/js/chart.js"></script>
+<script src="/js/chart-overlay.js?v=20260610a"></script>
 <script src="/js/onboarding.js"></script>
 <script src="/js/rag.js?v=20260609b"></script>
 <script type="module">

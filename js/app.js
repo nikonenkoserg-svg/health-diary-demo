@@ -49,11 +49,6 @@ const App = {
     // Theme
     document.getElementById('btnTheme').addEventListener('click', () => Theme.toggle());
 
-    // Tabs
-    document.querySelectorAll('.tab').forEach(tab => {
-      tab.addEventListener('click', () => this.switchScreen(tab.dataset.screen));
-    });
-
     // Settings
     document.getElementById('btnSettings').addEventListener('click', () => this.toggleSettings(true));
     document.getElementById('btnCloseSettings').addEventListener('click', () => this.toggleSettings(false));
@@ -175,14 +170,6 @@ const App = {
     input.style.height = 'auto';
     document.getElementById('btnSend').disabled = true;
     Chat.send(text);
-  },
-
-  switchScreen(name) {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById('screen-' + name).classList.add('active');
-    document.querySelectorAll('.tab').forEach(t => {
-      t.classList.toggle('active', t.dataset.screen === name);
-    });
   },
 
   toggleSettings(show) {
