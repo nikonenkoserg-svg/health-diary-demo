@@ -29,6 +29,16 @@ def collect_files():
                 continue
             with open(full, 'rb') as f:
                 data = f.read()
+            # Авто-bump cache-busters в index.html: ?v=XXX заменяется на текущий timestamp.
+            # Так браузер ВСЕГДА видит свежие версии после deploy.
+            if rel == 'index.html':
+                import re
+                from datetime import datetime
+                stamp = datetime.utcnow().strftime('%Y%m%d-%H%M%S')
+                text = data.decode('utf-8')
+                text = re.sub(r'\.(js|css)\?v=[A-Za-z0-9\-]+', lambda m: f'.{m.group(1)}?v={stamp}', text)
+                data = text.encode('utf-8')
+                print(f"  [auto-versioned scripts to v={stamp}]")
             sha = hashlib.sha1(data).hexdigest()
             files.append({"file": rel, "data": base64.b64encode(data).decode(), "sha": sha, "size": len(data)})
     return files
