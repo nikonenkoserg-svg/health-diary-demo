@@ -77,6 +77,80 @@ const Chat = {
     this.scrollToBottom();
   },
 
+  async _streamReply(resp) {
+    // SSE-стрим с плавной раскадровкой: модель может присылать чанками,
+    // но в DOM мы добавляем по одному символу с задержкой ~22мс — как typeMessage.
+    const chat = document.getElementById('chat');
+    const div = document.createElement('div');
+    div.className = 'message bot';
+    let added = false;
+    let buffer = '';
+    let acc = '';            // полный полученный текст
+    let pending = '';        // ещё не отрисованный хвост
+    let displayed = '';      // уже в DOM
+    let streamDone = false;
+    const TYPE_MS = 22;
+
+    const tick = async () => {
+      while (!streamDone || pending.length > 0) {
+        if (pending.length === 0) {
+          await new Promise(r => setTimeout(r, 30));
+          continue;
+        }
+        // Адаптивная задержка по 1 символу: плавная скорость без скачков.
+        // Буфер большой — печатаем чаще, маленький — спокойно.
+        let delay;
+        if (pending.length > 150) delay = 8;
+        else if (pending.length > 80) delay = 14;
+        else if (pending.length > 30) delay = 20;
+        else delay = 28;
+        const chunk = pending.slice(0, 1);
+        pending = pending.slice(1);
+        displayed += chunk;
+        if (!added) {
+          this.hideTyping();
+          chat.appendChild(div);
+          added = true;
+        }
+        div.textContent = displayed;
+        this.scrollToBottom();
+        await new Promise(r => setTimeout(r, delay));
+      }
+    };
+    const typingPromise = tick();
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let parseError = false;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let lineEnd;
+      while ((lineEnd = buffer.indexOf('\n')) !== -1) {
+        const line = buffer.slice(0, lineEnd).trim();
+        buffer = buffer.slice(lineEnd + 1);
+        if (!line.startsWith('data:')) continue;
+        const data = line.slice(5).trim();
+        if (data === '[DONE]') { streamDone = true; continue; }
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed.error) { parseError = true; streamDone = true; continue; }
+          if (parsed.content) {
+            acc += parsed.content;
+            pending += parsed.content;
+          }
+        } catch (_) {}
+      }
+    }
+    streamDone = true;
+    await typingPromise;
+    if (parseError || !acc) return null;
+    this.chatData.messages.push({ role: 'assistant', content: acc });
+    Storage.saveChat(this.chatData);
+    return acc;
+  },
+
   async typeMessage(text, role) {
     const chat = document.getElementById('chat');
     const div = document.createElement('div');
@@ -97,16 +171,30 @@ const Chat = {
   },
 
   showTyping() {
+    // Если уже показан — не дублируем
+    if (document.getElementById('typing')) return;
     const chat = document.getElementById('chat');
     const div = document.createElement('div');
     div.className = 'typing';
     div.id = 'typing';
-    div.textContent = 'думаю';
+    div.textContent = 'Слышу.';
     chat.appendChild(div);
     this.scrollToBottom();
+    const steps = [
+      { at: 4000, text: 'Уже иду.' },
+      { at: 10000, text: 'Я здесь!' }
+    ];
+    this._typingTimers = steps.map(s => setTimeout(() => {
+      const el = document.getElementById('typing');
+      if (el) el.textContent = s.text;
+    }, s.at));
   },
 
   hideTyping() {
+    if (this._typingTimers) {
+      this._typingTimers.forEach(t => clearTimeout(t));
+      this._typingTimers = null;
+    }
     const el = document.getElementById('typing');
     if (el) el.remove();
   },
@@ -235,6 +323,8 @@ const Chat = {
     this.chatData.userMsgCount++;
     Storage.saveChat(this.chatData);
     this.scrollToBottom();
+    // Индикатор «думаю» — сразу при отправке, не после всех парсеров
+    this.showTyping();
 
     // Парсер замеров глюкозы: тихо сохраняет в Storage
     if (typeof Engine !== 'undefined' && Engine.parseGlucose) {
@@ -262,6 +352,7 @@ const Chat = {
         words.some(w => agreeStem.some(s => w.startsWith(s)))
       );
       if (isAgree) {
+        this.hideTyping();
         this.chatData.state = 'questionnaire_intro';
         Storage.saveChat(this.chatData);
         await new Promise(r => setTimeout(r, 500));
@@ -312,8 +403,20 @@ const Chat = {
 
       this.showTyping();
       try {
+        // Дополняем системный промпт списком УЖЕ известных полей профиля,
+        // чтобы LLM не переспрашивал то, что мы уже распарсили.
+        const known = Storage.getProfile() || {};
+        const knownFields = [];
+        if (known.sex) knownFields.push(`пол=${known.sex}`);
+        if (known.age) knownFields.push(`возраст=${known.age}`);
+        if (known.weight) knownFields.push(`вес=${known.weight} кг`);
+        if (known.height) knownFields.push(`рост=${known.height} см`);
+        let sysPrompt = Onboarding.QUESTIONNAIRE_PROMPT;
+        if (knownFields.length > 0) {
+          sysPrompt += `\n\nУЖЕ ИЗВЕСТНО ИЗ ПРОФИЛЯ: ${knownFields.join(', ')}. Эти поля НЕ переспрашивай.`;
+        }
         const apiMessages = [
-          { role: 'system', content: Onboarding.QUESTIONNAIRE_PROMPT },
+          { role: 'system', content: sysPrompt },
           ...this.chatData.messages.slice(-10)
         ];
 
@@ -359,6 +462,17 @@ const Chat = {
     let chartData = null;
     let timeUncertain = false;
     let leverHint = null;
+
+    // Уточнение существующего event (граммы/время в отдельной реплике без еды)
+    if (typeof Engine !== 'undefined' && Engine.updateLastEventFromContext &&
+        (this.chatData.state === 'active' || this.chatData.state === 'bridge') &&
+        !this.looksLikeFood(text) && Engine._dayEvents.length > 0) {
+      const profile = Storage.getProfile() || {};
+      if (Engine.updateLastEventFromContext(text, profile)) {
+        chartData = Engine.getCurvePoints(profile);
+      }
+    }
+
     if (typeof Engine !== 'undefined' &&
         (this.chatData.state === 'active' || this.chatData.state === 'bridge') &&
         this.looksLikeFood(text)) {
@@ -411,8 +525,6 @@ const Chat = {
       }
     }
 
-    this.showTyping();
-
     try {
       const currentProfile = Storage.getProfile();
       // Список продуктов без указанной граммовки — для подсказки модели
@@ -446,27 +558,24 @@ const Chat = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: apiMessages,
-          max_tokens: chartData ? 800 : 1500  // Короче если есть график
+          max_tokens: chartData ? 800 : 1500,
+          stream: true
         })
       });
 
-      this.hideTyping();
+      if (resp.ok && resp.body) {
+        // Обновляем график пока модель думает
+        if (chartData && typeof Chart !== 'undefined') {
+          Chart.updatePanel(chartData);
+          this.saveChartData(chartData);
+        }
 
-      if (resp.ok) {
-        const data = await resp.json();
-        const raw = data.choices?.[0]?.message?.content;
+        const raw = await this._streamReply(resp);
+        this.hideTyping();
         if (raw) {
           const reply = Assistant.filterResponse(raw);
           if (reply.includes('?')) this.chatData.questionCount++;
           else this.chatData.questionCount = 0;
-
-          // Обновляем постоянную панель графика
-          if (chartData && typeof Chart !== 'undefined') {
-            Chart.updatePanel(chartData);
-            this.saveChartData(chartData);
-          }
-
-          await this.typeMessage(reply, 'bot');
 
           // Постобработка: ссылка на пост канала появляется ТОЛЬКО когда пациент
           // задаёт вопрос. На декларативные констатации ссылок не даём.

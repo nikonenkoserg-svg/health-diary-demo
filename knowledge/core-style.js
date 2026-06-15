@@ -388,6 +388,16 @@ GLUT4 — транспортёр глюкозы в мышцах. Активир�
       if (profile.bmi) prompt += `ИМТ ${profile.bmi}, `;
       if (profile.sex === 'женский') prompt += 'учитывай цикл и гормоны, ';
       prompt = prompt.replace(/, $/, '');
+
+      // Жёсткий запрет на повторные вопросы по уже известным полям профиля.
+      const known = [];
+      if (profile.sex) known.push('пол');
+      if (profile.age) known.push('возраст');
+      if (profile.weight) known.push('вес');
+      if (profile.height) known.push('рост');
+      if (known.length > 0) {
+        prompt += `\nЭти параметры УЖЕ известны: ${known.join(', ')}. НЕ переспрашивай их. Используй цифры из профиля. Уточнения допустимы только если пациент сам говорит про изменение.`;
+      }
     }
 
     // Phase-based tone
