@@ -60,22 +60,60 @@ const Chat = {
     chat.appendChild(div);
   },
 
-  addArticleLink(url, title) {
+  addCardLink(cardId, title) {
     const chat = document.getElementById('chat');
     const div = document.createElement('div');
-    div.className = 'message bot';
+    div.className = 'message bot card-hint';
     const intro = document.createElement('span');
-    intro.textContent = 'По теме разбор в канале:\n';
+    intro.textContent = 'Глубже: ';
     div.appendChild(intro);
     const link = document.createElement('a');
-    link.href = url;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
+    link.href = '#';
+    link.className = 'card-link';
     link.textContent = title;
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      this.openCardOverlay(cardId);
+    });
     div.appendChild(link);
     chat.appendChild(div);
     this.scrollToBottom();
   },
+
+  openCardOverlay(cardId) {
+    const card = window.RAG && window.RAG.getCardById ? window.RAG.getCardById(cardId) : null;
+    if (!card) return;
+    // Удаляем предыдущий оверлей если есть
+    const old = document.getElementById('card-overlay');
+    if (old) old.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'card-overlay';
+    overlay.className = 'card-overlay';
+    overlay.innerHTML =
+      '<div class="card-modal">' +
+      '  <div class="card-header">' +
+      '    <button class="card-close" aria-label="Закрыть">✕</button>' +
+      '  </div>' +
+      '  <div class="card-body">' +
+      '    <h2 class="card-title"></h2>' +
+      '    <div class="card-text"></div>' +
+      '  </div>' +
+      '</div>';
+    overlay.querySelector('.card-title').textContent = card.title || '';
+    const body = overlay.querySelector('.card-text');
+    const paras = (card.text || '').split(/\n\n+/);
+    for (const p of paras) {
+      const el = document.createElement('p');
+      el.textContent = p.trim();
+      body.appendChild(el);
+    }
+    overlay.querySelector('.card-close').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
+  },
+
+  // Backward compatibility — старый код может звать addArticleLink
+  addArticleLink(urlOrId, title) { this.addCardLink(urlOrId, title); },
 
   async _streamReply(resp) {
     // SSE-стрим с плавной раскадровкой: модель может присылать чанками,
@@ -602,9 +640,9 @@ const Chat = {
           try {
             const isQuestion = /\?|(?:^|\s)(что|как|почему|зачем|когда|где|какой|какая|какие|нужно ли|можно ли|стоит ли|правда ли|почему ли|поможет ли)(?:\s|$|\?|,|\.)/i.test(text);
             if (isQuestion && typeof window.RAG !== 'undefined' && window.RAG.isReady && window.RAG.isReady()) {
-              const article = await window.RAG.searchArticle(text, null, { sex: (Storage.getProfile() || {}).sex });
-              if (article) {
-                this.addArticleLink(article.url, '«' + article.title + '»');
+              const card = await window.RAG.searchCard(text, null, { sex: (Storage.getProfile() || {}).sex });
+              if (card) {
+                this.addCardLink(card.id, '«' + card.title + '»');
               }
             }
           } catch (e) { console.warn('[RAG] article post failed:', e); }

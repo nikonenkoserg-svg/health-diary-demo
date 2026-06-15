@@ -78,40 +78,50 @@ const RAG = {
 };
 
 
-// === ARTICLES (ссылки на посты канала) ===
-RAG.articles = null;
-RAG._loadArticles = async function(){
-  if (this.articles) return this.articles;
-  const res = await fetch('knowledge/articles.json');
-  this.articles = await res.json();
-  return this.articles;
+// === LIBRARY — карточки контента ВНУТРИ дневника, без ссылок на канал ===
+RAG.library = null;
+RAG._loadLibrary = async function(){
+  if (this.library) return this.library;
+  const res = await fetch('knowledge/library.json');
+  this.library = await res.json();
+  // Backward-compat alias на старое поле .articles чтобы isReady() и старый код работали
+  this.articles = this.library;
+  return this.library;
 };
-const origInit = RAG.init.bind(RAG);
 RAG.init = async function(){
   if (this.loadingPromise) return this.loadingPromise;
-  this.loadingPromise = Promise.all([this._loadCards(), this._loadEmbedder(), this._loadArticles()]);
+  this.loadingPromise = Promise.all([this._loadCards(), this._loadEmbedder(), this._loadLibrary()]);
   await this.loadingPromise;
   return true;
 };
-RAG.searchArticle = async function(query, minScore, opts){
+RAG.searchCard = async function(query, minScore, opts){
   minScore = minScore || 0.35;
   opts = opts || {};
   const userSex = opts.sex;
-  if (!this.articles || !this.embedder) return null;
+  if (!this.library || !this.embedder) return null;
   const qVec = await this.embed(query);
   let best = null;
-  for (const a of this.articles) {
-    // Фильтр по полу: женские посты пропускаются для мужчин
+  for (const a of this.library) {
+    if (!a.vec) continue; // карточки без эмбеддинга пропускаем
     if (a.gender === 'female' && userSex && userSex !== 'женский') continue;
     const score = this._cosine(qVec, a.vec);
-    if (!best || score > best.score) best = { id:a.id, url:a.url, title:a.title, score };
+    if (!best || score > best.score) best = { id: a.id, title: a.title, text: a.text, score };
   }
   if (!best || best.score < minScore) return null;
   return best;
 };
-RAG.formatArticleForPrompt = function(article){
-  if (!article) return '';
-  return '\n\n[РЕЛЕВАНТНЫЙ РАЗБОР В КАНАЛЕ]\nПо теме реплики есть пост: ' + article.url + ' · «' + article.title + '».\nЕсли уместно — мягко упомяни ссылку в ответе (например: «по этой теме разбор в канале: ' + article.url + '»). Не лекторствуй сверх ссылки.\n[/РАЗБОР]';
+// Backward alias
+RAG.searchArticle = RAG.searchCard;
+RAG.getCardById = function(id){
+  if (!this.library) return null;
+  return this.library.find(c => String(c.id) === String(id)) || null;
 };
+RAG.formatCardForPrompt = function(card){
+  if (!card) return '';
+  // Спутник получает выжимку текста как материал, но НЕ ссылку. Упоминать источник в ответе нельзя.
+  const excerpt = (card.text || '').slice(0, 800);
+  return '\n\n[МАТЕРИАЛ ПО ТЕМЕ — для информирования ответа]\n«' + card.title + '»:\n' + excerpt + '\n\nИспользуй эти факты в ответе если уместно. НЕ ссылайся на источник, НЕ говори «в посте», «в канале», «в карточке». Просто отвечай по сути, опираясь на материал.\n[/МАТЕРИАЛ]';
+};
+RAG.formatArticleForPrompt = RAG.formatCardForPrompt;
 
 if (typeof window !== 'undefined') window.RAG = RAG;

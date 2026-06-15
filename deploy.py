@@ -11,7 +11,7 @@ HEADERS = {"Authorization": f"Bearer {VERCEL_TOKEN}", "Content-Type": "applicati
 ROOT = os.path.dirname(os.path.abspath(__file__))
 skip_dirs = {'.git', 'node_modules', 'scripts', 'prompts', 'video-test'}
 skip_ext = {'.md', '.txt'}
-include_knowledge = {'core-style.js', 'cards.json', 'articles.json'}
+include_knowledge = {'core-style.js', 'cards.json', 'articles.json', 'library.json'}
 
 def collect_files():
     files = []
