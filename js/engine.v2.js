@@ -78,6 +78,17 @@ const Engine = {
       amounts.push({ pos: am.index, num, unit, portion });
     }
 
+    // Хелпер: совпадение одного стема имени с любым стемом текста
+    const matchOneStem = (nameStem) => {
+      const nameRoot = nameStem.length >= 4 ? nameStem.slice(0, -1) : nameStem;
+      for (let i = 0; i < stems.length; i++) {
+        if (stems[i] === nameStem || stems[i].startsWith(nameStem) || stems[i].startsWith(nameRoot) || (nameStem.startsWith(stems[i]) && stems[i].length >= 3)) {
+          return { idx: i, pos: t.indexOf(words[i]) };
+        }
+      }
+      return null;
+    };
+
     const matchedFoods = [];
     for (const [name, data] of Object.entries(this.FOOD_DB)) {
       let pos = -1;
@@ -92,25 +103,41 @@ const Engine = {
         if (leftOk && rightOk) pos = directIdx;
       }
       if (pos === -1) {
-        const nameStem = this._stem(name);
-        // Корень без последней буквы — ловит склонения для слов на гласную
-        // («пицца» → «пицц» ловит «пиццы», «пиццу», «пицце»).
-        // Для слов ≤3 букв корень не отрезаем — риск ложных срабатываний.
-        const nameRoot = nameStem.length >= 4 ? nameStem.slice(0, -1) : nameStem;
-        if (nameStem.length >= 3) {
-          for (let i = 0; i < stems.length; i++) {
-            if (stems[i] === nameStem || stems[i].startsWith(nameStem) || stems[i].startsWith(nameRoot) || (nameStem.startsWith(stems[i]) && stems[i].length >= 3)) {
-              // приблизительная позиция слова в исходном тексте
-              const w = words[i];
-              pos = t.indexOf(w);
-              break;
-            }
+        // Составное имя («каша овсянка»): ВСЕ части должны иметь совпадение в тексте.
+        // Иначе «каша» в тексте ложно матчит «каша овсянка», «каша гречка», «каша рисовая».
+        const parts = name.split(/\s+/);
+        if (parts.length > 1) {
+          const partStems = parts.map(p => this._stem(p)).filter(s => s.length >= 3);
+          const hits = partStems.map(s => matchOneStem(s));
+          if (hits.every(h => h !== null)) {
+            pos = Math.min(...hits.map(h => h.pos));
+          }
+        } else {
+          const nameStem = this._stem(name);
+          if (nameStem.length >= 3) {
+            const h = matchOneStem(nameStem);
+            if (h) pos = h.pos;
           }
         }
       }
       if (pos === -1) continue;
       matchedFoods.push({ name, data, pos });
     }
+
+    // Дедупликация: если найдены «каша овсянка» И «каша», оставляем специфичное.
+    // Считаем что более длинное имя (больше слов) перекрывает короткое.
+    matchedFoods.sort((a, b) => b.name.split(/\s+/).length - a.name.split(/\s+/).length);
+    const usedStems = new Set();
+    const dedup = [];
+    for (const f of matchedFoods) {
+      const fStems = f.name.split(/\s+/).map(w => this._stem(w));
+      const overlap = fStems.some(s => usedStems.has(s));
+      if (overlap) continue;
+      fStems.forEach(s => usedStems.add(s));
+      dedup.push(f);
+    }
+    matchedFoods.length = 0;
+    matchedFoods.push(...dedup);
 
     // Greedy-привязка: каждое количество достаётся ОДНОМУ ближайшему продукту.
     // Без этого «300 г каши и сок» назначило бы 300 г и каше, и соку.
