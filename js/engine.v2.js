@@ -112,22 +112,31 @@ const Engine = {
       matchedFoods.push({ name, data, pos });
     }
 
-    for (const f of matchedFoods) {
-      // Найти ближайшее количество в окне ±50 символов
-      let best = null;
-      for (const a of amounts) {
-        const dist = Math.abs(a.pos - f.pos);
-        if (dist > 60) continue;
-        if (!best || dist < best.dist) best = { ...a, dist };
+    // Greedy-привязка: каждое количество достаётся ОДНОМУ ближайшему продукту.
+    // Без этого «300 г каши и сок» назначило бы 300 г и каше, и соку.
+    const assigned = new Map(); // foodIdx -> amount
+    const usedAmt = new Set();
+    const pairs = [];
+    for (let i = 0; i < matchedFoods.length; i++) {
+      for (let j = 0; j < amounts.length; j++) {
+        pairs.push({ fi: i, ai: j, dist: Math.abs(amounts[j].pos - matchedFoods[i].pos) });
       }
+    }
+    pairs.sort((a, b) => a.dist - b.dist);
+    for (const p of pairs) {
+      if (p.dist > 60) break;
+      if (assigned.has(p.fi) || usedAmt.has(p.ai)) continue;
+      assigned.set(p.fi, amounts[p.ai]);
+      usedAmt.add(p.ai);
+    }
+    for (let i = 0; i < matchedFoods.length; i++) {
+      const f = matchedFoods[i];
+      const best = assigned.get(i) || null;
       const item = { name: f.name, ...f.data };
       if (best && best.portion != null) {
-        // kcal/carbs остаются как «на 100г» — addEvent сам умножит на portion/100.
-        // Меняем только portion.
         item.portion = best.portion;
         item.defaultPortion = false;
       } else if (best && best.portion == null) {
-        // указано как «кусок/штука» — не дефолт, но точная масса неизвестна
         item.defaultPortion = false;
         item.portionHint = best.num + ' ' + best.unit;
       } else {
