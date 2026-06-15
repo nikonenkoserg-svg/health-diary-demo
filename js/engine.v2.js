@@ -19,6 +19,21 @@ const Engine = {
     'макароны':    { gi: 55, carbs: 25, fat: 1, protein: 5, kcal: 131, portion: 200 },
     'банан':       { gi: 62, carbs: 23, fat: 0.3, protein: 1, kcal: 96, portion: 120 },
 
+    // Десерты и сладкое (часто запрашиваемая категория для преддиабета)
+    'торт':        { gi: 75, carbs: 50, fat: 20, protein: 5, kcal: 380, portion: 120 },
+    'пирог':       { gi: 70, carbs: 45, fat: 15, protein: 6, kcal: 320, portion: 150 },
+    'печенье':     { gi: 70, carbs: 65, fat: 18, protein: 7, kcal: 450, portion: 50 },
+    'конфета':     { gi: 75, carbs: 75, fat: 15, protein: 3, kcal: 440, portion: 30 },
+    'конфеты':     { gi: 75, carbs: 75, fat: 15, protein: 3, kcal: 440, portion: 30 },
+    'мёд':         { gi: 60, carbs: 80, fat: 0, protein: 0.3, kcal: 304, portion: 20 },
+    'мед':         { gi: 60, carbs: 80, fat: 0, protein: 0.3, kcal: 304, portion: 20 },
+    'сахар':       { gi: 70, carbs: 100, fat: 0, protein: 0, kcal: 400, portion: 10 },
+    'варенье':     { gi: 65, carbs: 70, fat: 0, protein: 0.5, kcal: 280, portion: 30 },
+    'хлопья':      { gi: 70, carbs: 70, fat: 8, protein: 9, kcal: 370, portion: 40 },
+    'сухофрукты':  { gi: 60, carbs: 70, fat: 0.5, protein: 2.5, kcal: 290, portion: 40 },
+    'булочка':     { gi: 72, carbs: 50, fat: 8, protein: 7, kcal: 300, portion: 80 },
+    'круассан':    { gi: 68, carbs: 45, fat: 22, protein: 8, kcal: 406, portion: 70 },
+
     // Медленные углеводы (GI < 55)
     'каша овсянка':{ gi: 40, carbs: 12, fat: 2, protein: 3, kcal: 68, portion: 250 },
     'каша гречка': { gi: 40, carbs: 19, fat: 2, protein: 4, kcal: 110, portion: 200 },
@@ -68,6 +83,16 @@ const Engine = {
     // Список числовых указаний количества с позицией в тексте
     const amounts = [];
     const reAmt = /(\d+(?:[.,]\d+)?)\s*(г|гр|грамм|граммов|мл|миллилитр|кусок|кусоч|штук|шт)(?![а-яёa-z])/gi;
+    // Бытовые меры без числа («чашка кофе», «стакан сока», «ложка мёда»).
+    // Считаем как один объект количества 1×<мера>, с дефолтной граммовкой.
+    const reUnit = /(стакан[а-я]*|чашк[а-я]+|кружк[а-я]+|ложк[а-я]+|горст[а-я]*)(?![а-яёa-z])/gi;
+    const unitDefaults = { стакан: 250, чашк: 200, кружк: 300, ложк: 15, горст: 30 };
+    let um;
+    while ((um = reUnit.exec(t)) !== null) {
+      const raw = um[1].toLowerCase();
+      const key = Object.keys(unitDefaults).find(k => raw.startsWith(k));
+      if (key) amounts.push({ pos: um.index, num: 1, unit: raw, portion: unitDefaults[key] });
+    }
     let am;
     while ((am = reAmt.exec(t)) !== null) {
       const num = parseFloat(am[1].replace(',', '.'));
