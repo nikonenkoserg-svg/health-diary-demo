@@ -257,18 +257,32 @@ const Chat = {
     sys += `
 
 Верни ТОЛЬКО валидный JSON, без markdown и пояснений:
-{"wake":"ЧЧ:ММ" или null,"events":[{"time":"ЧЧ:ММ","certain":true,"foods":"продукты"}]}
+{"wake":"ЧЧ:ММ" или null,"events":[{"time":"ЧЧ:ММ","certain":true,"items":[{"product":"торт","portion_g":150,"confidence":"high"}]}]}
 
 Правила:
 - Каждый приём пищи или напиток — отдельный элемент events
 - Время словами переводи в цифры: "три пятнадцать"→"3:15", "пол девятого"→"8:30"
-- Относительное время разворачивай по цепочке: если "в 4 начал, через 2 часа молоко" — молоко в "6:00"
+- Относительное время разворачивай по цепочке
 - "N часов назад" — отсчитывай от текущего времени
-- Точное время → certain:true. Расплывчатое ("утром","днём","вечером") или вычисленное приблизительно → certain:false
+- Точное время → certain:true. Расплывчатое ("утром","днём","вечером") или прикидка → certain:false
 - Совсем нет времени → time текущее, certain:false
-- foods — простые названия через запятую (блины, кофе, молоко, мясо). Без описаний и количеств
 - wake — время подъёма, если есть "проснулся/встал в..."
-- Нет еды в сообщении → {"wake":null,"events":[]}`;
+- items — массив продуктов в этом приёме пищи:
+  - product: короткое название в именительном падеже (торт, кофе, овсяная каша). НЕ пиши количества внутри
+  - portion_g: оценка в граммах (для жидкостей: 1 мл = 1 г)
+  - confidence:
+    - "high" — граммовка указана точно («150 г», «250 мл», «200 грамм»)
+    - "medium" — бытовая мера (чашка=200, стакан=250, кружка=300, ст.ложка=15, ч.ложка=5, горсть=30, кусок=50, ломтик=30)
+    - "low" — порция не указана, прикидываешь средние
+- Глюкозу, давление, рост, вес — НЕ включай
+- Нет еды в сообщении → {"wake":null,"events":[]}
+
+Примеры:
+"Я съел 150 грамм торта и выпил чашку кофе" →
+{"wake":null,"events":[{"time":"<текущее>","certain":false,"items":[{"product":"торт","portion_g":150,"confidence":"high"},{"product":"кофе","portion_g":200,"confidence":"medium"}]}]}
+
+"Утром сахар 5.5, час назад съел 200 грамм овсяной каши с мёдом, сейчас 9" →
+{"wake":null,"events":[{"time":"<час назад>","certain":true,"items":[{"product":"овсяная каша","portion_g":200,"confidence":"high"},{"product":"мёд","portion_g":15,"confidence":"low"}]}]}`;
 
     try {
       const resp = await fetch('/api/chat', {
@@ -309,7 +323,8 @@ const Chat = {
     Engine.clearDay();
     if (this.chatData.dayLog.wake != null) Engine.setDayStart(this.chatData.dayLog.wake);
     for (const e of this.chatData.dayLog.events) {
-      Engine.addEvent(e.foods, profile, { minute: e.minute, certain: e.certain });
+      const payload = e.items || e.foods;
+      if (payload) Engine.addEvent(payload, profile, { minute: e.minute, certain: e.certain });
     }
     return this.chatData.dayLog.events.length > 0;
   },
@@ -487,13 +502,18 @@ const Chat = {
         }
         for (const ev of extracted.events) {
           const mn = this.hmToMin(ev.time);
-          if (mn == null || !ev.foods) continue;
+          // Новый формат: items=[{product, portion_g, confidence}]. Старый (fallback): foods="строка".
+          const payload = (ev.items && Array.isArray(ev.items)) ? ev.items : ev.foods;
+          if (mn == null || !payload) continue;
           const certain = ev.certain !== false;
-          const dup = this.chatData.dayLog.events.some(
-            e => e.minute === mn && e.foods === ev.foods);
+          const payloadKey = typeof payload === 'string' ? payload : JSON.stringify(payload);
+          const dup = this.chatData.dayLog.events.some(e => {
+            const eKey = typeof (e.items || e.foods) === 'string' ? (e.items || e.foods) : JSON.stringify(e.items || e.foods);
+            return e.minute === mn && eKey === payloadKey;
+          });
           if (dup) continue;
-          Engine.addEvent(ev.foods, foodProfile, { minute: mn, certain });
-          this.chatData.dayLog.events.push({ foods: ev.foods, minute: mn, certain });
+          Engine.addEvent(payload, foodProfile, { minute: mn, certain });
+          this.chatData.dayLog.events.push({ items: ev.items || null, foods: ev.foods || null, minute: mn, certain });
           if (!certain) timeUncertain = true;
         }
         chartData = Engine.getCurvePoints(foodProfile);

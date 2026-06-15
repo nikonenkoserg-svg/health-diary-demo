@@ -773,8 +773,64 @@ const Engine = {
     return changed;
   },
 
-  addEvent(text, profile, opts) {
-    const foods = this.parseFood(text);
+  // Поиск продукта в FOOD_DB по свободной строке (от LLM).
+  // Возвращает объект как элемент parseFood — с макронутриентами для расчёта кривой.
+  lookupFood(product, portionG, confidence) {
+    const p = (product || '').toLowerCase().trim();
+    if (!p) return null;
+    // 1. Прямое совпадение
+    if (this.FOOD_DB[p]) {
+      return { name: p, ...this.FOOD_DB[p], portion: portionG || this.FOOD_DB[p].portion, defaultPortion: confidence === 'low' };
+    }
+    // 2. Подстрока в обе стороны
+    for (const [name, data] of Object.entries(this.FOOD_DB)) {
+      if (p.includes(name) || name.includes(p)) {
+        return { name, ...data, portion: portionG || data.portion, defaultPortion: confidence === 'low' };
+      }
+    }
+    // 3. Стемминг — корни совпали
+    const pStem = this._stem(p);
+    if (pStem.length >= 3) {
+      for (const [name, data] of Object.entries(this.FOOD_DB)) {
+        const nameStem = this._stem(name);
+        const nameRoot = nameStem.length >= 4 ? nameStem.slice(0, -1) : nameStem;
+        if (nameStem === pStem || nameStem.startsWith(pStem) || pStem.startsWith(nameRoot) || pStem.startsWith(nameStem)) {
+          return { name, ...data, portion: portionG || data.portion, defaultPortion: confidence === 'low' };
+        }
+      }
+      // 3b. Если product — фраза из нескольких слов («овсяная каша»), сравниваем по словам
+      const pWords = p.split(/\s+/).map(w => this._stem(w)).filter(s => s.length >= 3);
+      if (pWords.length > 1) {
+        for (const [name, data] of Object.entries(this.FOOD_DB)) {
+          const nameWords = name.split(/\s+/).map(w => this._stem(w)).filter(s => s.length >= 3);
+          const allMatch = nameWords.every(nw => pWords.some(pw => pw.startsWith(nw) || nw.startsWith(pw)));
+          if (allMatch && nameWords.length > 0) {
+            return { name, ...data, portion: portionG || data.portion, defaultPortion: confidence === 'low' };
+          }
+        }
+      }
+    }
+    // 4. Не найдено — генерим дефолт по эвристике: сладкое/несладкое
+    const dessertWords = ['торт','пирог','печенье','конфет','шоколад','мороженое','сахар','мёд','мед','варенье','десерт','сладк','пирожн','круассан','булочк','хлопь'];
+    const isDessert = dessertWords.some(w => p.includes(w));
+    const fallback = isDessert
+      ? { gi: 70, carbs: 50, fat: 15, protein: 5, kcal: 350 }
+      : { gi: 50, carbs: 20, fat: 5, protein: 5, kcal: 150 };
+    return { name: p, ...fallback, portion: portionG || 100, defaultPortion: confidence === 'low' };
+  },
+
+  addEvent(textOrItems, profile, opts) {
+    // Поддержка двух API:
+    //   addEvent(text, profile, opts)  — старый путь через regex-парсер
+    //   addEvent([{product, portion_g, confidence}], profile, opts) — новый путь от LLM
+    let foods;
+    let text = '';
+    if (Array.isArray(textOrItems)) {
+      foods = textOrItems.map(it => this.lookupFood(it.product, it.portion_g, it.confidence)).filter(Boolean);
+    } else {
+      text = textOrItems || '';
+      foods = this.parseFood(text);
+    }
     if (foods.length === 0) return null;
 
     const coeff = this.getCoefficients(profile || {});
