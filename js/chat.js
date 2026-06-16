@@ -594,7 +594,7 @@ const Chat = {
         }
       }
 
-      const systemPrompt = await Assistant.buildSystemPrompt(
+      let systemPrompt = await Assistant.buildSystemPrompt(
         currentProfile,
         this.chatData.userMsgCount,
         this.chatData.questionCount,
@@ -605,6 +605,19 @@ const Chat = {
         leverHint,
         unspecifiedFoods
       );
+
+      // RAG: ищем релевантную карточку ДО отправки промпта, чтобы Спутник мог
+      // опереться на её материал в ответе. Карточку сохраняем для плашки внизу.
+      let relevantCard = null;
+      try {
+        const isQuestion = /\?|(?:^|\s)(что|как|почему|зачем|когда|где|какой|какая|какие|нужно ли|можно ли|стоит ли|правда ли|поможет ли)(?:\s|$|\?|,|\.)/i.test(text);
+        if (isQuestion && typeof window.RAG !== 'undefined' && window.RAG.isReady && window.RAG.isReady()) {
+          relevantCard = await window.RAG.searchCard(text, null, { sex: (Storage.getProfile() || {}).sex });
+          if (relevantCard && window.RAG.formatCardForPrompt) {
+            systemPrompt += window.RAG.formatCardForPrompt(relevantCard);
+          }
+        }
+      } catch (e) { console.warn('[RAG] search failed:', e); }
 
       const apiMessages = [
         { role: 'system', content: systemPrompt },
@@ -635,17 +648,11 @@ const Chat = {
           if (reply.includes('?')) this.chatData.questionCount++;
           else this.chatData.questionCount = 0;
 
-          // Постобработка: ссылка на пост канала появляется ТОЛЬКО когда пациент
-          // задаёт вопрос. На декларативные констатации ссылок не даём.
-          try {
-            const isQuestion = /\?|(?:^|\s)(что|как|почему|зачем|когда|где|какой|какая|какие|нужно ли|можно ли|стоит ли|правда ли|почему ли|поможет ли)(?:\s|$|\?|,|\.)/i.test(text);
-            if (isQuestion && typeof window.RAG !== 'undefined' && window.RAG.isReady && window.RAG.isReady()) {
-              const card = await window.RAG.searchCard(text, null, { sex: (Storage.getProfile() || {}).sex });
-              if (card) {
-                this.addCardLink(card.id, '«' + card.title + '»');
-              }
-            }
-          } catch (e) { console.warn('[RAG] article post failed:', e); }
+          // Плашка «Глубже:» — используем карточку, найденную ДО запроса.
+          if (relevantCard) {
+            try { this.addCardLink(relevantCard.id, '«' + relevantCard.title + '»'); }
+            catch (e) { console.warn('[RAG] card link failed:', e); }
+          }
 
           if (this.chatData.state === 'bridge') {
             this.chatData.bridgeCount = (this.chatData.bridgeCount || 0) + 1;

@@ -92,7 +92,37 @@ RAG.init = async function(){
   if (this.loadingPromise) return this.loadingPromise;
   this.loadingPromise = Promise.all([this._loadCards(), this._loadEmbedder(), this._loadLibrary()]);
   await this.loadingPromise;
+  // Догенерируем эмбеддинги для карточек без vec (фоном, не блокируем UI)
+  this.ensureLibraryVectors().catch(e => console.warn('[RAG] vector backfill failed:', e));
   return true;
+};
+
+RAG.ensureLibraryVectors = async function(){
+  if (!this.library || !this.embedder) return;
+  const missing = this.library.filter(c => !c.vec || !Array.isArray(c.vec));
+  if (missing.length === 0) return;
+  let cached = {};
+  try { cached = JSON.parse(localStorage.getItem('hd_lib_vec_cache') || '{}'); } catch(_) {}
+  let newCount = 0;
+  for (const c of missing) {
+    if (cached[c.id] && Array.isArray(cached[c.id])) {
+      c.vec = cached[c.id];
+      continue;
+    }
+    try {
+      const text = ((c.title || '') + '\n\n' + (c.text || '')).slice(0, 2000);
+      const vec = await this.embed(text);
+      c.vec = vec;
+      cached[c.id] = vec;
+      newCount++;
+    } catch(e) {
+      console.warn('[RAG] embed failed for card', c.id, e.message);
+    }
+  }
+  if (newCount > 0) {
+    try { localStorage.setItem('hd_lib_vec_cache', JSON.stringify(cached)); } catch(_) {}
+    console.log('[RAG] generated', newCount, 'new card embeddings');
+  }
 };
 RAG.searchCard = async function(query, minScore, opts){
   minScore = minScore || 0.35;
