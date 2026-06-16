@@ -219,8 +219,8 @@ const ChartOverlay = {
     if (!el) return;
     const map = {
       [this.PHASE.PROGNOSIS]: 'ПРОГНОЗ · ДО 5 МИН ПОСЛЕ ЕДЫ',
-      [this.PHASE.ACTIVE]: 'АКТИВНАЯ ФАЗА',
-      [this.PHASE.RETROSPECTIVE]: 'РЕТРОСПЕКТИВА'
+      [this.PHASE.ACTIVE]: 'СЕЙЧАС',
+      [this.PHASE.RETROSPECTIVE]: 'ЭПИЗОД ЗАВЕРШЁН'
     };
     el.textContent = map[phase] || 'СЕГОДНЯ';
   },

@@ -321,7 +321,7 @@ const Engine = {
     const fiberMod = fiberPresent ? 0.85 : 1.0;
     const fatMod = 1 - Math.min(0.4, fatRatio * 0.5);
     const proteinMod = 1 - Math.min(0.3, proteinRatio * 0.3);
-    const caffeineMod = caffeinePresent ? 1.05 : 1.0;
+    const caffeineMod = caffeinePresent ? 1.15 : 1.0;
 
     const peakRise = baseRise * fatMod * proteinMod * fiberMod * caffeineMod;
     const peak = Math.min(baseline + peakRise, 15);
@@ -333,7 +333,9 @@ const Engine = {
 
     const baseDecay = Math.round(90 / coeff.insulinSensitivity);
     const proteinExtension = Math.min(60, totalProtein * 1.5);
-    const returnTime = peakTime + baseDecay + Math.round(proteinExtension);
+    const caffeineExtension = caffeinePresent ? 30 : 0;
+    const highGIExtension = (giAvg > 70 && coeff.insulinSensitivity < 0.9) ? 20 : 0;
+    const returnTime = peakTime + baseDecay + Math.round(proteinExtension) + caffeineExtension + highGIExtension;
 
     const timeline = [];
     for (let t = 0; t <= 240; t += 10) {
