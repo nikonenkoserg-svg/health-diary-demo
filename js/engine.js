@@ -11,7 +11,7 @@ const Engine = {
     'хлеб белый':  { gi: 75, carbs: 49, fat: 3, protein: 8, kcal: 265, portion: 50 },
     'рис белый':   { gi: 73, carbs: 28, fat: 0.3, protein: 2.7, kcal: 130, portion: 200 },
     'картофель':   { gi: 78, carbs: 17, fat: 0.1, protein: 2, kcal: 77, portion: 200 },
-    'сахар':       { gi: 65, carbs: 100, fat: 0, protein: 0, kcal: 400, portion: 10 },
+
     'шоколад':     { gi: 70, carbs: 60, fat: 30, protein: 5, kcal: 540, portion: 50 },
     'мороженое':   { gi: 62, carbs: 24, fat: 11, protein: 3.5, kcal: 207, portion: 100 },
     'сок':         { gi: 66, carbs: 11, fat: 0, protein: 0.5, kcal: 45, portion: 250 },
@@ -110,13 +110,9 @@ const Engine = {
       }
       const item = { name: f.name, ...f.data };
       if (best && best.portion != null) {
-        // Перерасчёт макросов под фактическую порцию
-        const ratio = best.portion / f.data.portion;
+        // kcal/carbs остаются как «на 100г» — addEvent сам умножит на portion/100.
+        // Меняем только portion.
         item.portion = best.portion;
-        item.kcal = Math.round(f.data.kcal * ratio);
-        item.carbs = +(f.data.carbs * ratio).toFixed(1);
-        item.protein = +(f.data.protein * ratio).toFixed(1);
-        item.fat = +(f.data.fat * ratio).toFixed(1);
         item.defaultPortion = false;
       } else if (best && best.portion == null) {
         // указано как «кусок/штука» — не дефолт, но точная масса неизвестна
@@ -702,7 +698,8 @@ const Engine = {
         portion: food.portion,
         gi: food.gi,
         carbs: food.carbs,
-        kcal: Math.round(food.kcal * food.portion / 100)
+        kcal: Math.round(food.kcal * food.portion / 100),
+        defaultPortion: food.defaultPortion === true
       }))
     };
 

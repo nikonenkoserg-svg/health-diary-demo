@@ -1,13 +1,15 @@
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { model, messages, temperature, max_tokens } = req.body;
+  const { model, messages, temperature, max_tokens, stream } = req.body;
   const models = model ? [model] : ['deepseek/deepseek-v4-flash', 'deepseek/deepseek-chat-v3-0324'];
 
-  // Token budget protection: estimate tokens and trim history if needed
-  // ~4 chars per token for Russian text, budget ~1000 tokens for prompt
-  const TOKEN_BUDGET = 3000; // total tokens we can afford
+  const TOKEN_BUDGET = 3000;
   const trimmedMessages = trimToFit(messages, TOKEN_BUDGET);
+
+  if (stream) {
+    return handleStream(req, res, models, trimmedMessages, temperature, max_tokens);
+  }
 
   for (const m of (Array.isArray(models) ? models : [models])) {
     try {
@@ -47,19 +49,98 @@ export default async function handler(req, res) {
   res.status(502).json({ error: 'All models failed' });
 }
 
+async function handleStream(req, res, models, messages, temperature, max_tokens) {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+
+  for (const m of models) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60000);
+
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          'HTTP-Referer': 'https://health-diary-sooty.vercel.app',
+          'X-Title': 'Health Diary'
+        },
+        body: JSON.stringify({
+          model: m,
+          messages,
+          temperature: temperature || 0.9,
+          max_tokens: max_tokens || 1500,
+          stream: true
+        }),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeout);
+
+      if (!response.ok || !response.body) {
+        console.error(`[chat-stream] ${m} returned ${response.status}`);
+        continue;
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let gotContent = false;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let lineEnd;
+        while ((lineEnd = buffer.indexOf('\n')) !== -1) {
+          const line = buffer.slice(0, lineEnd).trim();
+          buffer = buffer.slice(lineEnd + 1);
+          if (!line.startsWith('data:')) continue;
+          const data = line.slice(5).trim();
+          if (data === '[DONE]') {
+            res.write('data: [DONE]\n\n');
+            res.end();
+            return;
+          }
+          try {
+            const parsed = JSON.parse(data);
+            const delta = parsed.choices?.[0]?.delta?.content;
+            if (delta) {
+              gotContent = true;
+              res.write('data: ' + JSON.stringify({ content: delta, model: m }) + '\n\n');
+            }
+          } catch (_) {}
+        }
+      }
+      if (gotContent) {
+        res.write('data: [DONE]\n\n');
+        res.end();
+        return;
+      }
+      console.error(`[chat-stream] ${m} empty stream`);
+    } catch (err) {
+      console.error(`[chat-stream] ${m} error: ${err.message}`);
+      continue;
+    }
+  }
+
+  res.write('data: ' + JSON.stringify({ error: 'All models failed' }) + '\n\n');
+  res.end();
+}
+
 function trimToFit(messages, budget) {
   if (!messages || messages.length === 0) return messages;
 
   const estimateTokens = (text) => Math.ceil((text || '').length / 4);
 
-  // System message always stays
   const system = messages[0]?.role === 'system' ? messages[0] : null;
   const history = system ? messages.slice(1) : [...messages];
 
   let usedTokens = system ? estimateTokens(system.content) : 0;
-  const maxHistoryTokens = budget - usedTokens;
 
-  // Keep messages from the end (most recent), drop oldest if over budget
   const kept = [];
   for (let i = history.length - 1; i >= 0; i--) {
     const msgTokens = estimateTokens(history[i].content);
@@ -68,7 +149,6 @@ function trimToFit(messages, budget) {
     kept.unshift(history[i]);
   }
 
-  // Always keep at least the last 2 messages (user + assistant)
   if (kept.length < 2 && history.length >= 2) {
     return system
       ? [system, ...history.slice(-2)]
