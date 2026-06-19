@@ -295,7 +295,14 @@ const Chat = {
     sys += `
 
 Верни ТОЛЬКО валидный JSON, без markdown и пояснений:
-{"wake":"ЧЧ:ММ" или null,"events":[{"time":"ЧЧ:ММ","certain":true,"items":[{"product":"торт","portion_g":150,"confidence":"high"}]}]}
+{"kind":"fact|pattern|plan","wake":"ЧЧ:ММ" или null,"events":[{"time":"ЧЧ:ММ","certain":true,"items":[{"product":"торт","portion_g":150,"confidence":"high"}]}]}
+
+КРИТИЧНО — классификация реплики (поле kind):
+- "fact" — пациент описывает РЕАЛЬНОЕ событие еды только что или недавно. Маркеры: "съел", "выпил", "поел", "час назад", "сейчас", "только что", "30 минут назад", упоминание текущего приёма с прошедшим временем. ТОЛЬКО эти случаи строят график.
+- "pattern" — пациент рассказывает ТИПИЧНЫЙ режим / распорядок питания, не конкретное событие. Маркеры: перечисление приёмов дня подряд ("утром... в процессе тренировки... после тренировки..."), "обычно", "по расписанию", "стараюсь", "ем каждый день", в анкетной перечислительной форме без явного "только что съел". График НЕ строим.
+- "plan" — пациент описывает БУДУЩЕЕ намерение. Маркеры: "буду есть", "собираюсь", "планирую съесть", "через час съем". График НЕ строим.
+
+Если есть сомнения между fact и pattern — выбирай pattern (безопаснее не построить фантомный график, чем построить).
 
 Правила:
 - Каждый приём пищи или напиток — отдельный элемент events
@@ -313,14 +320,22 @@ const Chat = {
     - "medium" — бытовая мера (чашка=200, стакан=250, кружка=300, ст.ложка=15, ч.ложка=5, горсть=30, кусок=50, ломтик=30)
     - "low" — порция не указана, прикидываешь средние
 - Глюкозу, давление, рост, вес — НЕ включай
-- Нет еды в сообщении → {"wake":null,"events":[]}
+- Нет еды в сообщении → {"kind":"fact","wake":null,"events":[]}
+- Если pattern или plan — events можно вернуть для информации, но граф НЕ построится
 
 Примеры:
 "Я съел 150 грамм торта и выпил чашку кофе" →
 {"wake":null,"events":[{"time":"<текущее>","certain":false,"items":[{"product":"торт","portion_g":150,"confidence":"high"},{"product":"кофе","portion_g":200,"confidence":"medium"}]}]}
 
 "Утром сахар 5.5, час назад съел 200 грамм овсяной каши с мёдом, сейчас 9" →
-{"wake":null,"events":[{"time":"<час назад>","certain":true,"items":[{"product":"овсяная каша","portion_g":200,"confidence":"high"},{"product":"мёд","portion_g":15,"confidence":"low"}]}]}`;
+{"kind":"fact","wake":null,"events":[{"time":"<час назад>","certain":true,"items":[{"product":"овсяная каша","portion_g":200,"confidence":"high"},{"product":"мёд","portion_g":15,"confidence":"low"}]}]}
+
+"Мне 53 года, рост 183, вес 77. Утром йогурт, печенье, кофе. В процессе тренировки перекус творогом или яйцом. После тренировки мясо, овощи, фрукты" →
+{"kind":"pattern","wake":null,"events":[]}
+(это анкета о типичном режиме питания, не разовое событие — график НЕ строим)
+
+"Через час планирую съесть овсянку с бананом" →
+{"kind":"plan","wake":null,"events":[]}`;
 
     try {
       const resp = await fetch('/api/chat', {
@@ -532,7 +547,14 @@ const Chat = {
       const foodProfile = Storage.getProfile() || {};
       // LLM извлекает события с временем
       const extracted = await this.extractDayEvents(text);
-      if (extracted && extracted.events.length > 0) {
+      // Если pattern/plan — еда не строит график. Сохраняем профильный паттерн отдельно.
+      if (extracted && extracted.kind && extracted.kind !== 'fact') {
+        if (extracted.kind === 'pattern') {
+          const prof = Storage.getProfile() || {};
+          prof.mealPattern = text.slice(0, 500);
+          Storage.saveProfile(prof);
+        }
+      } else if (extracted && extracted.events.length > 0) {
         this.ensureDayLog();
         if (extracted.wake) {
           const wm = this.hmToMin(extracted.wake);
