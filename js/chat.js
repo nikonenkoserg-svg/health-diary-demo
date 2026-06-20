@@ -1,5 +1,22 @@
 // Chat module — send, receive, display, typewriter
 
+// Маркеры триггеров в сообщении пациента: стресс, тревога, недосып, усталость.
+// Когда такой маркер появляется, ответ Спутника НЕ должен быть жёстко обрезан
+// на третьем предложении — надо адресовать и факт, и триггер.
+const TRIGGER_MARKERS = /(стресс|тревог|не выспал|недосып|устал|из[- ]за работы|паник|нервн|злюсь|переживаю|расстро|грустн|тоск|обид|раздраж)/i;
+
+// Широкие вопросы — содержательно требуют развёрнутого ответа.
+const WIDE_QUESTION_MARKERS = /(расскажи (про|о|почему|как)|что такое|что нужно знать|как работает|как устроен|почему именно|объясни)/i;
+
+function isLongAnswerContext(userText, chatData) {
+  if (!userText) return false;
+  if (TRIGGER_MARKERS.test(userText)) return true;
+  if (WIDE_QUESTION_MARKERS.test(userText)) return true;
+  // Первое сообщение после анкеты — переход в bridge ещё не случился (bridgeCount=0).
+  if (chatData && chatData.state === 'bridge' && !chatData.bridgeCount) return true;
+  return false;
+}
+
 const Chat = {
   chatData: null,
   isSending: false,
@@ -449,7 +466,8 @@ const Chat = {
           const data = await resp.json();
           const raw = data.choices?.[0]?.message?.content;
           if (raw) {
-            await this.typeMessage(Assistant.filterResponse(raw, text), 'bot');
+            const longCtx1 = isLongAnswerContext(text, this.chatData);
+            await this.typeMessage(Assistant.filterResponse(raw, text, longCtx1), 'bot');
           }
         }
       } catch (err) {
@@ -500,7 +518,8 @@ const Chat = {
           const data = await resp.json();
           const raw = data.choices?.[0]?.message?.content;
           if (raw) {
-            const reply = Assistant.filterResponse(raw, text);
+            // После анкеты — всегда развёрнутый ответ, это первая содержательная реплика.
+            const reply = Assistant.filterResponse(raw, text, true);
             await this.typeMessage(reply, 'bot');
 
             // Анкета — один сеанс. После ответа пациента всегда переключаем
@@ -676,7 +695,8 @@ const Chat = {
         const raw = await this._streamReply(resp);
         this.hideTyping();
         if (raw) {
-          const reply = Assistant.filterResponse(raw, text);
+          const longCtx3 = isLongAnswerContext(text, this.chatData);
+          const reply = Assistant.filterResponse(raw, text, longCtx3);
           if (reply.includes('?')) this.chatData.questionCount++;
           else this.chatData.questionCount = 0;
 

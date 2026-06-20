@@ -201,7 +201,7 @@ const Assistant = {
     return Object.keys(p).length > 0 ? p : null;
   },
 
-  filterResponse(text, lastUserMsg) {
+  filterResponse(text, lastUserMsg, isLongAnswerContext) {
     if (!text) return '';
     let r = text;
     lastUserMsg = lastUserMsg || '';
@@ -257,10 +257,12 @@ const Assistant = {
       r = r.replace(/[\s]*[^.!?]+\?\s*$/, '').trim();
     }
 
-    // Жёсткий лимит — 3 предложения
+    // Контекстный лимит: 3 предложения по умолчанию, 7 — когда нужен развёрнутый ответ
+    // (триггер в реплике, первое сообщение после анкеты, прямой широкий вопрос).
+    const limit = isLongAnswerContext ? 7 : 3;
     const sentences = r.match(/[^.!?]+[.!?]+/g);
-    if (sentences && sentences.length > 3) {
-      r = sentences.slice(0, 3).join(' ').trim();
+    if (sentences && sentences.length > limit) {
+      r = sentences.slice(0, limit).join(' ').trim();
     }
 
     return r;

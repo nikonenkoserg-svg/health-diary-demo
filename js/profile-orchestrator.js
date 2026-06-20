@@ -11,16 +11,20 @@
 //   other      → краткая выжимка из anketa
 
 const ProfileOrchestrator = {
+  // Возвращает массив всех совпавших типов. В смешанной реплике
+  // («съел мороженое, видимо стресс») оба сигнала должны попасть в контекст,
+  // иначе побеждает первый матч и второй теряется.
   classify(text) {
-    if (!text || typeof text !== 'string') return 'other';
+    if (!text || typeof text !== 'string') return ['other'];
     const t = text.toLowerCase();
-    if (/(съел|ела|выпил|пила|перекус|завтрак|обед|ужин|кушал|поел|поела|поужинал|пообедал|позавтракал)/.test(t)) return 'meal';
-    if (/(тренир|пробеж|спорт|нагрузк|ходил|ходила|бегал|бегала|приседан|подтягиван|зал)/.test(t)) return 'exercise';
-    if (/(спал|спала|сон|выспал|выспалась|засыпал|проснулся|проснулась)/.test(t)) return 'sleep';
-    if (/(стресс|тревог|нервн|злюсь|злилась|переживал|переживаю)/.test(t)) return 'stress';
-    if (/(не работает|надоело|бросаю|бросаю|сдаюсь|плохо помога|обнул)/.test(t)) return 'confront';
-    if (/(привет|здравствуй|доброе утро|добрый день|добрый вечер|спасибо|пока)/.test(t)) return 'meta';
-    return 'other';
+    const types = [];
+    if (/(съел|ела|выпил|пила|перекус|завтрак|обед|ужин|кушал|поел|поела|поужинал|пообедал|позавтракал)/.test(t)) types.push('meal');
+    if (/(тренир|пробеж|спорт|нагрузк|ходил|ходила|бегал|бегала|приседан|подтягиван|зал)/.test(t)) types.push('exercise');
+    if (/(спал|спала|сон|выспал|выспалась|засыпал|проснулся|проснулась)/.test(t)) types.push('sleep');
+    if (/(стресс|тревог|нервн|злюсь|злилась|переживал|переживаю)/.test(t)) types.push('stress');
+    if (/(не работает|надоело|бросаю|сдаюсь|плохо помога|обнул)/.test(t)) types.push('confront');
+    if (!types.length && /(привет|здравствуй|доброе утро|добрый день|добрый вечер|спасибо|пока)/.test(t)) types.push('meta');
+    return types.length ? types : ['other'];
   },
 
   _baseAnketa() {
@@ -66,24 +70,26 @@ const ProfileOrchestrator = {
     };
   },
 
-  contextFor(messageType) {
+  // Принимает массив типов (или строку для обратной совместимости).
+  // Мерджит срезы патернов из всех применимых типов.
+  contextFor(messageTypes) {
     if (typeof ProfileStore === 'undefined') return {};
-    switch (messageType) {
-      case 'meal':
-        return { anketa: this._baseAnketa(), patterns: this._patternsFood() };
-      case 'exercise':
-        return { anketa: this._baseAnketa(), patterns: this._patternsTraining() };
-      case 'sleep':
-        return { anketa: this._baseAnketa(), patterns: this._patternsSleep() };
-      case 'stress':
-        return { anketa: this._baseAnketa() };
-      case 'confront':
-        return { summary: this._summary() };
-      case 'meta':
-        return {};
-      default:
-        return { summary: this._summary() };
-    }
+    const types = Array.isArray(messageTypes) ? messageTypes : [messageTypes];
+    if (!types.length || (types.length === 1 && types[0] === 'meta')) return {};
+    if (types.includes('confront')) return { summary: this._summary() };
+
+    const out = {};
+    const needsAnketa = types.some(t => ['meal','exercise','sleep','stress'].includes(t));
+    if (needsAnketa) out.anketa = this._baseAnketa();
+
+    const patternsMerged = {};
+    if (types.includes('meal')) Object.assign(patternsMerged, this._patternsFood() || {});
+    if (types.includes('exercise')) Object.assign(patternsMerged, this._patternsTraining() || {});
+    if (types.includes('sleep')) Object.assign(patternsMerged, this._patternsSleep() || {});
+    if (Object.keys(patternsMerged).length) out.patterns = patternsMerged;
+
+    if (!Object.keys(out).length) out.summary = this._summary();
+    return out;
   },
 
   // Форматирование среза в строку для системного промпта.
