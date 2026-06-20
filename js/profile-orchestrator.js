@@ -117,6 +117,14 @@ const ProfileOrchestrator = {
       if (a.allergies) parts.push('аллергии: ' + (Array.isArray(a.allergies) ? a.allergies.join(', ') : a.allergies));
       if (a.medications) parts.push('медикаменты: ' + JSON.stringify(a.medications));
       if (parts.length) lines.push('Анкета: ' + parts.join(', '));
+
+      // Явный список НЕИЗВЕСТНЫХ полей — чтобы модель не достраивала "пусто = нет".
+      const unknown = [];
+      if (!a.chronic) unknown.push('хронические заболевания');
+      if (!a.allergies) unknown.push('аллергии');
+      if (!a.medications) unknown.push('медикаменты');
+      if (!(a.diagnosis && a.diagnosis.name)) unknown.push('диагноз');
+      if (unknown.length) lines.push('НЕИЗВЕСТНО (пациент не заполнял, не считать отсутствием): ' + unknown.join(', '));
     }
     if (context.patterns) {
       const p = context.patterns;
