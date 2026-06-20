@@ -48,6 +48,10 @@ const App = {
 
     // Theme
     document.getElementById('btnTheme').addEventListener('click', () => Theme.toggle());
+    const btnProfile = document.getElementById('btnProfile');
+    if (btnProfile && typeof ProfileOverlay !== 'undefined') {
+      btnProfile.addEventListener('click', () => ProfileOverlay.open());
+    }
 
     // Settings
     document.getElementById('btnSettings').addEventListener('click', () => this.toggleSettings(true));
