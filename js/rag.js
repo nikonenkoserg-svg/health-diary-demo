@@ -124,6 +124,28 @@ RAG.ensureLibraryVectors = async function(){
     console.log('[RAG] generated', newCount, 'new card embeddings');
   }
 };
+// Темы для тематического матча между репликой и карточкой.
+// Если у реплики есть тема и у карточки есть тема, но они не пересекаются — отсекаем.
+// Решает класс багов "семантически близко, но не в тему" (сон в ответ на гипогликемию).
+RAG._TOPIC_PATTERNS = {
+  glucose:  /(сахар|гликем|ммоль|гипогликем|гипергликем|инсулин|пик|глюкоз)/i,
+  sleep:    /(сон[аеуоыя]?\b|сна\b|спать|спал|выспал|бессонн|ночь|ночн|недосып)/i,
+  stress:   /(стресс|тревог|кортизол|нервн|злюсь|переживаю|паник)/i,
+  food:     /(углевод|еда\b|еды\b|белок|белк|жир|мороженое|рис\b|хлеб|перекус|ужин|обед|завтрак|продукт|тарелк|порц)/i,
+  movement: /(ходьб|движени|нагрузк|тренировк|мышц|шаг\b|шагов|приседан|прогул)/i,
+  method:   /(дневник|протокол|формат|как вести)/i,
+  crisis:   /(срыв|сдался|сдались|обнул|забросил|бросил)/i,
+};
+
+RAG._topicsOf = function(text) {
+  if (!text) return [];
+  const out = [];
+  for (const k in this._TOPIC_PATTERNS) {
+    if (this._TOPIC_PATTERNS[k].test(text)) out.push(k);
+  }
+  return out;
+};
+
 RAG.searchCard = async function(query, minScore, opts){
   // Порог поднят с 0.35 до 0.55 — лучше пусто, чем вредно. См. разбор от Тренера 2026-06-20:
   // карточка про "сдались на третьей неделе" предложилась пациенту на 1-й день вовлечения.
@@ -142,6 +164,7 @@ RAG.searchCard = async function(query, minScore, opts){
   ];
   if (!this.library || !this.embedder) return null;
   const qVec = await this.embed(query);
+  const queryTopics = this._topicsOf(query);
   let best = null;
   for (const a of this.library) {
     if (!a.vec) continue; // карточки без эмбеддинга пропускаем
@@ -150,6 +173,12 @@ RAG.searchCard = async function(query, minScore, opts){
     if (phase === 'onboarding') {
       const hay = ((a.title || '') + ' ' + ((a.tags || []).join(' ')) + ' ' + (a.teaser || '')).toLowerCase();
       if (ONBOARDING_BLACKLIST.some(w => hay.includes(w))) continue;
+    }
+    // Тематический фильтр: тема карточки берётся из title (теги ненадёжны —
+    // они "поводы вызова", а не тематика самой карточки).
+    if (queryTopics.length) {
+      const cardTopics = this._topicsOf(a.title || '');
+      if (cardTopics.length && !cardTopics.some(t => queryTopics.includes(t))) continue;
     }
     const score = this._cosine(qVec, a.vec);
     if (!best || score > best.score) best = { id: a.id, title: a.title, text: a.text, score };
