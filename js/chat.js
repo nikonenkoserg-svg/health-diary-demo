@@ -489,17 +489,50 @@ const Chat = {
 
       this.showTyping();
       try {
-        // Дополняем системный промпт списком УЖЕ известных полей профиля,
-        // чтобы LLM не переспрашивал то, что мы уже распарсили.
+        // Дополняем системный промпт списком УЖЕ известных полей профиля
+        // ИЗ ОБОИХ хранилищ: legacy (Storage.getProfile) + v2 (ProfileStore).
+        // Оверлей профиля пишет в ProfileStore, легаси-чтение их не видело —
+        // отсюда баг "Спутник переспрашивает заполненную анкету".
         const known = Storage.getProfile() || {};
+        const ps = (typeof ProfileStore !== 'undefined') ? ProfileStore : null;
+        const psGet = (f) => ps ? ps.get('anketa', f) : null;
+        const sex = known.sex || psGet('sex');
+        const age = known.age || psGet('age');
+        const weight = known.weight || psGet('weight');
+        const height = known.height || psGet('height');
+        const chronic = psGet('chronic');
+        const allergies = psGet('allergies');
+        const meds = psGet('medications');
+        const diag = psGet('diagnosis');
         const knownFields = [];
-        if (known.sex) knownFields.push(`пол=${known.sex}`);
-        if (known.age) knownFields.push(`возраст=${known.age}`);
-        if (known.weight) knownFields.push(`вес=${known.weight} кг`);
-        if (known.height) knownFields.push(`рост=${known.height} см`);
-        let sysPrompt = Onboarding.QUESTIONNAIRE_PROMPT;
-        if (knownFields.length > 0) {
-          sysPrompt += `\n\nУЖЕ ИЗВЕСТНО ИЗ ПРОФИЛЯ: ${knownFields.join(', ')}. Эти поля НЕ переспрашивай.`;
+        if (sex) knownFields.push(`пол=${sex}`);
+        if (age) knownFields.push(`возраст=${age}`);
+        if (weight) knownFields.push(`вес=${weight} кг`);
+        if (height) knownFields.push(`рост=${height} см`);
+        if (chronic) knownFields.push(`хронические=${JSON.stringify(chronic)}`);
+        if (allergies) knownFields.push(`аллергии=${JSON.stringify(allergies)}`);
+        if (meds) knownFields.push(`медикаменты=${JSON.stringify(meds)}`);
+        if (diag && diag.name) knownFields.push(`диагноз=${diag.name}`);
+
+        // Ранний выход: если все 4 базовых поля уже в анкете — анкетный режим
+        // не нужен, сразу переходим к основному. Спутник отвечает по сути,
+        // используя CORE_PROMPT, а не QUESTIONNAIRE_PROMPT.
+        const baseComplete = sex && age && weight && height;
+        let sysPrompt;
+        if (baseComplete) {
+          sysPrompt = (typeof Knowledge !== 'undefined' && Knowledge.CORE_PROMPT)
+            ? Knowledge.CORE_PROMPT
+            : Onboarding.QUESTIONNAIRE_PROMPT;
+          sysPrompt += `\n\nАНКЕТА УЖЕ ЗАПОЛНЕНА: ${knownFields.join(', ')}. НЕ задавай анкетных вопросов. Отвечай по сути реплики пациента.`;
+          // Переключаем state прямо здесь — следующая реплика пойдёт в normal flow.
+          this.chatData.state = 'bridge';
+          this.chatData.bridgeCount = 0;
+          Storage.saveChat(this.chatData);
+        } else {
+          sysPrompt = Onboarding.QUESTIONNAIRE_PROMPT;
+          if (knownFields.length > 0) {
+            sysPrompt += `\n\nУЖЕ ИЗВЕСТНО ИЗ ПРОФИЛЯ: ${knownFields.join(', ')}. Эти поля НЕ переспрашивай.`;
+          }
         }
         const apiMessages = [
           { role: 'system', content: sysPrompt },
