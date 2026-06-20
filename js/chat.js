@@ -449,7 +449,7 @@ const Chat = {
           const data = await resp.json();
           const raw = data.choices?.[0]?.message?.content;
           if (raw) {
-            await this.typeMessage(Assistant.filterResponse(raw), 'bot');
+            await this.typeMessage(Assistant.filterResponse(raw, text), 'bot');
           }
         }
       } catch (err) {
@@ -500,7 +500,7 @@ const Chat = {
           const data = await resp.json();
           const raw = data.choices?.[0]?.message?.content;
           if (raw) {
-            const reply = Assistant.filterResponse(raw);
+            const reply = Assistant.filterResponse(raw, text);
             await this.typeMessage(reply, 'bot');
 
             // Анкета — один сеанс. После ответа пациента всегда переключаем
@@ -639,7 +639,12 @@ const Chat = {
       try {
         const isQuestion = /\?|(?:^|\s)(что|как|почему|зачем|когда|где|какой|какая|какие|нужно ли|можно ли|стоит ли|правда ли|поможет ли)(?:\s|$|\?|,|\.)/i.test(text);
         if (isQuestion && typeof window.RAG !== 'undefined' && window.RAG.isReady && window.RAG.isReady()) {
-          relevantCard = await window.RAG.searchCard(text, null, { sex: (Storage.getProfile() || {}).sex });
+          // Определяем фазу пациента для фильтрации RAG. Onboarding:
+          // первые 15 сообщений ИЛИ менее 3 событий еды в dayLog. Иначе stable.
+          const userMsgCount = this.chatData.messages.filter(m => m.role === 'user').length;
+          const eventsCount = (this.chatData.dayLog && this.chatData.dayLog.events) ? this.chatData.dayLog.events.length : 0;
+          const phase = (userMsgCount < 15 || eventsCount < 3) ? 'onboarding' : 'stable';
+          relevantCard = await window.RAG.searchCard(text, null, { sex: (Storage.getProfile() || {}).sex, phase });
           if (relevantCard && window.RAG.formatCardForPrompt) {
             systemPrompt += window.RAG.formatCardForPrompt(relevantCard);
           }
@@ -671,7 +676,7 @@ const Chat = {
         const raw = await this._streamReply(resp);
         this.hideTyping();
         if (raw) {
-          const reply = Assistant.filterResponse(raw);
+          const reply = Assistant.filterResponse(raw, text);
           if (reply.includes('?')) this.chatData.questionCount++;
           else this.chatData.questionCount = 0;
 

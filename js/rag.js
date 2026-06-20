@@ -125,15 +125,32 @@ RAG.ensureLibraryVectors = async function(){
   }
 };
 RAG.searchCard = async function(query, minScore, opts){
-  minScore = minScore || 0.35;
+  // Порог поднят с 0.35 до 0.55 — лучше пусто, чем вредно. См. разбор от Тренера 2026-06-20:
+  // карточка про "сдались на третьей неделе" предложилась пациенту на 1-й день вовлечения.
+  minScore = minScore || 0.55;
   opts = opts || {};
   const userSex = opts.sex;
+  const phase = opts.phase || 'stable';
+  // Blacklist на фазе onboarding: карточки про срыв/отказ/сдачу не подсовываем
+  // пациенту в активной фазе вовлечения — это сеет сценарий, которого у него нет.
+  const ONBOARDING_BLACKLIST = [
+    'сдались', 'сдался', 'сдалась', 'обнулилось', 'обнулился',
+    'срыв', 'срыва', 'забросил', 'забросила', 'забросили',
+    'бросил дневник', 'бросила дневник', 'бросили дневник',
+    'не получается', 'надоело', 'устал', 'третья неделя',
+    'опустил руки', 'опустила руки'
+  ];
   if (!this.library || !this.embedder) return null;
   const qVec = await this.embed(query);
   let best = null;
   for (const a of this.library) {
     if (!a.vec) continue; // карточки без эмбеддинга пропускаем
     if (a.gender === 'female' && userSex && userSex !== 'женский') continue;
+    // Фазовый фильтр: на onboarding отсекаем карточки про срывы и отказ
+    if (phase === 'onboarding') {
+      const hay = ((a.title || '') + ' ' + ((a.tags || []).join(' ')) + ' ' + (a.teaser || '')).toLowerCase();
+      if (ONBOARDING_BLACKLIST.some(w => hay.includes(w))) continue;
+    }
     const score = this._cosine(qVec, a.vec);
     if (!best || score > best.score) best = { id: a.id, title: a.title, text: a.text, score };
   }
