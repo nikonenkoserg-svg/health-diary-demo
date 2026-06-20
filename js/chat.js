@@ -575,6 +575,11 @@ const Chat = {
           Engine.addEvent(payload, foodProfile, { minute: mn, certain });
           this.chatData.dayLog.events.push({ items: ev.items || null, foods: ev.foods || null, minute: mn, certain });
           if (!certain) timeUncertain = true;
+          // Override: явные временные маркеры в сообщении пациента отменяют флаг.
+          // "прямо сейчас", "только что", "сейчас", "минуту назад", "N мин/часов назад", "в HH:MM"
+          if (timeUncertain && /(прямо сейчас|только что|сейчас (съ|поел|поп|выпил)|минуту назад|\d+\s*мин(уту?|ут)?\s*назад|\d+\s*ча?со?в?\s*назад|в \d{1,2}[:.\s]\d{2})/i.test(text)) {
+            timeUncertain = false;
+          }
         }
         chartData = Engine.getCurvePoints(foodProfile);
         // Подсказка рычага по последнему добавленному событию
