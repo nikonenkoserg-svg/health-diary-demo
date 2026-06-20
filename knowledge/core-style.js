@@ -418,25 +418,36 @@ GLUT4 — транспортёр глюкозы в мышцах. Активир�
       });
     }
 
-    // Add profile
-    if (profile && Object.keys(profile).length > 0) {
+    // Profile — через ProfileOrchestrator (этап 1: слой 1 + база слоя 2).
+    // На запуске автоматическая миграция legacy профиля → ProfileStore v2.
+    if (typeof ProfileStore !== 'undefined') {
+      if (!ProfileStore._load() && profile && Object.keys(profile).length > 0) {
+        ProfileStore.migrateFromLegacy(profile);
+      }
+      if (typeof ProfileOrchestrator !== 'undefined') {
+        const lastUserMsg = (messages || []).slice().reverse().find(m => m.role === 'user');
+        const msgType = lastUserMsg ? ProfileOrchestrator.classify(lastUserMsg.content) : 'other';
+        const ctx = ProfileOrchestrator.contextFor(msgType);
+        prompt += ProfileOrchestrator.formatForPrompt(ctx);
+
+        // Жёсткий запрет на повторные вопросы по известным полям.
+        const known = [];
+        if (ProfileStore.get('anketa', 'sex')) known.push('пол');
+        if (ProfileStore.get('anketa', 'age')) known.push('возраст');
+        if (ProfileStore.get('anketa', 'weight')) known.push('вес');
+        if (ProfileStore.get('anketa', 'height')) known.push('рост');
+        if (known.length > 0) {
+          prompt += `\nЭти параметры УЖЕ известны: ${known.join(', ')}. НЕ переспрашивай их. Уточнения допустимы только если пациент сам говорит про изменение.`;
+        }
+      }
+    } else if (profile && Object.keys(profile).length > 0) {
+      // Fallback на плоский профиль если ProfileStore не загружен
       prompt += '\n\nПрофиль: ';
       if (profile.sex) prompt += `${profile.sex}, `;
       if (profile.age) prompt += `${profile.age} лет, `;
       if (profile.weight) prompt += `${profile.weight} кг, `;
       if (profile.bmi) prompt += `ИМТ ${profile.bmi}, `;
-      if (profile.sex === 'женский') prompt += 'учитывай цикл и гормоны, ';
       prompt = prompt.replace(/, $/, '');
-
-      // Жёсткий запрет на повторные вопросы по уже известным полям профиля.
-      const known = [];
-      if (profile.sex) known.push('пол');
-      if (profile.age) known.push('возраст');
-      if (profile.weight) known.push('вес');
-      if (profile.height) known.push('рост');
-      if (known.length > 0) {
-        prompt += `\nЭти параметры УЖЕ известны: ${known.join(', ')}. НЕ переспрашивай их. Используй цифры из профиля. Уточнения допустимы только если пациент сам говорит про изменение.`;
-      }
     }
 
     // Phase-based tone
