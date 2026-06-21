@@ -139,3 +139,23 @@
 #profile-overlay .profile-save-btn:hover {
   filter: brightness(1.1);
 }
+
+/* Required-режим */
+#profile-overlay.profile-required .profile-backdrop { background: rgba(0, 0, 0, 0.85); }
+
+#profile-overlay .profile-required-marker {
+  color: #d97a7a;
+  margin-left: 3px;
+  font-weight: 700;
+}
+
+#profile-overlay .profile-save-btn:disabled {
+  background: var(--bg-2, #2a2a2a);
+  color: var(--text-2, #666);
+  cursor: not-allowed;
+  filter: none;
+}
+
+#profile-overlay .profile-save-btn:disabled:hover {
+  filter: none;
+}

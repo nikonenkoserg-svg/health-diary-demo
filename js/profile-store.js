@@ -19,6 +19,7 @@ const ProfileStore = {
         anketa: {
           sex: [], age: [], height: [], weight: [],
           chronic: [], allergies: [], medications: [],
+          bad_habits: [],
           heredity: [], diagnosis: [],
           region: [], native_language: []
         },

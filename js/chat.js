@@ -31,8 +31,9 @@ const Chat = {
 
     if (state === 'init' || (state === 'pre_register' && !hasMessages)) {
       this.showGreeting();
-    } else if (state === 'questionnaire_intro') {
-      this.showQuestionnaire();
+    } else if (state === 'anketa') {
+      // Перезагрузка во время заполнения анкеты — снова открываем модальный оверлей.
+      this._openAnketaOverlay();
     }
   },
 
@@ -42,12 +43,16 @@ const Chat = {
     Storage.saveChat(this.chatData);
   },
 
-  async showQuestionnaire() {
-    await this.typeMessage(Onboarding.QUESTIONNAIRE_INTRO, 'bot');
-    await new Promise(r => setTimeout(r, 1500));
-    await this.typeMessage(Onboarding.QUESTIONNAIRE_TEXT, 'bot');
-    this.chatData.state = 'questionnaire';
+  // Открыть модальный оверлей анкеты. После сохранения — _onAnketaSaved().
+  _openAnketaOverlay() {
+    if (typeof ProfileOverlay === 'undefined') return;
+    ProfileOverlay.openRequired(() => this._onAnketaSaved());
+  },
+
+  async _onAnketaSaved() {
+    this.chatData.state = 'active';
     Storage.saveChat(this.chatData);
+    await this.typeMessage(Onboarding.ENTRY, 'bot');
   },
 
   restoreMessages() {
@@ -417,7 +422,10 @@ const Chat = {
       if (g) Storage.addGlucose(g);
     }
 
-    // === PRE-REGISTER: user asks questions before creating profile ===
+    // === PRE-REGISTER: до регистрации Спутник в диалог не вступает.
+    // Согласие → две реплики и сразу открываем модальную анкету.
+    // Агрессия → одна короткая фраза.
+    // Всё остальное → одна заглушка PRE_REGISTER_HOLD.
     if (this.chatData.state === 'pre_register') {
       const category = Onboarding.classifyResponse(text);
 
@@ -427,151 +435,23 @@ const Chat = {
         return;
       }
 
-      // Check if user agrees to create profile — пословно, только короткие сообщения
-      const words = text.toLowerCase().trim().split(/[\s,.!?;:()«»"]+/).filter(Boolean);
-      const agreeWords = ['да','ага','давай','давайте','ок','окей','окай','хорошо','хорошо','ладно','погнали','готов','готова','готово','готовы','поехали','профиль','done','start','go','yes','ok','го','начнём','начнем','поехали'];
-      const agreeStem = ['созд','зарег','регистр','начн','сделал','сделан','оформ','готов','поех'];
-      const isQuestion = text.includes('?');
-      const isAgree = !isQuestion && words.length <= 4 && (
-        words.some(w => agreeWords.includes(w)) ||
-        words.some(w => agreeStem.some(s => w.startsWith(s)))
-      );
-      if (isAgree) {
+      if (category === 'agree') {
         this.hideTyping();
-        this.chatData.state = 'questionnaire_intro';
+        await this.typeMessage(Onboarding.REGISTRATION_INTRO, 'bot');
+        this.chatData.state = 'anketa';
         Storage.saveChat(this.chatData);
-        await new Promise(r => setTimeout(r, 500));
-        await this.showQuestionnaire();
+        await new Promise(r => setTimeout(r, 400));
+        this._openAnketaOverlay();
         this.isSending = false;
         return;
       }
 
-      // LLM response
-      this.showTyping();
-      try {
-        const apiMessages = [
-          { role: 'system', content: Onboarding.PRE_REGISTER_PROMPT },
-          ...this.chatData.messages.slice(-6)
-        ];
-
-        const resp = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: apiMessages, max_tokens: 1200 })
-        });
-
-        this.hideTyping();
-
-        if (resp.ok) {
-          const data = await resp.json();
-          const raw = data.choices?.[0]?.message?.content;
-          if (raw) {
-            const longCtx1 = isLongAnswerContext(text, this.chatData);
-            await this.typeMessage(Assistant.filterResponse(raw, text, longCtx1), 'bot');
-          }
-        }
-      } catch (err) {
-        this.hideTyping();
-        console.error('Pre-register LLM error:', err);
-      }
-
+      await this.typeMessage(Onboarding.PRE_REGISTER_HOLD, 'bot');
       this.isSending = false;
       return;
     }
 
-    // === QUESTIONNAIRE ===
-    if (this.chatData.state === 'questionnaire') {
-      const profile = Assistant.parseProfile(text);
-      if (profile) {
-        const existing = Storage.getProfile();
-        Storage.saveProfile({ ...existing, ...profile });
-      }
-
-      this.showTyping();
-      try {
-        // Дополняем системный промпт списком УЖЕ известных полей профиля
-        // ИЗ ОБОИХ хранилищ: legacy (Storage.getProfile) + v2 (ProfileStore).
-        // Оверлей профиля пишет в ProfileStore, легаси-чтение их не видело —
-        // отсюда баг "Спутник переспрашивает заполненную анкету".
-        const known = Storage.getProfile() || {};
-        const ps = (typeof ProfileStore !== 'undefined') ? ProfileStore : null;
-        const psGet = (f) => ps ? ps.get('anketa', f) : null;
-        const sex = known.sex || psGet('sex');
-        const age = known.age || psGet('age');
-        const weight = known.weight || psGet('weight');
-        const height = known.height || psGet('height');
-        const chronic = psGet('chronic');
-        const allergies = psGet('allergies');
-        const meds = psGet('medications');
-        const diag = psGet('diagnosis');
-        const knownFields = [];
-        if (sex) knownFields.push(`пол=${sex}`);
-        if (age) knownFields.push(`возраст=${age}`);
-        if (weight) knownFields.push(`вес=${weight} кг`);
-        if (height) knownFields.push(`рост=${height} см`);
-        if (chronic) knownFields.push(`хронические=${JSON.stringify(chronic)}`);
-        if (allergies) knownFields.push(`аллергии=${JSON.stringify(allergies)}`);
-        if (meds) knownFields.push(`медикаменты=${JSON.stringify(meds)}`);
-        if (diag && diag.name) knownFields.push(`диагноз=${diag.name}`);
-
-        // Ранний выход: если все 4 базовых поля уже в анкете — анкетный режим
-        // не нужен, сразу переходим к основному. Спутник отвечает по сути,
-        // используя CORE_PROMPT, а не QUESTIONNAIRE_PROMPT.
-        const baseComplete = sex && age && weight && height;
-        let sysPrompt;
-        if (baseComplete) {
-          sysPrompt = (typeof Knowledge !== 'undefined' && Knowledge.CORE_PROMPT)
-            ? Knowledge.CORE_PROMPT
-            : Onboarding.QUESTIONNAIRE_PROMPT;
-          sysPrompt += `\n\nАНКЕТА УЖЕ ЗАПОЛНЕНА: ${knownFields.join(', ')}. НЕ задавай анкетных вопросов. Отвечай по сути реплики пациента.`;
-          // Переключаем state прямо здесь — следующая реплика пойдёт в normal flow.
-          this.chatData.state = 'bridge';
-          this.chatData.bridgeCount = 0;
-          Storage.saveChat(this.chatData);
-        } else {
-          sysPrompt = Onboarding.QUESTIONNAIRE_PROMPT;
-          if (knownFields.length > 0) {
-            sysPrompt += `\n\nУЖЕ ИЗВЕСТНО ИЗ ПРОФИЛЯ: ${knownFields.join(', ')}. Эти поля НЕ переспрашивай.`;
-          }
-        }
-        const apiMessages = [
-          { role: 'system', content: sysPrompt },
-          ...this.chatData.messages.slice(-10)
-        ];
-
-        const resp = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: apiMessages, max_tokens: 1500 })
-        });
-
-        this.hideTyping();
-
-        if (resp.ok) {
-          const data = await resp.json();
-          const raw = data.choices?.[0]?.message?.content;
-          if (raw) {
-            // После анкеты — всегда развёрнутый ответ, это первая содержательная реплика.
-            const reply = Assistant.filterResponse(raw, text, true);
-            await this.typeMessage(reply, 'bot');
-
-            // Анкета — один сеанс. После ответа пациента всегда переключаем
-            // на основной режим. Магические фразы не нужны.
-            this.chatData.state = 'bridge';
-            this.chatData.bridgeCount = 0;
-            Storage.saveChat(this.chatData);
-          }
-        }
-      } catch (err) {
-        this.hideTyping();
-        console.error('Questionnaire LLM error:', err);
-      }
-
-      this.isSending = false;
-      return;
-    }
-
-    // === NORMAL FLOW (bridge + active) ===
+    // === NORMAL FLOW (active) ===
     const profile = Assistant.parseProfile(text);
     if (profile) {
       const existing = Storage.getProfile();
