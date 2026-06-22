@@ -159,3 +159,23 @@
 #profile-overlay .profile-save-btn:disabled:hover {
   filter: none;
 }
+
+#profile-overlay .profile-danger-section {
+  border-top: 1px solid var(--border-1, #333);
+  padding-top: 18px;
+  margin-top: 8px;
+}
+
+#profile-overlay .profile-danger-btn {
+  background: transparent;
+  color: #c97070;
+  border: 1px solid #5a2a2a;
+  padding: 9px 14px;
+  border-radius: 7px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+#profile-overlay .profile-danger-btn:hover {
+  background: rgba(120, 40, 40, 0.15);
+}

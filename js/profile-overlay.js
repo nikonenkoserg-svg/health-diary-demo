@@ -93,6 +93,9 @@ const ProfileOverlay = {
             <h3>Паттерны жизни</h3>
             <p class="profile-hint">Что Спутник знает о твоём режиме. Сейчас только просмотр — Спутник будет уточнять в диалоге.</p>
             <div class="profile-fields" id="profile-patterns"></div>
+          </section>
+          <section class="profile-section profile-danger-section">
+            <button class="profile-danger-btn" id="profile-reset-btn">Очистить все данные и начать заново</button>
           </section>`}
         </div>
       </div>
@@ -103,6 +106,8 @@ const ProfileOverlay = {
       root.querySelector('.profile-backdrop').addEventListener('click', () => this.close());
       const closeBtn = root.querySelector('.profile-close');
       if (closeBtn) closeBtn.addEventListener('click', () => this.close());
+      const resetBtn = root.querySelector('#profile-reset-btn');
+      if (resetBtn) resetBtn.addEventListener('click', () => this._confirmReset());
     }
 
     this._renderAnketa();
@@ -215,6 +220,16 @@ const ProfileOverlay = {
       btn.textContent = saved ? `Сохранено (${saved})` : 'Без изменений';
       setTimeout(() => { if (btn) btn.textContent = 'Сохранить изменения'; }, 1500);
     }
+  },
+
+  _confirmReset() {
+    if (!window.confirm('Удалить весь профиль, чат и историю? Это нельзя отменить.')) return;
+    try {
+      for (const k of Object.keys(localStorage)) {
+        if (k.startsWith('hd_') || k === 'theme') localStorage.removeItem(k);
+      }
+    } catch(e) { console.warn('[reset] failed:', e); }
+    window.location.replace(window.location.origin + window.location.pathname);
   }
 };
 
