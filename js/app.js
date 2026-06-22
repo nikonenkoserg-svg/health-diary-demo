@@ -4,6 +4,19 @@ const APP_VERSION = 'v50';
 
 const App = {
   init() {
+    // ?reset=1 — полный сброс локальных данных перед запуском.
+    // Удобно для тестов: даёт чистый старт без DevTools.
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get('reset') === '1') {
+        for (const k of Object.keys(localStorage)) {
+          if (k.startsWith('hd_') || k === 'theme') localStorage.removeItem(k);
+        }
+        url.searchParams.delete('reset');
+        window.history.replaceState({}, '', url.toString());
+      }
+    } catch (e) { console.warn('[reset] failed:', e); }
+
     // Set app height for iOS
     this.setAppHeight();
     window.addEventListener('resize', () => this.setAppHeight());
