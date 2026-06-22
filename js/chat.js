@@ -31,6 +31,9 @@ const Chat = {
 
     if (state === 'init' || (state === 'pre_register' && !hasMessages)) {
       this.showGreeting();
+    } else if (state === 'pre_register') {
+      // Приветствие уже было — восстанавливаем кнопку «Создать профиль».
+      this._addRegisterCTA();
     } else if (state === 'anketa') {
       // Перезагрузка во время заполнения анкеты — снова открываем модальный оверлей.
       this._openAnketaOverlay();
@@ -41,12 +44,48 @@ const Chat = {
     await this.typeMessage(Onboarding.GREETING, 'bot');
     this.chatData.state = 'pre_register';
     Storage.saveChat(this.chatData);
+    this._addRegisterCTA();
   },
 
-  // Открыть модальный оверлей анкеты. После сохранения — _onAnketaSaved().
+  // Кнопка «Создать профиль» в чате — единственный путь в анкету.
+  // Раньше регистрация триггерилась словом «готово/давай»: хрупко, легко
+  // случайно запереть пациента в оверлее.
+  _addRegisterCTA() {
+    const chat = document.getElementById('chat');
+    if (!chat || document.getElementById('register-cta')) return;
+    const wrap = document.createElement('div');
+    wrap.id = 'register-cta';
+    wrap.className = 'register-cta';
+    const btn = document.createElement('button');
+    btn.className = 'register-cta-btn';
+    btn.textContent = 'Создать профиль';
+    btn.addEventListener('click', () => {
+      const el = document.getElementById('register-cta');
+      if (el) el.remove();
+      this.chatData.state = 'anketa';
+      Storage.saveChat(this.chatData);
+      this._openAnketaOverlay();
+    });
+    wrap.appendChild(btn);
+    chat.appendChild(wrap);
+    this.scrollToBottom();
+  },
+
+  // Открыть модальный оверлей анкеты.
+  // onSaved → state=active, реплика ENTRY.
+  // onCancel → возврат в pre_register с приветствием и кнопкой.
   _openAnketaOverlay() {
     if (typeof ProfileOverlay === 'undefined') return;
-    ProfileOverlay.openRequired(() => this._onAnketaSaved());
+    ProfileOverlay.openRequired(
+      () => this._onAnketaSaved(),
+      () => this._onAnketaCancelled()
+    );
+  },
+
+  _onAnketaCancelled() {
+    this.chatData.state = 'pre_register';
+    Storage.saveChat(this.chatData);
+    this._addRegisterCTA();
   },
 
   async _onAnketaSaved() {
@@ -427,29 +466,18 @@ const Chat = {
     // Агрессия → одна короткая фраза.
     // Всё остальное → одна заглушка PRE_REGISTER_HOLD.
     if (this.chatData.state === 'pre_register') {
-      // Pre-register не думает — отвечает заготовкой. Индикатор «Слышу/Уже иду/
-      // Я здесь!» здесь паразитный, скрываем сразу.
+      // До регистрации Спутник в диалог не вступает: вход только через кнопку
+      // «Создать профиль». Распознавание согласия по тексту убрано — оно было
+      // хрупким (любое «готово/давай» запирало пациента в оверлее).
       this.hideTyping();
       const category = Onboarding.classifyResponse(text);
-
       if (category === 'aggressive') {
         await this.typeMessage(Onboarding.RESPONSES.aggressive, 'bot');
-        this.isSending = false;
-        return;
+      } else {
+        await this.typeMessage(Onboarding.PRE_REGISTER_HOLD, 'bot');
       }
-
-      if (category === 'agree') {
-        this.hideTyping();
-        await this.typeMessage(Onboarding.REGISTRATION_INTRO, 'bot');
-        this.chatData.state = 'anketa';
-        Storage.saveChat(this.chatData);
-        await new Promise(r => setTimeout(r, 400));
-        this._openAnketaOverlay();
-        this.isSending = false;
-        return;
-      }
-
-      await this.typeMessage(Onboarding.PRE_REGISTER_HOLD, 'bot');
+      // Кнопка могла исчезнуть после перерисовки — восстанавливаем.
+      this._addRegisterCTA();
       this.isSending = false;
       return;
     }

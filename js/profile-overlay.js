@@ -40,10 +40,11 @@ const ProfileOverlay = {
     this.isOpen = true;
   },
 
-  openRequired(onSaved) {
+  openRequired(onSaved, onCancel) {
     if (this.isOpen) return;
     this._mode = 'required';
     this._onSaved = typeof onSaved === 'function' ? onSaved : null;
+    this._onCancel = typeof onCancel === 'function' ? onCancel : null;
     this._render();
     document.body.style.overflow = 'hidden';
     this.isOpen = true;
@@ -151,11 +152,19 @@ const ProfileOverlay = {
     const c = document.getElementById('profile-anketa');
     if (!c) return;
     const saveLabel = this._mode === 'required' ? 'Сохранить и начать' : 'Сохранить изменения';
+    const cancelBtn = this._mode === 'required'
+      ? `<button class="profile-cancel-btn" id="profile-cancel-anketa" type="button">Отмена</button>`
+      : '';
     c.innerHTML =
       this.ANKETA_FIELDS.map(s => this._fieldHTML(s)).join('') +
-      `<button class="profile-save-btn" id="profile-save-anketa" disabled>${saveLabel}</button>`;
+      `<div class="profile-actions">
+         <button class="profile-save-btn" id="profile-save-anketa" disabled>${saveLabel}</button>
+         ${cancelBtn}
+       </div>`;
 
     document.getElementById('profile-save-anketa').addEventListener('click', () => this._saveAnketa());
+    const cBtn = document.getElementById('profile-cancel-anketa');
+    if (cBtn) cBtn.addEventListener('click', () => this._cancelRequired());
 
     c.querySelectorAll('input').forEach(input => {
       input.addEventListener('input', () => this._refreshSaveButtonState());
@@ -220,6 +229,17 @@ const ProfileOverlay = {
       btn.textContent = saved ? `Сохранено (${saved})` : 'Без изменений';
       setTimeout(() => { if (btn) btn.textContent = 'Сохранить изменения'; }, 1500);
     }
+  },
+
+  _cancelRequired() {
+    if (this._mode !== 'required') return;
+    const cb = this._onCancel;
+    this._onCancel = null;
+    this._onSaved = null;
+    // временно переключаем mode чтобы _doClose сработал
+    this._mode = 'edit';
+    this._doClose();
+    if (cb) cb();
   },
 
   _confirmReset() {

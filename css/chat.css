@@ -603,3 +603,25 @@
   font-size: 15px;
 }
 .card-text p:last-child { margin-bottom: 0; }
+
+/* CTA-кнопка «Создать профиль» под приветствием */
+.register-cta {
+  margin: 12px 0 6px 0;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.register-cta-btn {
+  background: var(--accent-1, #5a8fc4);
+  color: #fff;
+  border: 0;
+  padding: 11px 22px;
+  border-radius: 9px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.register-cta-btn:hover { filter: brightness(1.1); }
+.register-cta-btn:active { filter: brightness(0.95); }

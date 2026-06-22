@@ -179,3 +179,27 @@
 #profile-overlay .profile-danger-btn:hover {
   background: rgba(120, 40, 40, 0.15);
 }
+
+#profile-overlay .profile-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 14px;
+}
+
+#profile-overlay .profile-cancel-btn {
+  background: transparent;
+  color: var(--text-2, #999);
+  border: 1px solid var(--border-1, #333);
+  padding: 10px 16px;
+  border-radius: 7px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+#profile-overlay .profile-cancel-btn:hover {
+  border-color: var(--text-2, #666);
+  color: var(--text-1, #eee);
+}
+
+#profile-overlay .profile-save-btn { margin-top: 0; }
