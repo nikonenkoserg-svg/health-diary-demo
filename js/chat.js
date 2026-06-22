@@ -427,6 +427,9 @@ const Chat = {
     // Агрессия → одна короткая фраза.
     // Всё остальное → одна заглушка PRE_REGISTER_HOLD.
     if (this.chatData.state === 'pre_register') {
+      // Pre-register не думает — отвечает заготовкой. Индикатор «Слышу/Уже иду/
+      // Я здесь!» здесь паразитный, скрываем сразу.
+      this.hideTyping();
       const category = Onboarding.classifyResponse(text);
 
       if (category === 'aggressive') {
