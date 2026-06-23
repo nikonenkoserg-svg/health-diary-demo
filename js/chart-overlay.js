@@ -289,6 +289,12 @@ const ChartOverlay = {
     const body = document.getElementById('chart-lever-body');
     if (!card || !title || !body) return;
     if (phase === this.PHASE.PROGNOSIS) {
+      // Если прогнозный пик и так в норме (< 6.0) — рычаг не нужен, карточку не показываем.
+      // Иначе получается совет «снизит до 5.5» при пике 5.1 — бессмыслица.
+      if (peak.glucose < 6.0) {
+        card.classList.add('hidden');
+        return;
+      }
       card.classList.remove('hidden');
       title.textContent = 'Пик впереди.';
       body.textContent = 'Ходьба 15 мин снизит до ~' + Math.max(5.5, peak.glucose - 3.4).toFixed(1) + ' ммоль/л.';
