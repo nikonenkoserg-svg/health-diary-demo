@@ -290,9 +290,15 @@ const Chat = {
     chat.appendChild(div);
 
     for (let i = 0; i <= text.length; i++) {
+      const remaining = text.length - i;
+      let delay;
+      if (remaining > 150) delay = 8;
+      else if (remaining > 80) delay = 14;
+      else if (remaining > 30) delay = 20;
+      else delay = 28;
       div.textContent = text.slice(0, i);
       this.scrollToBottom();
-      await new Promise(r => setTimeout(r, 20));
+      await new Promise(r => setTimeout(r, delay));
     }
 
     this.chatData.messages.push({
