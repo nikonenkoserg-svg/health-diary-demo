@@ -203,3 +203,93 @@
 }
 
 #profile-overlay .profile-save-btn { margin-top: 0; }
+
+/* Блочный ввод анкеты (голос + текст блоком) */
+#profile-overlay .profile-bulk {
+  background: var(--bg-2, #252525);
+  border: 1px dashed var(--border-1, #404040);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+#profile-overlay .profile-bulk-label {
+  font-size: 12px;
+  color: var(--text-2, #888);
+}
+
+#profile-overlay #profile-bulk-text {
+  background: var(--bg-1, #1a1a1a);
+  border: 1px solid var(--border-1, #333);
+  color: var(--text-1, #eee);
+  padding: 10px 12px;
+  border-radius: 7px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 64px;
+}
+
+#profile-overlay #profile-bulk-text:focus {
+  outline: none;
+  border-color: var(--accent-1, #5a8fc4);
+}
+
+#profile-overlay .profile-bulk-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+#profile-overlay .profile-mic-btn,
+#profile-overlay .profile-bulk-parse {
+  border: 1px solid var(--border-1, #404040);
+  padding: 8px 14px;
+  border-radius: 7px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+#profile-overlay .profile-mic-btn {
+  background: transparent;
+  color: var(--text-1, #eee);
+}
+
+#profile-overlay .profile-mic-btn.recording {
+  background: #6a2424;
+  border-color: #8a3030;
+  color: #fff;
+}
+
+#profile-overlay .profile-mic-btn.processing {
+  background: #444;
+  color: #aaa;
+  cursor: wait;
+}
+
+#profile-overlay .profile-bulk-parse {
+  background: var(--accent-1, #5a8fc4);
+  color: #fff;
+  border-color: transparent;
+}
+
+#profile-overlay .profile-bulk-parse:disabled {
+  background: var(--bg-1, #1a1a1a);
+  color: var(--text-2, #666);
+  cursor: not-allowed;
+}
+
+#profile-overlay .profile-bulk-status {
+  font-size: 12px;
+  color: var(--text-2, #888);
+  min-height: 14px;
+}
+
+#profile-overlay .profile-field-extracted {
+  border-color: var(--accent-1, #5a8fc4) !important;
+  background: rgba(90, 143, 196, 0.08);
+}

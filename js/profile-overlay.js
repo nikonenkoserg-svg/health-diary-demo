@@ -87,6 +87,16 @@ const ProfileOverlay = {
             ${required
               ? '<p class="profile-hint">Поля со <span class="profile-required-marker">*</span> обязательны. «Сохранить» станет активной, когда они заполнены.</p>'
               : '<h3>Анкета</h3><p class="profile-hint">Стабильные данные. Меняй, если что-то поменялось.</p>'}
+            ${required ? `
+            <div class="profile-bulk">
+              <label class="profile-bulk-label">Можешь надиктовать или вставить блоком — разложу по полям</label>
+              <textarea id="profile-bulk-text" rows="3" placeholder="Например: мужской, 53 года, рост 183, вес 77, преддиабет, не курю, не пью"></textarea>
+              <div class="profile-bulk-actions">
+                <button class="profile-mic-btn" id="profile-mic-btn" type="button" aria-label="Записать голосом">🎙 Голос</button>
+                <button class="profile-bulk-parse" id="profile-bulk-parse" type="button" disabled>Разобрать и заполнить</button>
+              </div>
+              <div class="profile-bulk-status" id="profile-bulk-status"></div>
+            </div>` : ''}
             <div class="profile-fields" id="profile-anketa"></div>
           </section>
           ${required ? '' : `
@@ -114,6 +124,115 @@ const ProfileOverlay = {
     this._renderAnketa();
     if (!required) this._renderPatterns();
     this._refreshSaveButtonState();
+    if (required) this._wireBulk();
+  },
+
+  _wireBulk() {
+    const textarea = document.getElementById('profile-bulk-text');
+    const parseBtn = document.getElementById('profile-bulk-parse');
+    const micBtn = document.getElementById('profile-mic-btn');
+    const status = document.getElementById('profile-bulk-status');
+    if (!textarea || !parseBtn || !micBtn) return;
+
+    textarea.addEventListener('input', () => {
+      parseBtn.disabled = !textarea.value.trim();
+    });
+
+    parseBtn.addEventListener('click', () => this._parseBulk(textarea.value.trim(), status, parseBtn));
+    micBtn.addEventListener('click', () => this._toggleMic(textarea, micBtn, status));
+  },
+
+  async _parseBulk(text, statusEl, btn) {
+    if (!text) return;
+    btn.disabled = true;
+    if (statusEl) statusEl.textContent = 'Разбираю...';
+    try {
+      const resp = await fetch('/api/extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+      if (!resp.ok) throw new Error('extract failed');
+      const data = await resp.json();
+      const anketa = data.anketa || {};
+      let filled = 0;
+      this.ANKETA_FIELDS.forEach(spec => {
+        const v = anketa[spec.name];
+        if (v === null || v === undefined || v === '') return;
+        const input = document.getElementById(`pf-anketa-${spec.name}`);
+        if (input) {
+          input.value = String(v);
+          input.classList.add('profile-field-extracted');
+          filled++;
+        }
+      });
+      this._refreshSaveButtonState();
+      if (statusEl) statusEl.textContent = filled
+        ? `Заполнено полей: ${filled}. Проверь и поправь если что.`
+        : 'Не получилось распознать поля. Попробуй сформулировать иначе.';
+    } catch (e) {
+      console.warn('[bulk parse]', e);
+      if (statusEl) statusEl.textContent = 'Ошибка разбора. Попробуй ещё раз.';
+    } finally {
+      btn.disabled = false;
+    }
+  },
+
+  _toggleMic(textarea, btn, statusEl) {
+    if (this._mic && this._mic.isRecording) {
+      this._mic.stop();
+      return;
+    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      if (statusEl) statusEl.textContent = 'Микрофон в этом браузере недоступен.';
+      return;
+    }
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+      const mimeCandidates = ['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/ogg;codecs=opus'];
+      const mimeType = mimeCandidates.find(t => MediaRecorder.isTypeSupported(t)) || 'audio/webm';
+      const recorder = new MediaRecorder(stream, { mimeType });
+      const chunks = [];
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        btn.classList.remove('recording');
+        btn.classList.add('processing');
+        if (statusEl) statusEl.textContent = 'Распознаю речь...';
+        try {
+          const blob = new Blob(chunks, { type: mimeType });
+          const resp = await fetch('/api/speech', {
+            method: 'POST',
+            headers: { 'Content-Type': mimeType, 'X-Language': 'ru' },
+            body: blob
+          });
+          if (!resp.ok) throw new Error('speech failed');
+          const data = await resp.json();
+          const tr = (data.transcript || '').trim();
+          if (tr) {
+            textarea.value = (textarea.value ? textarea.value + ' ' : '') + tr;
+            textarea.dispatchEvent(new Event('input'));
+            if (statusEl) statusEl.textContent = 'Распознано. Нажми «Разобрать и заполнить».';
+          } else {
+            if (statusEl) statusEl.textContent = 'Ничего не расслышал. Попробуй ещё раз.';
+          }
+        } catch (e) {
+          console.warn('[mic]', e);
+          if (statusEl) statusEl.textContent = 'Ошибка распознавания. Попробуй ещё раз.';
+        }
+        btn.classList.remove('processing');
+        this._mic = null;
+      };
+      this._mic = {
+        isRecording: true,
+        stop: () => recorder.stop()
+      };
+      recorder.start();
+      btn.classList.add('recording');
+      if (statusEl) statusEl.textContent = 'Слушаю... Нажми ещё раз чтобы остановить.';
+    }).catch(err => {
+      console.warn('[mic access]', err);
+      if (statusEl) statusEl.textContent = 'Нет доступа к микрофону.';
+    });
   },
 
   _fieldHTML(spec) {
