@@ -77,7 +77,11 @@ const Auth = {
       if (e.key === 'Enter' && !submit.disabled) submit.click();
     });
 
+    let submitted = false;
     submit.addEventListener('click', () => {
+      if (submitted) return;
+      submitted = true;
+      submit.disabled = true;
       const email = input.value.trim().toLowerCase();
       this._save({ email, registered_at: new Date().toISOString() });
       const cb = this._onDone;

@@ -88,16 +88,25 @@ const Chat = {
 
   async _openRegistration() {
     if (typeof Auth === 'undefined') return;
+    if (this._registrationInProgress) return;
+    this._registrationInProgress = true;
     Auth.openRegistration(async (email) => {
-      const el = document.getElementById('register-cta');
-      if (el) el.remove();
-      this.chatData.state = 'registered';
-      Storage.saveChat(this.chatData);
-      await this.typeMessage(Onboarding.REGISTERED_INTRO, 'bot');
-      await new Promise(r => setTimeout(r, 400));
-      this.chatData.state = 'anketa';
-      Storage.saveChat(this.chatData);
-      this._openAnketaOverlay();
+      try {
+        const el = document.getElementById('register-cta');
+        if (el) el.remove();
+        this.chatData.state = 'registered';
+        Storage.saveChat(this.chatData);
+        await this.typeMessage(Onboarding.REGISTERED_INTRO, 'bot');
+        // Дополнительная защита: ждём пока typing-индикатор и DOM сошлись.
+        await new Promise(r => setTimeout(r, 600));
+        // Ещё раз проверяем что оверлей не открыт кем-то параллельно
+        if (typeof ProfileOverlay !== 'undefined' && ProfileOverlay.isOpen) return;
+        this.chatData.state = 'anketa';
+        Storage.saveChat(this.chatData);
+        this._openAnketaOverlay();
+      } finally {
+        this._registrationInProgress = false;
+      }
     });
   },
 
