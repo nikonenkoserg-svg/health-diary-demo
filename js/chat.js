@@ -32,10 +32,11 @@ const Chat = {
     if (state === 'init' || (state === 'pre_register' && !hasMessages)) {
       this.showGreeting();
     } else if (state === 'pre_register') {
-      // Приветствие уже было — восстанавливаем кнопку «Создать профиль».
       this._addRegisterCTA();
+    } else if (state === 'registered') {
+      // Зарегистрирован, но анкету ещё не заполнил — кнопка «Заполнить анкету».
+      this._addAnketaCTA();
     } else if (state === 'anketa') {
-      // Перезагрузка во время заполнения анкеты — снова открываем модальный оверлей.
       this._openAnketaOverlay();
     }
   },
@@ -47,9 +48,7 @@ const Chat = {
     this._addRegisterCTA();
   },
 
-  // Кнопка «Создать профиль» в чате — единственный путь в анкету.
-  // Раньше регистрация триггерилась словом «готово/давай»: хрупко, легко
-  // случайно запереть пациента в оверлее.
+  // CTA «Зарегистрироваться» — единственный путь в auth-модалку при state='pre_register'.
   _addRegisterCTA() {
     const chat = document.getElementById('chat');
     if (!chat || document.getElementById('register-cta')) return;
@@ -58,7 +57,23 @@ const Chat = {
     wrap.className = 'register-cta';
     const btn = document.createElement('button');
     btn.className = 'register-cta-btn';
-    btn.textContent = 'Создать профиль';
+    btn.textContent = 'Зарегистрироваться';
+    btn.addEventListener('click', () => this._openRegistration());
+    wrap.appendChild(btn);
+    chat.appendChild(wrap);
+    this.scrollToBottom();
+  },
+
+  // CTA «Заполнить анкету» — для state='registered' (отменил или перезагрузил).
+  _addAnketaCTA() {
+    const chat = document.getElementById('chat');
+    if (!chat || document.getElementById('register-cta')) return;
+    const wrap = document.createElement('div');
+    wrap.id = 'register-cta';
+    wrap.className = 'register-cta';
+    const btn = document.createElement('button');
+    btn.className = 'register-cta-btn';
+    btn.textContent = 'Заполнить анкету';
     btn.addEventListener('click', () => {
       const el = document.getElementById('register-cta');
       if (el) el.remove();
@@ -69,6 +84,21 @@ const Chat = {
     wrap.appendChild(btn);
     chat.appendChild(wrap);
     this.scrollToBottom();
+  },
+
+  async _openRegistration() {
+    if (typeof Auth === 'undefined') return;
+    Auth.openRegistration(async (email) => {
+      const el = document.getElementById('register-cta');
+      if (el) el.remove();
+      this.chatData.state = 'registered';
+      Storage.saveChat(this.chatData);
+      await this.typeMessage(Onboarding.REGISTERED_INTRO, 'bot');
+      await new Promise(r => setTimeout(r, 400));
+      this.chatData.state = 'anketa';
+      Storage.saveChat(this.chatData);
+      this._openAnketaOverlay();
+    });
   },
 
   // Открыть модальный оверлей анкеты.
@@ -83,9 +113,12 @@ const Chat = {
   },
 
   _onAnketaCancelled() {
-    this.chatData.state = 'pre_register';
+    // После отмены — пациент остаётся зарегистрированным, но без анкеты.
+    // В чате появляется CTA «Заполнить анкету».
+    const registered = (typeof Auth !== 'undefined') && Auth.isRegistered();
+    this.chatData.state = registered ? 'registered' : 'pre_register';
     Storage.saveChat(this.chatData);
-    this._addRegisterCTA();
+    if (registered) this._addAnketaCTA(); else this._addRegisterCTA();
   },
 
   async _onAnketaSaved() {
