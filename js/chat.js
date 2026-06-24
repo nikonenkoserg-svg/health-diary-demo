@@ -313,17 +313,25 @@ const Chat = {
     div.className = `message ${role}`;
     chat.appendChild(div);
 
-    for (let i = 0; i <= text.length; i++) {
+    // Печатаем не побуквенно, а кадрами: за один шаг рисуем 1-3 символа
+    // и спим один раз. Иначе на iPad Safari Service Worker и paint забивают
+    // main thread, цикл встаёт на ~2-3 секунды посреди слова.
+    let i = 0;
+    while (i <= text.length) {
       const remaining = text.length - i;
-      let delay;
-      if (remaining > 150) delay = 8;
-      else if (remaining > 80) delay = 14;
-      else if (remaining > 30) delay = 20;
-      else delay = 28;
+      let step, delay;
+      if (remaining > 200) { step = 3; delay = 24; }
+      else if (remaining > 100) { step = 2; delay = 24; }
+      else if (remaining > 40)  { step = 1; delay = 22; }
+      else                       { step = 1; delay = 28; }
+      i = Math.min(i + step, text.length);
       div.textContent = text.slice(0, i);
-      this.scrollToBottom();
+      // scrollToBottom только периодически, не на каждый символ
+      if (i % 12 === 0 || i === text.length) this.scrollToBottom();
+      if (i >= text.length) break;
       await new Promise(r => setTimeout(r, delay));
     }
+    this.scrollToBottom();
 
     this.chatData.messages.push({
       role: role === 'user' ? 'user' : 'assistant',

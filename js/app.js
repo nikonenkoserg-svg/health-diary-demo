@@ -9,9 +9,15 @@ const App = {
     try {
       const url = new URL(window.location.href);
       if (url.searchParams.get('reset') === '1') {
-        for (const k of Object.keys(localStorage)) {
-          if (k.startsWith('hd_') || k === 'theme') localStorage.removeItem(k);
-        }
+        try {
+          // Snapshot ключей в массив — иначе Safari при удалении внутри цикла
+          // может пропускать ключи (live-снимок keys() меняется при removeItem).
+          const keys = [];
+          for (let i = 0; i < localStorage.length; i++) keys.push(localStorage.key(i));
+          keys.forEach(k => {
+            if (k && (k.startsWith('hd_') || k === 'theme')) localStorage.removeItem(k);
+          });
+        } catch (e) { console.warn('[reset keys]', e); }
         url.searchParams.delete('reset');
         window.history.replaceState({}, '', url.toString());
       }

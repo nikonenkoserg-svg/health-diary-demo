@@ -375,9 +375,11 @@ const ProfileOverlay = {
   _confirmReset() {
     if (!window.confirm('Удалить весь профиль, чат и историю? Это нельзя отменить.')) return;
     try {
-      for (const k of Object.keys(localStorage)) {
-        if (k.startsWith('hd_') || k === 'theme') localStorage.removeItem(k);
-      }
+      const keys = [];
+      for (let i = 0; i < localStorage.length; i++) keys.push(localStorage.key(i));
+      keys.forEach(k => {
+        if (k && (k.startsWith('hd_') || k === 'theme')) localStorage.removeItem(k);
+      });
     } catch(e) { console.warn('[reset] failed:', e); }
     window.location.replace(window.location.origin + window.location.pathname);
   }
