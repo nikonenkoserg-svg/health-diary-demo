@@ -613,6 +613,25 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
         Engine.setActiveWorkload(extracted.workload);
       }
 
+      // Recap со свежим последним приёмом (≤2 часов от текущего времени пациента) —
+      // переключаем на fact, чтобы построить график от него. Остальные приёмы дня
+      // попадут в Engine как история через общий цикл.
+      if (extracted && extracted.kind === 'recap' && extracted.events && extracted.events.length > 0) {
+        const nowMinRecap = (typeof Time !== 'undefined' && Time.nowParts) ? Time.nowParts().minuteOfDay : null;
+        if (nowMinRecap != null) {
+          let latestMin = -1;
+          for (const ev of extracted.events) {
+            const mn = this.hmToMin(ev.time);
+            if (mn != null && mn > latestMin) latestMin = mn;
+          }
+          // 60 минут — окно, в котором рычаг (ходьба/нагрузка) ещё имеет смысл.
+          // После часа пик уже на спаде, график бесполезен.
+          if (latestMin >= 0 && (nowMinRecap - latestMin) <= 60 && (nowMinRecap - latestMin) >= -10) {
+            extracted.kind = 'fact';
+          }
+        }
+      }
+
       // Если pattern/plan — еда не строит график. Сохраняем профильный паттерн отдельно.
       if (extracted && extracted.kind && extracted.kind !== 'fact') {
         if (extracted.kind === 'pattern') {
