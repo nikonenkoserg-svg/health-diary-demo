@@ -21,6 +21,17 @@ const App = {
     this.setAppHeight();
     window.addEventListener('resize', () => this.setAppHeight());
 
+    // Подстраховка: если регион уже в анкете, но tzOverride отсутствует — выставить
+    try {
+      if (typeof Time !== 'undefined' && typeof ProfileStore !== 'undefined') {
+        const region = ProfileStore.get && ProfileStore.get('anketa', 'region');
+        if (region && !Time.getTz()) {
+          const tz = Time.regionToTz(region);
+          if (tz) Time.setTz(tz);
+        }
+      }
+    } catch (e) { console.warn('[tz init from region]', e); }
+
     // Init modules
     Theme.init();
     Chat.init();

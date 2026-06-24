@@ -335,6 +335,17 @@ const ProfileOverlay = {
       saved++;
     });
 
+    // После сохранения анкеты — нормализуем регион в IANA TZ, если есть и не задан override
+    try {
+      if (typeof Time !== 'undefined') {
+        const region = ProfileStore.get('anketa', 'region');
+        if (region && !Time.getTz()) {
+          const tz = Time.regionToTz(region);
+          if (tz) Time.setTz(tz);
+        }
+      }
+    } catch (e) { console.warn('[tz from region]', e); }
+
     if (this._mode === 'required') {
       const cb = this._onSaved;
       this._onSaved = null;

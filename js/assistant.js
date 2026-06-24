@@ -13,6 +13,29 @@ const Assistant = {
         prompt += Onboarding.BRIDGE_PROMPT;
       }
 
+      // Место и время пациента — критично для правильного парсинга времени.
+      // Если устройство в одной зоне, а пациент в другой — без этого блока
+      // модель и Engine разъезжаются с реальностью.
+      try {
+        if (typeof Time !== 'undefined') {
+          const region = (profile && (profile.region || profile.anketa_region)) || null;
+          const tp = Time.nowParts();
+          const hh = String(tp.hour).padStart(2, '0');
+          const mm = String(tp.minute).padStart(2, '0');
+          let devTz = null;
+          try { devTz = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (_) {}
+          prompt += '\n\n[МЕСТО И ВРЕМЯ ПАЦИЕНТА]\n';
+          if (region) prompt += 'Регион: ' + region + '.\n';
+          prompt += 'Часовой пояс пациента: ' + (tp.tz || 'device') + '.\n';
+          prompt += 'Текущее время пациента: ' + hh + ':' + mm + '.\n';
+          if (devTz && tp.tz && devTz !== tp.tz && tp.tz !== 'device' && tp.tz !== 'device-fallback') {
+            prompt += 'Внимание: часовой пояс устройства (' + devTz + ') НЕ совпадает с зоной пациента. Все упоминания времени пациентом считай по зоне пациента, не по устройству.\n';
+          }
+          prompt += 'Если пациент пишет "в 02:45" — это 02:45 по его местному времени, а не по устройству.\n';
+          prompt += '[/МЕСТО И ВРЕМЯ ПАЦИЕНТА]';
+        }
+      } catch (e) { console.warn('[tz prompt]', e); }
+
       // Engine: analyze food in last user message
       if (typeof Engine !== 'undefined' && messages && messages.length > 0) {
         const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
