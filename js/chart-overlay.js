@@ -288,21 +288,35 @@ const ChartOverlay = {
     const title = document.getElementById('chart-lever-title');
     const body = document.getElementById('chart-lever-body');
     if (!card || !title || !body) return;
+    // Если у пациента активная нагрузка (тренировка/бег/спорт ≥ 30мин) — рычаг ходьбы
+    // не имеет смысла, заменяем шаблон на честное «твоя тренировка закроет пик».
+    const hasWorkload = (typeof Engine !== 'undefined' &&
+                        typeof Engine.hasActiveWorkload === 'function' &&
+                        Engine.hasActiveWorkload());
+    const workloadKind = hasWorkload ? (Engine.getActiveWorkload().kind || 'нагрузка') : null;
+
     if (phase === this.PHASE.PROGNOSIS) {
       // Если прогнозный пик и так в норме (< 6.0) — рычаг не нужен, карточку не показываем.
-      // Иначе получается совет «снизит до 5.5» при пике 5.1 — бессмыслица.
       if (peak.glucose < 6.0) {
         card.classList.add('hidden');
         return;
       }
       card.classList.remove('hidden');
       title.textContent = 'Пик впереди.';
-      body.textContent = 'Ходьба 15 мин снизит до ~' + Math.max(5.5, peak.glucose - 3.4).toFixed(1) + ' ммоль/л.';
+      if (hasWorkload) {
+        body.textContent = 'Твоя ' + workloadKind + ' закроет пик — мышцы заберут глюкозу без инсулина.';
+      } else {
+        body.textContent = 'Ходьба 15 мин снизит до ~' + Math.max(5.5, peak.glucose - 3.4).toFixed(1) + ' ммоль/л.';
+      }
     } else if (phase === this.PHASE.ACTIVE && peak.minute > nowMin) {
       card.classList.remove('hidden');
       const minToPeak = peak.minute - nowMin;
       title.textContent = 'Пик через ' + Math.max(5, Math.round(minToPeak / 5) * 5) + ' мин.';
-      body.textContent = 'Ходьба сейчас — единственный рычаг.';
+      if (hasWorkload) {
+        body.textContent = 'Твоя ' + workloadKind + ' уже работает на спад — пик уйдёт без ходьбы.';
+      } else {
+        body.textContent = 'Ходьба сейчас — единственный рычаг.';
+      }
     } else if (phase === this.PHASE.RETROSPECTIVE) {
       card.classList.remove('hidden');
       title.textContent = 'Пик ' + peak.glucose.toFixed(1) + '. Что в следующий раз?';

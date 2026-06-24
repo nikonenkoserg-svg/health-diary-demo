@@ -36,6 +36,22 @@ const Assistant = {
         }
       } catch (e) { console.warn('[tz prompt]', e); }
 
+      // Активная нагрузка пациента — Engine.setActiveWorkload зафиксировал
+      // из реплики. Передаём модели, чтобы не предлагала ходьбу как
+      // дополнительный рычаг при идущей тренировке.
+      try {
+        if (typeof Engine !== 'undefined' &&
+            typeof Engine.hasActiveWorkload === 'function' &&
+            Engine.hasActiveWorkload()) {
+          const w = Engine.getActiveWorkload();
+          prompt += '\n\n[АКТИВНАЯ НАГРУЗКА ПАЦИЕНТА]\n';
+          prompt += 'Тип: ' + (w.kind || 'нагрузка') + '.\n';
+          if (w.hours) prompt += 'Длительность: ' + w.hours + ' ч.\n';
+          prompt += 'У пациента идёт мышечная работа, рычаг ходьбы НЕ предлагай как дополнение — это та же самая работа, только слабее. Если в карточке на экране у пациента написано про ходьбу — это шаблон, который не учёл его контекст. Признай это честно: «карточка по шаблону предложила, в твоём случае не нужно — твоя тренировка уже закроет пик». НЕ ВРИ что «не рекомендовал», если карточка предложила.\n';
+          prompt += '[/АКТИВНАЯ НАГРУЗКА]';
+        }
+      } catch (e) { console.warn('[workload prompt]', e); }
+
       // Engine: analyze food in last user message
       if (typeof Engine !== 'undefined' && messages && messages.length > 0) {
         const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');

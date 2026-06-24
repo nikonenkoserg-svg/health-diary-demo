@@ -659,10 +659,29 @@ const Engine = {
   // === ЯКОРЬ ДНЯ + НАКОПЛЕНИЕ СОБЫТИЙ ===
   _dayEvents: [],
   dayStart: null,   // минута дня — время подъёма, начало оси графика
+  _activeWorkload: null,  // {hours, kind, setAtMinute} — активная физ. нагрузка пациента
 
   clearDay() {
     this._dayEvents = [];
     this.dayStart = null;
+    this._activeWorkload = null;
+  },
+
+  setActiveWorkload(w) {
+    if (!w || !w.active) { this._activeWorkload = null; return; }
+    this._activeWorkload = {
+      hours: typeof w.hours === 'number' ? w.hours : null,
+      kind: w.kind || 'нагрузка',
+      setAtMinute: (typeof Time !== 'undefined') ? Time.nowParts().minuteOfDay : null
+    };
+  },
+
+  hasActiveWorkload() {
+    return !!this._activeWorkload;
+  },
+
+  getActiveWorkload() {
+    return this._activeWorkload;
   },
 
   setDayStart(minute) {
