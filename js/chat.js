@@ -429,6 +429,12 @@ const Chat = {
 
   // LLM извлекает приёмы пищи с временем → {wake, events:[{time,certain,foods}]}
   async extractDayEvents(text) {
+    // Нормализация времени: "В 12. 30.", "В 12.30." → "в 12:30"; "В 04.", "В 06.00." → "в 04:00".
+    // Точка как разделитель/окончание сбивает извлечение времени в LLM.
+    // \b не работает для кириллической «в» — используем lookbehind по пробелам/пунктуации.
+    text = text
+      .replace(/(?<=^|[\s.,;!?])в\s*(\d{1,2})\.\s*(\d{2})(?!\d)/gi, 'в $1:$2')
+      .replace(/(?<=^|[\s.,;!?])в\s*(\d{1,2})\.(?!\d)/gi, 'в $1:00');
     const tp = (typeof Time !== 'undefined' ? Time.nowParts() : { hour: new Date().getHours(), minute: new Date().getMinutes(), tz: 'UTC' });
     const hhmm = tp.hour + ':' + tp.minute.toString().padStart(2, '0');
 
@@ -590,6 +596,7 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
     let chartData = null;
     let timeUncertain = false;
     let leverHint = null;
+    let recapEvents = null;
 
     // Уточнение существующего event (граммы/время в отдельной реплике без еды)
     if (typeof Engine !== 'undefined' && Engine.updateLastEventFromContext &&
@@ -632,12 +639,22 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
         }
       }
 
-      // Если pattern/plan — еда не строит график. Сохраняем профильный паттерн отдельно.
+      // Если pattern/plan/recap — еда не строит график. Сохраняем профильный паттерн отдельно.
       if (extracted && extracted.kind && extracted.kind !== 'fact') {
         if (extracted.kind === 'pattern') {
           const prof = Storage.getProfile() || {};
           prof.mealPattern = text.slice(0, 500);
           Storage.saveProfile(prof);
+        }
+        // Recap → собираем список приёмов для блока [ПЕРЕСКАЗ ДНЯ] в промпте.
+        // Это пересказ дня, без графика, но с развёрнутым разбором по приёмам.
+        if (extracted.kind === 'recap' && extracted.events && extracted.events.length > 0) {
+          recapEvents = extracted.events.map(ev => ({
+            time: ev.time,
+            foods: ev.items && Array.isArray(ev.items)
+              ? ev.items.map(i => i.product + (i.portion_g ? ' ' + i.portion_g + 'г' : '')).join(', ')
+              : (ev.foods || '')
+          }));
         }
       } else if (extracted && extracted.events.length > 0) {
         this.ensureDayLog();
@@ -715,7 +732,8 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
         !!chartData,
         timeUncertain,
         leverHint,
-        unspecifiedFoods
+        unspecifiedFoods,
+        recapEvents
       );
 
       // RAG: ищем релевантную карточку ДО отправки промпта, чтобы Спутник мог

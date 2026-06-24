@@ -4,7 +4,7 @@
 
 const Assistant = {
 
-  async buildSystemPrompt(profile, userMsgCount, questionCount, messages, state, hasChart, timeUncertain, leverHint, unspecifiedFoods) {
+  async buildSystemPrompt(profile, userMsgCount, questionCount, messages, state, hasChart, timeUncertain, leverHint, unspecifiedFoods, recapEvents) {
     if (typeof Knowledge !== 'undefined') {
       let prompt = await Knowledge.buildPrompt(profile, userMsgCount, questionCount, messages);
 
@@ -101,6 +101,22 @@ const Assistant = {
 
 ЗАПРЕЩЕНО давать советы на будущее без запроса: «ужин полегче», «к вечеру ешь меньше», «прогулка снимет тяжесть» — это сервисный дрейф. Говори ТОЛЬКО про то, что пациент сейчас спросил или сейчас сделал. Никаких «если вечером будет X — делай Y» если пациент не спрашивал про вечер.
 [/РЕЖИМ ГРАФИКА]`;
+      }
+
+      // Пересказ дня — пациент описал несколько приёмов, последний не свежий.
+      // Графика нет, но нужен развёрнутый разбор (исключение из правила «одно слово»).
+      if (recapEvents && recapEvents.length > 0) {
+        prompt += '\n\n[ПЕРЕСКАЗ ДНЯ]\n';
+        prompt += 'Пациент описал день целиком. Это пересказ — НЕ отвечай одним словом «Принял.» Дай разбор:\n';
+        prompt += '1. По каждому приёму одна строка: что в нём ключевое (быстрый сахар / белок / клетчатка), как влияет.\n';
+        prompt += '2. Общая картина дня — паттерны (порядок, паузы между приёмами), баланс, риски.\n';
+        prompt += '3. Ориентир на остаток дня. Если до сна ещё есть время — что важно (или не делать).\n';
+        prompt += 'Опирайся на список ниже. Не дублируй текст пациента, не перечисляй то что он сам сказал.\n';
+        prompt += '\nПриёмы пищи за день:\n';
+        for (const ev of recapEvents) {
+          prompt += '- ' + (ev.time || '?') + ' — ' + (ev.foods || 'не уточнено') + '\n';
+        }
+        prompt += '[/ПЕРЕСКАЗ ДНЯ]';
       }
 
       // Граммовка продуктов не указана — попросить уточнить
