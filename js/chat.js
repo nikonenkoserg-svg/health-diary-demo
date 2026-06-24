@@ -657,11 +657,20 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
         && (nowMinFresh - latestTxtMin) >= -10
         && (nowMinFresh - latestTxtMin) <= 60;
 
-      console.log('[chat] extract:', {
+      const dbg = {
+        ts: new Date().toISOString(),
         kind: extracted && extracted.kind,
         events: extracted && extracted.events ? extracted.events.length : 0,
-        latestTxtMin, nowMinFresh, hasFreshTime
-      });
+        latestTxtMin, nowMinFresh, hasFreshTime,
+        text: text.slice(0, 200)
+      };
+      console.log('[chat] extract:', dbg);
+      try {
+        const log = JSON.parse(localStorage.getItem('hd_debug_log') || '[]');
+        log.push(dbg);
+        if (log.length > 20) log.shift();
+        localStorage.setItem('hd_debug_log', JSON.stringify(log));
+      } catch (_) {}
 
       if (hasFreshTime && extracted && extracted.events && extracted.events.length > 0) {
         if (extracted.kind !== 'fact') {
