@@ -254,10 +254,12 @@ const ChartOverlay = {
     const trendArrow = trend === 'rising' ? ' ↑' : trend === 'falling' ? ' ↓' : '';
     let html = '';
     if (phase === this.PHASE.ACTIVE) {
+      // Если пик уже прошёл — заголовок «был пик», иначе «прогноз пика».
+      const peakLabel = peak.minute < nowMin ? 'был пик' : 'прогноз пика';
       html =
         '<div class="kn-block"><span class="kn-label">сейчас</span>' +
         '<span class="kn-value">' + currentGlucose.toFixed(1) + trendArrow + '</span></div>' +
-        '<div class="kn-block"><span class="kn-label">прогноз пика</span>' +
+        '<div class="kn-block"><span class="kn-label">' + peakLabel + '</span>' +
         '<span class="kn-value">' + peak.glucose.toFixed(1) + '</span>' +
         '<span class="kn-sub">в ' + this._minuteToClock(peak.minute) + '</span></div>' +
         '<div class="kn-block"><span class="kn-label">остаётся выше нормы</span>' +
