@@ -301,7 +301,10 @@ const Chat = {
     }
     streamDone = true;
     await typingPromise;
-    if (parseError || !acc) return null;
+    if (parseError || !acc) {
+      console.error('[chat] _streamReply empty: parseError=' + parseError + ', acc.length=' + acc.length + ', buffer.length=' + buffer.length);
+      return null;
+    }
     this.chatData.messages.push({ role: 'assistant', content: acc });
     Storage.saveChat(this.chatData);
     return acc;
@@ -635,9 +638,12 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
       const foodProfile = Storage.getProfile() || {};
       // LLM извлекает события с временем
       const extracted = await this.extractDayEvents(text);
-      // Намерение физической нагрузки — отдельный сигнал, не зависит от kind
+      // Намерение физической нагрузки — ставим только для kind=fact (свежее событие).
+      // Для recap/pattern LLM может ошибочно поставить starts_now=true для тренировки
+      // из утра — это создаст ложный «активная тренировка прямо сейчас» в Engine.
       if (extracted && extracted.workload && extracted.workload.active &&
-          extracted.workload.starts_now && typeof Engine.setActiveWorkload === 'function') {
+          extracted.workload.starts_now && extracted.kind === 'fact' &&
+          typeof Engine.setActiveWorkload === 'function') {
         Engine.setActiveWorkload(extracted.workload);
       }
 
@@ -823,11 +829,12 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
             Storage.saveChat(this.chatData);
           }
         } else {
-          this.addMessageToDOM('bot', 'Пустой ответ. Попробуйте ещё раз.');
+          console.error('[chat] Empty reply from API. Status:', resp.status, 'headers:', Object.fromEntries(resp.headers.entries()));
+          this.addMessageToDOM('bot', 'Пустой ответ (status ' + resp.status + '). Попробуйте ещё раз.');
         }
       } else {
         const errText = await resp.text().catch(() => '');
-        console.error('Chat API error:', resp.status, errText);
+        console.error('[chat] API error:', resp.status, errText);
         this.addMessageToDOM('bot', 'Ошибка ' + resp.status + '. Попробуйте ещё раз.');
       }
     } catch (err) {
