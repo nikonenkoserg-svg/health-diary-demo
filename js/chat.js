@@ -409,6 +409,31 @@ const Chat = {
     return h * 60 + mm;
   },
 
+  // Нормализация записей времени в свободном тексте: «В 12. 30.», «В 12.30.», «В 04.» → «в 12:30», «в 04:00».
+  // \b не работает для кириллической «в» — используем lookbehind по пробелам/пунктуации.
+  normalizeTimeNotation(text) {
+    if (typeof text !== 'string') return text;
+    return text
+      .replace(/(?<=^|[\s.,;!?])в\s*(\d{1,2})\.\s*(\d{2})(?!\d)/gi, 'в $1:$2')
+      .replace(/(?<=^|[\s.,;!?])в\s*(\d{1,2})\.(?!\d)/gi, 'в $1:00');
+  },
+
+  // Возвращает максимальную «в HH:MM» из текста как минута дня, или -1.
+  latestExplicitMinute(text) {
+    const norm = this.normalizeTimeNotation(text);
+    const re = /(?<=^|[\s.,;!?])в\s*(\d{1,2}):(\d{2})/gi;
+    let latest = -1;
+    let m;
+    while ((m = re.exec(norm)) !== null) {
+      const h = parseInt(m[1]);
+      const mm = parseInt(m[2]);
+      if (h > 23 || mm > 59) continue;
+      const t = h * 60 + mm;
+      if (t > latest) latest = t;
+    }
+    return latest;
+  },
+
   minToHM(min) {
     const h = Math.floor(min / 60);
     return h + ':' + (min % 60).toString().padStart(2, '0');
@@ -429,12 +454,8 @@ const Chat = {
 
   // LLM извлекает приёмы пищи с временем → {wake, events:[{time,certain,foods}]}
   async extractDayEvents(text) {
-    // Нормализация времени: "В 12. 30.", "В 12.30." → "в 12:30"; "В 04.", "В 06.00." → "в 04:00".
-    // Точка как разделитель/окончание сбивает извлечение времени в LLM.
-    // \b не работает для кириллической «в» — используем lookbehind по пробелам/пунктуации.
-    text = text
-      .replace(/(?<=^|[\s.,;!?])в\s*(\d{1,2})\.\s*(\d{2})(?!\d)/gi, 'в $1:$2')
-      .replace(/(?<=^|[\s.,;!?])в\s*(\d{1,2})\.(?!\d)/gi, 'в $1:00');
+    // Нормализация записей времени: «В 12. 30.», «В 04.» → «в 12:30», «в 04:00».
+    text = this.normalizeTimeNotation(text);
     const tp = (typeof Time !== 'undefined' ? Time.nowParts() : { hour: new Date().getHours(), minute: new Date().getMinutes(), tz: 'UTC' });
     const hhmm = tp.hour + ':' + tp.minute.toString().padStart(2, '0');
 
@@ -510,7 +531,7 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
             { role: 'system', content: sys },
             { role: 'user', content: text }
           ],
-          max_tokens: 500
+          max_tokens: 2000
         })
       });
       if (!resp.ok) return null;
@@ -620,22 +641,26 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
         Engine.setActiveWorkload(extracted.workload);
       }
 
-      // Recap со свежим последним приёмом (≤2 часов от текущего времени пациента) —
-      // переключаем на fact, чтобы построить график от него. Остальные приёмы дня
-      // попадут в Engine как история через общий цикл.
-      if (extracted && extracted.kind === 'recap' && extracted.events && extracted.events.length > 0) {
-        const nowMinRecap = (typeof Time !== 'undefined' && Time.nowParts) ? Time.nowParts().minuteOfDay : null;
-        if (nowMinRecap != null) {
-          let latestMin = -1;
-          for (const ev of extracted.events) {
-            const mn = this.hmToMin(ev.time);
-            if (mn != null && mn > latestMin) latestMin = mn;
-          }
-          // 60 минут — окно, в котором рычаг (ходьба/нагрузка) ещё имеет смысл.
-          // После часа пик уже на спаде, график бесполезен.
-          if (latestMin >= 0 && (nowMinRecap - latestMin) <= 60 && (nowMinRecap - latestMin) >= -10) {
-            extracted.kind = 'fact';
-          }
+      // Детерминированная страховка от нестабильной LLM-классификации.
+      // Считаем самое позднее «в HH:MM» в тексте; если оно в окне [-10, +60] минут
+      // от текущего времени пациента — есть свежий приём. Override kind на fact,
+      // независимо от того, что вернула LLM (recap/pattern/null).
+      const nowMinFresh = (typeof Time !== 'undefined' && Time.nowParts) ? Time.nowParts().minuteOfDay : null;
+      const latestTxtMin = this.latestExplicitMinute(text);
+      const hasFreshTime = nowMinFresh != null && latestTxtMin >= 0
+        && (nowMinFresh - latestTxtMin) >= -10
+        && (nowMinFresh - latestTxtMin) <= 60;
+
+      console.log('[chat] extract:', {
+        kind: extracted && extracted.kind,
+        events: extracted && extracted.events ? extracted.events.length : 0,
+        latestTxtMin, nowMinFresh, hasFreshTime
+      });
+
+      if (hasFreshTime && extracted && extracted.events && extracted.events.length > 0) {
+        if (extracted.kind !== 'fact') {
+          console.log('[chat] override kind ->', 'fact', '(was', extracted.kind + ')');
+          extracted.kind = 'fact';
         }
       }
 
