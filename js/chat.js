@@ -356,14 +356,27 @@ const Chat = {
     ];
     this._typingTimers = steps.map(s => setTimeout(() => {
       const el = document.getElementById('typing');
-      if (el) el.textContent = s.text;
+      if (el) el._baseText = s.text;
     }, s.at));
+    // Секундомер — для теста видно точное время ожидания.
+    div._baseText = 'Слышу.';
+    const startedAt = Date.now();
+    this._typingInterval = setInterval(() => {
+      const el = document.getElementById('typing');
+      if (!el) return;
+      const sec = Math.floor((Date.now() - startedAt) / 1000);
+      el.textContent = (el._baseText || 'Слышу.') + ' (' + sec + 'с)';
+    }, 200);
   },
 
   hideTyping() {
     if (this._typingTimers) {
       this._typingTimers.forEach(t => clearTimeout(t));
       this._typingTimers = null;
+    }
+    if (this._typingInterval) {
+      clearInterval(this._typingInterval);
+      this._typingInterval = null;
     }
     const el = document.getElementById('typing');
     if (el) el.remove();
