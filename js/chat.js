@@ -784,7 +784,12 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
       // опереться на её материал в ответе. Карточку сохраняем для плашки внизу.
       let relevantCard = null;
       try {
-        const isQuestion = /\?|(?:^|\s)(что|как|почему|зачем|когда|где|какой|какая|какие|нужно ли|можно ли|стоит ли|правда ли|поможет ли)(?:\s|$|\?|,|\.)/i.test(text);
+        // Жёсткий детектор вопроса: либо «?» в реплике, либо вопросительное слово
+        // в самом начале первой фразы. «Когда до этого дойду» в середине не считается.
+        const trimmed = (text || '').trim();
+        const firstSentence = trimmed.split(/[.!?]/)[0] || '';
+        const startsWithQ = /^\s*(что|как|почему|зачем|когда|где|какой|какая|какое|какие|нужно ли|можно ли|стоит ли|правда ли|поможет ли|есть ли|правда|почему именно)\b/i.test(firstSentence);
+        const isQuestion = trimmed.includes('?') || startsWithQ;
         if (isQuestion && typeof window.RAG !== 'undefined' && window.RAG.isReady && window.RAG.isReady()) {
           // Определяем фазу пациента для фильтрации RAG. Onboarding:
           // первые 15 сообщений ИЛИ менее 3 событий еды в dayLog. Иначе stable.
@@ -794,6 +799,13 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
           relevantCard = await window.RAG.searchCard(text, null, { sex: (Storage.getProfile() || {}).sex, phase });
           if (relevantCard && window.RAG.formatCardForPrompt) {
             systemPrompt += window.RAG.formatCardForPrompt(relevantCard);
+            // Спутник должен ЗНАТЬ что к его ответу будет приклеена плашка с карточкой.
+            // Без этого блока он отрицает что отправил «ссылку», когда пациент спрашивает.
+            systemPrompt += '\n\n[ПРИКРЕПЛЕНА КАРТОЧКА]\n' +
+              'Под твоим ответом фронт прикрепит плашку «Глубже: «' + relevantCard.title + '»».\n' +
+              'Это произойдёт автоматически — твоя ответственность.\n' +
+              'Если пациент спросит про ссылку/карточку — НЕ говори «не отправлял». Признай: «да, приклеил карточку «' + relevantCard.title + '»». Если она не в тему — извинись одной фразой.\n' +
+              '[/ПРИКРЕПЛЕНА КАРТОЧКА]';
           }
         }
       } catch (e) { console.warn('[RAG] search failed:', e); }

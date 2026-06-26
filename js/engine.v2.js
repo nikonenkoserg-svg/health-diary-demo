@@ -900,20 +900,57 @@ const Engine = {
       }))
     };
 
-    // Слияние: если в недавнем событии (≤60 мин) есть тот же продукт
-    // и старое было с дефолтной порцией, а новое уточняет — заменяем старое.
-    // Это закрывает кейс: «съел пиццу» → потом «200 г» или «Сок 200 мл» отдельным сообщением.
+    // === MERGE/DUP ===
+    // (1) Дубль: то же время и тот же набор продуктов → не добавляем второе событие.
+    // (2) Уточнение: ≤15 мин и есть пересечение продуктов → обновляем порции
+    //     в предыдущем событии (а не выбрасываем йогурт/печенье при уточнении кофе).
+    //     Пересчитываем кривую события.
     const prev = this._dayEvents[this._dayEvents.length - 1];
-    if (prev && Math.abs(event.eventMinute - prev.eventMinute) < 60) {
+    if (prev) {
       const prevNames = new Set(prev.foods.map(f => f.name));
-      const overlap = event.foods.filter(f => prevNames.has(f.name)).map(f => f.name);
-      if (overlap.length > 0) {
-        const prevHadDefault = prev.foods.some(f => overlap.includes(f.name) && f.defaultPortion);
-        const newSpecified = event.foods.some(f => overlap.includes(f.name) && !f.defaultPortion);
-        if (prevHadDefault && newSpecified) {
+      const newNames = new Set(event.foods.map(f => f.name));
+      const sameTime = Math.abs(event.eventMinute - prev.eventMinute) <= 1;
+      const sameSet = prevNames.size === newNames.size && [...prevNames].every(n => newNames.has(n));
+      if (sameTime && sameSet) {
+        // Полный дубль — обновим прежний (если новое уточняет порции), иначе игнор
+        const updated = event.foods.some(f => !f.defaultPortion);
+        if (updated) {
           this._dayEvents[this._dayEvents.length - 1] = event;
           return event;
         }
+        return prev;
+      }
+      const overlapNames = event.foods.filter(f => prevNames.has(f.name)).map(f => f.name);
+      const within15 = Math.abs(event.eventMinute - prev.eventMinute) <= 15;
+      if (within15 && overlapNames.length > 0) {
+        // Merge: обновляем порции overlap-продуктов в prev, остальное оставляем,
+        // новые продукты (не из prev) добавляем как новые foods в тот же приём.
+        const newByName = new Map(event.foods.map(f => [f.name, f]));
+        const mergedFoods = prev.foods.map(pf => {
+          const nf = newByName.get(pf.name);
+          if (nf && !nf.defaultPortion) return nf;
+          return pf;
+        });
+        for (const f of event.foods) {
+          if (!prevNames.has(f.name)) mergedFoods.push(f);
+        }
+        // Пересчёт кривой по объединённому составу
+        const rawFoods = mergedFoods.map(f => ({
+          name: f.name, portion: f.portion, gi: f.gi, carbs: f.carbs,
+          kcal: f.kcal * 100 / Math.max(f.portion, 1),
+          defaultPortion: f.defaultPortion
+        }));
+        const recCoeff = this.getCoefficients(profile || {});
+        recCoeff.peakModifier *= this.timeOfDayEffect(prev.hour).modifier;
+        const newCurve = this.mealCurve(rawFoods, recCoeff);
+        const merged = {
+          ...prev,
+          curve: newCurve,
+          macros: newCurve.macros || prev.macros,
+          foods: mergedFoods
+        };
+        this._dayEvents[this._dayEvents.length - 1] = merged;
+        return merged;
       }
     }
     this._dayEvents.push(event);
