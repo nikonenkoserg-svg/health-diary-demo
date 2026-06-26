@@ -577,6 +577,10 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
     this.addMessageToDOM('user', text);
     this.chatData.messages.push({ role: 'user', content: text });
     this.chatData.userMsgCount++;
+    // Счётчик для триггера обновления долгосрочной памяти
+    try {
+      if (typeof PatientMemory !== 'undefined') PatientMemory.incrementCounter();
+    } catch (_) {}
     Storage.saveChat(this.chatData);
     this.scrollToBottom();
     // Индикатор «думаю» — сразу при отправке, не после всех парсеров
@@ -851,6 +855,18 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
       this.addMessageToDOM('bot', 'Ошибка соединения. Проверьте интернет.');
       console.error('Chat error:', err);
     }
+
+    // Долгосрочная память — обновляем после 5 user-сообщений ИЛИ день-end фразы.
+    // Fire-and-forget, не блокирует следующее сообщение.
+    try {
+      if (typeof PatientMemory !== 'undefined') {
+        const trig = PatientMemory.shouldTrigger(text, 5);
+        if (trig.trigger) {
+          console.log('[memory] trigger:', trig.reason);
+          PatientMemory.update(this.chatData.messages).catch(e => console.warn('[memory]', e));
+        }
+      }
+    } catch (_) {}
 
     this.isSending = false;
   }

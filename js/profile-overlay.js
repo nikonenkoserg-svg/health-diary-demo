@@ -106,6 +106,7 @@ const ProfileOverlay = {
             <div class="profile-fields" id="profile-patterns"></div>
           </section>
           <section class="profile-section profile-danger-section">
+            <button class="profile-danger-btn profile-danger-btn--soft" id="profile-clear-memory-btn">Сбросить память Спутника</button>
             <button class="profile-danger-btn" id="profile-reset-btn">Очистить все данные и начать заново</button>
           </section>`}
         </div>
@@ -119,6 +120,13 @@ const ProfileOverlay = {
       if (closeBtn) closeBtn.addEventListener('click', () => this.close());
       const resetBtn = root.querySelector('#profile-reset-btn');
       if (resetBtn) resetBtn.addEventListener('click', () => this._confirmReset());
+      const clearMemBtn = root.querySelector('#profile-clear-memory-btn');
+      if (clearMemBtn) clearMemBtn.addEventListener('click', () => {
+        if (!confirm('Сбросить долгосрочную память Спутника? Профиль и история останутся, очистится только модель паттернов.')) return;
+        if (typeof PatientMemory !== 'undefined') PatientMemory.clear();
+        clearMemBtn.textContent = 'Память сброшена';
+        setTimeout(() => { clearMemBtn.textContent = 'Сбросить память Спутника'; }, 2000);
+      });
     }
 
     this._renderAnketa();

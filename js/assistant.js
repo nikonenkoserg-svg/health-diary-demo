@@ -36,6 +36,15 @@ const Assistant = {
         }
       } catch (e) { console.warn('[tz prompt]', e); }
 
+      // Долгосрочная память пациента — паттерны, реакции, образ жизни.
+      // Накоплена секретарём из предыдущих диалогов. Если пуста — блок пропускаем.
+      try {
+        if (typeof PatientMemory !== 'undefined' && typeof PatientMemory.format === 'function') {
+          const memBlock = PatientMemory.format();
+          if (memBlock) prompt += '\n\n' + memBlock;
+        }
+      } catch (e) { console.warn('[memory prompt]', e); }
+
       // Активная нагрузка пациента — Engine.setActiveWorkload зафиксировал
       // из реплики. Передаём модели, чтобы не предлагала ходьбу как
       // дополнительный рычаг при идущей тренировке.
