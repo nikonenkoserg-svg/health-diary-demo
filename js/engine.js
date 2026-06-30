@@ -874,5 +874,109 @@ const Engine = {
       timeUncertain: event ? !event.timeCertain : false,
       leverHint
     };
+  },
+
+  // getDayData — данные для нового графика "Картина дня" по реальным замерам.
+  // Возвращает измерения, события еды, рабочие нагрузки и персональную медиану.
+  // НЕ моделирует кривую — это работа врача и реального прибора, не наша.
+  getDayData(profile) {
+    const _tp = (typeof Time !== 'undefined' ? Time.nowParts() : null);
+    const nowDate = new Date();
+    const nowMin = _tp ? _tp.minuteOfDay : (nowDate.getHours()*60 + nowDate.getMinutes());
+    const todayISO = _tp ? _tp.dateISO : nowDate.toISOString().slice(0,10);
+
+    const _toMinute = (ms) => {
+      const d = new Date(ms);
+      return d.getHours()*60 + d.getMinutes();
+    };
+    const _isToday = (ms) => {
+      const d = new Date(ms);
+      const iso = d.getFullYear() + '-' +
+        String(d.getMonth()+1).padStart(2,'0') + '-' +
+        String(d.getDate()).padStart(2,'0');
+      return iso === todayISO;
+    };
+
+    let measurements = [];
+    if (typeof Storage !== 'undefined' && Storage.getGlucoseLog) {
+      const log = Storage.getGlucoseLog() || [];
+      measurements = log
+        .filter(g => _isToday(g.time))
+        .map(g => ({ minute: _toMinute(g.time), value: g.value, type: g.type || 'random' }))
+        .sort((a, b) => a.minute - b.minute);
+    }
+
+    let foodEvents = [];
+    if (this._dayEvents && this._dayEvents.length > 0) {
+      foodEvents = this._dayEvents.map(e => ({
+        minute: e.eventMinute,
+        label: e.foods.map(f => f.name).join(', '),
+        certain: e.timeCertain !== false
+      }));
+    } else if (typeof Storage !== 'undefined' && Storage.getFoodLog) {
+      const log = Storage.getFoodLog() || [];
+      foodEvents = log
+        .filter(f => _isToday(f.time))
+        .map(f => ({
+          minute: _toMinute(f.time),
+          label: (f.foods || '').toString(),
+          certain: f.certain !== false
+        }));
+    }
+    foodEvents.sort((a, b) => a.minute - b.minute);
+
+    let workloadEvents = [];
+    if (this.hasActiveWorkload && this.hasActiveWorkload()) {
+      const w = this.getActiveWorkload();
+      if (w && w.startMinute != null) {
+        workloadEvents.push({
+          minute: w.startMinute,
+          kind: w.kind || 'движение',
+          durationMin: (w.hours || 0) * 60
+        });
+      }
+    }
+
+    let baseline = null;
+    if (typeof Storage !== 'undefined' && Storage.getGlucoseLog) {
+      const log = Storage.getGlucoseLog() || [];
+      const cutoff = Date.now() - 14*24*60*60*1000;
+      const vals = log.filter(g => g.time >= cutoff).map(g => g.value).sort((a,b) => a-b);
+      if (vals.length >= 5) {
+        baseline = vals[Math.floor(vals.length / 2)];
+      }
+    }
+
+    const contextLabels = [];
+    for (let i = 1; i < measurements.length; i++) {
+      const cur = measurements[i];
+      const prev = measurements[i-1];
+      if (cur.value >= prev.value) continue;
+      const recentMove = workloadEvents.find(w =>
+        w.minute < cur.minute && (cur.minute - w.minute) <= 60
+      );
+      if (recentMove) {
+        contextLabels.push({ measurementIdx: i, text: 'после движения — ниже' });
+      }
+    }
+
+    let dayStart = 6*60;
+    let dayEnd = 24*60;
+    if (measurements.length > 0) {
+      dayStart = Math.min(dayStart, Math.max(0, measurements[0].minute - 30));
+      dayEnd = Math.max(dayEnd, Math.min(24*60, measurements[measurements.length-1].minute + 60));
+    }
+
+    return {
+      measurements,
+      foodEvents,
+      workloadEvents,
+      baseline,
+      contextLabels,
+      nowMin,
+      dayStart,
+      dayEnd
+    };
   }
+
 };

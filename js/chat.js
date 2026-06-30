@@ -149,13 +149,8 @@ const Chat = {
       this.addMessageToDOM(m.role === 'user' ? 'user' : 'bot', m.content);
     });
     // Панель графика: из движка (если события дня восстановлены) либо из сохранённого
-    if (typeof Chart !== 'undefined') {
-      if (typeof Engine !== 'undefined' && Engine._dayEvents && Engine._dayEvents.length > 0) {
-        Chart.updatePanel(Engine.getCurvePoints(Storage.getProfile() || {}));
-      } else {
-        const lastChart = [...this.chatData.messages].reverse().find(m => m.chartData);
-        if (lastChart) Chart.updatePanel(lastChart.chartData);
-      }
+    if (typeof Chart !== 'undefined' && typeof Engine !== 'undefined') {
+      Chart.updatePanel(Engine.getDayData(Storage.getProfile() || {}));
     }
     this.scrollToBottom();
   },
@@ -739,7 +734,7 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
         !this.looksLikeFood(text) && Engine._dayEvents.length > 0) {
       const profile = Storage.getProfile() || {};
       if (Engine.updateLastEventFromContext(text, profile)) {
-        chartData = Engine.getCurvePoints(profile);
+        chartData = Engine.getDayData(profile);
       }
     }
 
@@ -835,7 +830,7 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
             timeUncertain = false;
           }
         }
-        chartData = Engine.getCurvePoints(foodProfile);
+        chartData = Engine.getDayData(foodProfile);
         // Подсказка рычага по последнему добавленному событию
         const lastEvent = Engine._dayEvents[Engine._dayEvents.length - 1];
         leverHint = Engine.computeLeverHint(lastEvent, foodProfile);
@@ -868,10 +863,10 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
       const currentProfile = Storage.getProfile();
       // Список продуктов без указанной граммовки — для подсказки модели
       let unspecifiedFoods = [];
-      if (chartData && chartData.events && chartData.events.length > 0) {
-        const lastEv = chartData.events[chartData.events.length - 1];
-        if (lastEv.unspecifiedFoods && lastEv.unspecifiedFoods.length) {
-          unspecifiedFoods = lastEv.unspecifiedFoods;
+      if (typeof Engine !== 'undefined' && Engine._dayEvents && Engine._dayEvents.length > 0) {
+        const lastEv = Engine._dayEvents[Engine._dayEvents.length - 1];
+        if (lastEv && lastEv.foods) {
+          unspecifiedFoods = lastEv.foods.filter(f => f.defaultPortion === true).map(f => f.name);
         }
       }
 
@@ -928,16 +923,15 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: apiMessages,
-          max_tokens: chartData ? 800 : 1500,
+          max_tokens: (typeof Engine !== 'undefined' && Engine._dayEvents && Engine._dayEvents.length > 0) ? 800 : 1500,
           stream: true
         })
       });
 
       if (resp.ok && resp.body) {
         // Обновляем график пока модель думает
-        if (chartData && typeof Chart !== 'undefined') {
-          Chart.updatePanel(chartData);
-          this.saveChartData(chartData);
+        if (typeof Chart !== 'undefined' && typeof Engine !== 'undefined') {
+          Chart.updatePanel(Engine.getDayData(Storage.getProfile() || {}));
         }
 
         const raw = await this._streamReply(resp);
