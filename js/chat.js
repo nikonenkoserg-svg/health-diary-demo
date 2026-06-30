@@ -36,6 +36,9 @@ const Chat = {
     } else if (state === 'registered') {
       // Зарегистрирован, но анкету ещё не заполнил — кнопка «Заполнить анкету».
       this._addAnketaCTA();
+    } else if (state === 'awaiting_anketa') {
+      // Ждём свободного ответа пациента в чат. Реплика REGISTERED_INTRO уже
+      // выведена и восстановлена через restoreMessages. Ничего не делаем.
     } else if (state === 'anketa') {
       this._openAnketaOverlay();
     }
@@ -97,13 +100,12 @@ const Chat = {
         this.chatData.state = 'registered';
         Storage.saveChat(this.chatData);
         await this.typeMessage(Onboarding.REGISTERED_INTRO, 'bot');
-        // Дополнительная защита: ждём пока typing-индикатор и DOM сошлись.
-        await new Promise(r => setTimeout(r, 600));
-        // Ещё раз проверяем что оверлей не открыт кем-то параллельно
-        if (typeof ProfileOverlay !== 'undefined' && ProfileOverlay.isOpen) return;
-        this.chatData.state = 'anketa';
+        // Анкета теперь собирается в свободной форме: ждём ответ пациента в чат.
+        // Парсер /api/extract раскладывает реплику по полям ProfileStore.
+        // Старый путь через ProfileOverlay.openRequired остаётся только как
+        // редактор анкеты из меню профиля.
+        this.chatData.state = 'awaiting_anketa';
         Storage.saveChat(this.chatData);
-        this._openAnketaOverlay();
       } finally {
         this._registrationInProgress = false;
       }
@@ -609,6 +611,57 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
       }
       // Кнопка могла исчезнуть после перерисовки — восстанавливаем.
       this._addRegisterCTA();
+      this.isSending = false;
+      return;
+    }
+
+    // === AWAITING_ANKETA: первичный сбор профиля свободным сообщением.
+    // Парсим через /api/extract, кладём непустые поля в ProfileStore.
+    // Если минимум (sex, age, height, weight, diagnosis) собран → state=active + ENTRY.
+    // Если чего-то не хватает → одна короткая реплика с конкретным списком, остаёмся в awaiting_anketa.
+    if (this.chatData.state === 'awaiting_anketa') {
+      let anketa = {};
+      try {
+        const resp = await fetch('/api/extract', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text })
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          anketa = data.anketa || {};
+        }
+      } catch (err) {
+        console.warn('[awaiting_anketa extract]', err);
+      }
+
+      if (typeof ProfileStore !== 'undefined') {
+        Object.entries(anketa).forEach(([k, v]) => {
+          if (v === null || v === undefined || v === '') return;
+          try {
+            ProfileStore.set('anketa', k, v, 'patient_input', 'confirmed_by_patient');
+          } catch (_) {}
+        });
+      }
+
+      const REQUIRED = ['sex','age','height','weight','diagnosis'];
+      const LABELS = {
+        sex: 'пол', age: 'возраст', height: 'рост',
+        weight: 'вес', diagnosis: 'что привело — диагноз или дисциплина'
+      };
+      const missing = REQUIRED.filter(f =>
+        typeof ProfileStore === 'undefined' || !ProfileStore.get('anketa', f)
+      );
+
+      this.hideTyping();
+      if (missing.length === 0) {
+        this.chatData.state = 'active';
+        Storage.saveChat(this.chatData);
+        await this.typeMessage(Onboarding.ENTRY, 'bot');
+      } else {
+        const list = missing.map(f => LABELS[f]).join(', ');
+        await this.typeMessage(`Не всё распознал. Допиши: ${list}.`, 'bot');
+      }
       this.isSending = false;
       return;
     }
