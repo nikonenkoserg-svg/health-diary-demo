@@ -17,11 +17,12 @@ const ProfileStore = {
       patientId: null,
       layers: {
         anketa: {
-          sex: [], age: [], height: [], weight: [],
+          name: [], sex: [], age: [], height: [], weight: [],
           chronic: [], allergies: [], medications: [],
           bad_habits: [],
           heredity: [], diagnosis: [],
-          region: [], native_language: []
+          region: [], native_language: [],
+          glucometer: []
         },
         patterns: {
           breakfast: [], lunch: [], dinner: [], snacks: [],

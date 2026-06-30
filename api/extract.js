@@ -17,15 +17,17 @@ export default async function handler(req, res) {
 
 Формат:
 {
+  "name": string | null,
   "sex": "мужской" | "женский" | null,
   "age": number | null,
   "height": number | null,
   "weight": number | null,
   "diagnosis": string | null,
+  "medications": string | null,
+  "glucometer": "есть глюкометр" | "есть сенсор" | "нет, готов купить" | "нет, не хочу" | null,
   "bad_habits": string | null,
   "chronic": string | null,
   "allergies": string | null,
-  "medications": string | null,
   "heredity": string | null,
   "region": string | null
 }
@@ -34,9 +36,12 @@ export default async function handler(req, res) {
 - Если данных по полю нет в тексте — null.
 - Не выдумывай. Только явно сказанное.
 - age, height, weight — числа без единиц (53, 183, 77).
-- bad_habits: фраза как сказал пациент ("курю", "не курю не пью", "алкоголь по выходным").
-- diagnosis: краткая формулировка ("преддиабет", "диабет 2 типа", "нет").
-- Опциональные поля (chronic, allergies, medications, heredity, region): если упомянуто "нет" — пиши "нет", если не упомянуто — null.`;
+- name: как пациент просит к нему обращаться. "Игорь", "Сергей", "Лена". Если не назвал — null.
+- diagnosis: краткая формулировка ("преддиабет", "диабет 2 типа", "нет диагноза, профилактика", "дисциплина", "группа риска").
+- medications: что принимает от диабета/сахара. "не принимаю", "метформин", "инсулин", "сульфонилмочевина". Если не упомянул — null.
+- glucometer: один из четырёх вариантов. "есть глюкометр" — если упомянул обычный глюкометр или просто "глюкометр есть"/"есть прибор"/"мерю сахар". "есть сенсор" — Dexcom, Libre, Stelo, CGM, постоянный сенсор. "нет, готов купить" — нет, но готов выбирать. "нет, не хочу" — нет и не хочет, "гаджетов нет", "приборов нет". null если не упомянуто.
+- bad_habits: фраза как сказал пациент.
+- Опциональные поля (chronic, allergies, heredity, region): если упомянуто "нет" — пиши "нет", если не упомянуто — null.`;
 
     const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',

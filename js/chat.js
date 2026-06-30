@@ -39,6 +39,9 @@ const Chat = {
     } else if (state === 'awaiting_anketa') {
       // Ждём свободного ответа пациента в чат. Реплика REGISTERED_INTRO уже
       // выведена и восстановлена через restoreMessages. Ничего не делаем.
+    } else if (state === 'parked_no_device') {
+      // Пациент отказался от прибора. Дневник не работает без замеров.
+      // PARKED_NO_DEVICE уже в истории, повторно ничего не выводим.
     } else if (state === 'anketa') {
       this._openAnketaOverlay();
     }
@@ -588,10 +591,19 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
     // Индикатор «думаю» — сразу при отправке, не после всех парсеров
     this.showTyping();
 
-    // Парсер замеров глюкозы: тихо сохраняет в Storage
+    // Парсер замеров глюкозы: тихо сохраняет в Storage.
+    // pureGlucose=true когда сообщение явно про замер ("сахар сейчас 5,5",
+    // "глюкоза 6,2 натощак") и не содержит глагола приёма пищи. В этом случае
+    // food extractor пропускается — иначе слово "сахар" попадает в график еды.
+    let pureGlucose = false;
     if (typeof Engine !== 'undefined' && Engine.parseGlucose) {
       const g = Engine.parseGlucose(text);
-      if (g) Storage.addGlucose(g);
+      if (g) {
+        Storage.addGlucose(g);
+        const t = text.toLowerCase();
+        const foodIntent = /(съел|съела|поел|поела|ел\s|ела\s|выпил|выпила|пил\s|пила\s|перекус|завтрак|обед|ужин|кушал|кушала|покушал|покушала|позавтракал|позавтракала|пообедал|пообедала|поужинал|поужинала)/i.test(t);
+        pureGlucose = !foodIntent;
+      }
     }
 
     // === PRE-REGISTER: до регистрации Спутник в диалог не вступает.
@@ -611,6 +623,27 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
       }
       // Кнопка могла исчезнуть после перерисовки — восстанавливаем.
       this._addRegisterCTA();
+      this.isSending = false;
+      return;
+    }
+
+    // === PARKED_NO_DEVICE: пациент отказался от прибора.
+    // Если упоминает что прибор появился — снова в awaiting_anketa с просьбой
+    // переподтвердить пункт про глюкометр. Иначе — короткая заглушка.
+    if (this.chatData.state === 'parked_no_device') {
+      const t = text.toLowerCase();
+      const deviceAppeared = /(прибор|глюкометр|сенсор|libre|dexcom|stelo).*?(есть|купил|появилс|приобр)/i.test(t)
+        || /(купил|приобрёл|появилс)\s+(прибор|глюкометр|сенсор)/i.test(t);
+      this.hideTyping();
+      if (deviceAppeared) {
+        // Сбрасываем флаг прибора, чтобы пациент дописал что именно есть.
+        try { ProfileStore.set('anketa', 'glucometer', '', 'patient_input', 'pending_confirmation'); } catch(_) {}
+        this.chatData.state = 'awaiting_anketa';
+        Storage.saveChat(this.chatData);
+        await this.typeMessage('Хорошо. Уточни: обычный глюкометр или постоянный сенсор?', 'bot');
+      } else {
+        await this.typeMessage(Onboarding.PARKED_NO_DEVICE, 'bot');
+      }
       this.isSending = false;
       return;
     }
@@ -644,24 +677,44 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
         });
       }
 
-      const REQUIRED = ['sex','age','height','weight','diagnosis'];
+      const REQUIRED = ['name','sex','age','height','weight','diagnosis','medications','glucometer'];
       const LABELS = {
-        sex: 'пол', age: 'возраст', height: 'рост',
-        weight: 'вес', diagnosis: 'что привело — диагноз или дисциплина'
+        name: 'как обращаться', sex: 'пол', age: 'возраст', height: 'рост',
+        weight: 'вес', diagnosis: 'что привело — диагноз или дисциплина',
+        medications: 'принимаешь ли медикаменты', glucometer: 'есть ли глюкометр'
       };
       const missing = REQUIRED.filter(f =>
         typeof ProfileStore === 'undefined' || !ProfileStore.get('anketa', f)
       );
 
       this.hideTyping();
-      if (missing.length === 0) {
-        this.chatData.state = 'active';
-        Storage.saveChat(this.chatData);
-        await this.typeMessage(Onboarding.ENTRY, 'bot');
-      } else {
+      if (missing.length > 0) {
         const list = missing.map(f => LABELS[f]).join(', ');
         await this.typeMessage(`Не всё распознал. Допиши: ${list}.`, 'bot');
+        this.isSending = false;
+        return;
       }
+
+      // Прибор — порог входа в продукт. Без него дневник не работает.
+      const glucometer = (ProfileStore.get('anketa', 'glucometer') || '').toString().toLowerCase();
+      if (glucometer.includes('не хочу')) {
+        this.chatData.state = 'parked_no_device';
+        Storage.saveChat(this.chatData);
+        await this.typeMessage(Onboarding.PARKED_NO_DEVICE, 'bot');
+        this.isSending = false;
+        return;
+      }
+      if (glucometer.includes('готов купить')) {
+        this.chatData.state = 'active';
+        Storage.saveChat(this.chatData);
+        await this.typeMessage(Onboarding.ENTRY_NEED_DEVICE, 'bot');
+        this.isSending = false;
+        return;
+      }
+
+      this.chatData.state = 'active';
+      Storage.saveChat(this.chatData);
+      await this.typeMessage(Onboarding.ENTRY, 'bot');
       this.isSending = false;
       return;
     }
@@ -682,6 +735,7 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
     // Уточнение существующего event (граммы/время в отдельной реплике без еды)
     if (typeof Engine !== 'undefined' && Engine.updateLastEventFromContext &&
         (this.chatData.state === 'active' || this.chatData.state === 'bridge') &&
+        !pureGlucose &&
         !this.looksLikeFood(text) && Engine._dayEvents.length > 0) {
       const profile = Storage.getProfile() || {};
       if (Engine.updateLastEventFromContext(text, profile)) {
@@ -691,6 +745,7 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
 
     if (typeof Engine !== 'undefined' &&
         (this.chatData.state === 'active' || this.chatData.state === 'bridge') &&
+        !pureGlucose &&
         this.looksLikeFood(text)) {
       const foodProfile = Storage.getProfile() || {};
       // LLM извлекает события с временем
