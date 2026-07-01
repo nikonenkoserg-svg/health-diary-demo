@@ -23,6 +23,14 @@ const Chat = {
 
   init() {
     this.chatData = Storage.getChat();
+
+    // Миграция: старое блокирующее состояние прибора упразднено.
+    // Зависшие сессии переводим в active, чтобы диалог и парсеры работали.
+    if (this.chatData.state === 'parked_no_device') {
+      this.chatData.state = 'active';
+      Storage.saveChat(this.chatData);
+    }
+
     this.replayDayLog();
     this.restoreMessages();
 
@@ -39,9 +47,6 @@ const Chat = {
     } else if (state === 'awaiting_anketa') {
       // Ждём свободного ответа пациента в чат. Реплика REGISTERED_INTRO уже
       // выведена и восстановлена через restoreMessages. Ничего не делаем.
-    } else if (state === 'parked_no_device') {
-      // Пациент отказался от прибора. Дневник не работает без замеров.
-      // PARKED_NO_DEVICE уже в истории, повторно ничего не выводим.
     } else if (state === 'anketa') {
       this._openAnketaOverlay();
     }
@@ -622,27 +627,6 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
       return;
     }
 
-    // === PARKED_NO_DEVICE: пациент отказался от прибора.
-    // Если упоминает что прибор появился — снова в awaiting_anketa с просьбой
-    // переподтвердить пункт про глюкометр. Иначе — короткая заглушка.
-    if (this.chatData.state === 'parked_no_device') {
-      const t = text.toLowerCase();
-      const deviceAppeared = /(прибор|глюкометр|сенсор|libre|dexcom|stelo).*?(есть|купил|появилс|приобр)/i.test(t)
-        || /(купил|приобрёл|появилс)\s+(прибор|глюкометр|сенсор)/i.test(t);
-      this.hideTyping();
-      if (deviceAppeared) {
-        // Сбрасываем флаг прибора, чтобы пациент дописал что именно есть.
-        try { ProfileStore.set('anketa', 'glucometer', '', 'patient_input', 'pending_confirmation'); } catch(_) {}
-        this.chatData.state = 'awaiting_anketa';
-        Storage.saveChat(this.chatData);
-        await this.typeMessage('Хорошо. Уточни: обычный глюкометр или постоянный сенсор?', 'bot');
-      } else {
-        await this.typeMessage(Onboarding.PARKED_NO_DEVICE, 'bot');
-      }
-      this.isSending = false;
-      return;
-    }
-
     // === AWAITING_ANKETA: первичный сбор профиля свободным сообщением.
     // Парсим через /api/extract, кладём непустые поля в ProfileStore.
     // Если минимум (sex, age, height, weight, diagnosis) собран → state=active + ENTRY.
@@ -688,41 +672,11 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
         }
       }
 
-      const REQUIRED = ['name','sex','age','height','weight','diagnosis','medications','glucometer'];
-      const LABELS = {
-        name: 'как обращаться', sex: 'пол', age: 'возраст', height: 'рост',
-        weight: 'вес', diagnosis: 'что привело — диагноз или дисциплина',
-        medications: 'принимаешь ли медикаменты', glucometer: 'есть ли глюкометр'
-      };
-      const missing = REQUIRED.filter(f =>
-        typeof ProfileStore === 'undefined' || !ProfileStore.get('anketa', f)
-      );
-
+      // Первое сообщение разобрано и разложено по полям. Дальше — всегда живой
+      // диалог, никаких блокирующих состояний. Чего не хватает в профиле
+      // (имя, прибор, диагноз) — Спутник добирает в разговоре, читая контекст.
+      // Прибор как порог входа теперь поведение Спутника (промпт), не хардкод-ветка.
       this.hideTyping();
-      if (missing.length > 0) {
-        const list = missing.map(f => LABELS[f]).join(', ');
-        await this.typeMessage(`Не всё распознал. Допиши: ${list}.`, 'bot');
-        this.isSending = false;
-        return;
-      }
-
-      // Прибор — порог входа в продукт. Без него дневник не работает.
-      const glucometer = (ProfileStore.get('anketa', 'glucometer') || '').toString().toLowerCase();
-      if (glucometer.includes('не хочу')) {
-        this.chatData.state = 'parked_no_device';
-        Storage.saveChat(this.chatData);
-        await this.typeMessage(Onboarding.PARKED_NO_DEVICE, 'bot');
-        this.isSending = false;
-        return;
-      }
-      if (glucometer.includes('готов купить')) {
-        this.chatData.state = 'active';
-        Storage.saveChat(this.chatData);
-        await this.typeMessage(Onboarding.ENTRY_NEED_DEVICE, 'bot');
-        this.isSending = false;
-        return;
-      }
-
       this.chatData.state = 'active';
       Storage.saveChat(this.chatData);
       await this.typeMessage(Onboarding.ENTRY, 'bot');
