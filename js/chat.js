@@ -672,6 +672,22 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
         });
       }
 
+      // Fallback для имени: если извлечь не удалось, а пациент прислал короткую
+      // реплику (одно-два слова, без цифр) — берём её как имя-обращение.
+      // Отбрасываем частицы "можно", "называть", "меня", "зови", "просто".
+      if (typeof ProfileStore !== 'undefined' && !ProfileStore.get('anketa', 'name')) {
+        const cleaned = text
+          .replace(/[.,!?;:()"«»]/g, ' ')
+          .split(/\s+/)
+          .filter(w => w && !/^(можно|называть|называй|зови|меня|просто|я|это|мне|мой|моя|звать|обращаться|обращайся)$/i.test(w));
+        if (cleaned.length > 0 && cleaned.length <= 3 && !/\d/.test(cleaned.join(''))) {
+          const guess = cleaned[0].replace(/(ом|ем|ой|ей|у|ю|а|я)$/i, '').trim();
+          if (guess.length >= 2) {
+            try { ProfileStore.set('anketa', 'name', guess, 'patient_input_fallback', 'confirmed_by_patient'); } catch(_) {}
+          }
+        }
+      }
+
       const REQUIRED = ['name','sex','age','height','weight','diagnosis','medications','glucometer'];
       const LABELS = {
         name: 'как обращаться', sex: 'пол', age: 'возраст', height: 'рост',
