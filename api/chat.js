@@ -2,7 +2,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { model, messages, temperature, max_tokens, stream } = req.body;
-  const models = model ? [model] : ['deepseek/deepseek-v4-flash', 'deepseek/deepseek-chat-v3-0324'];
+  const models = model ? [model] : ['anthropic/claude-sonnet-4.6', 'anthropic/claude-haiku-4.5'];
 
   const TOKEN_BUDGET = 3000;
   const trimmedMessages = trimToFit(messages, TOKEN_BUDGET);

@@ -1,7 +1,7 @@
 // /api/memory-update — LLM-секретарь долгосрочной памяти.
 // На вход: { currentModel, messages: last10 }.
 // На выход: { updatedModel }.
-// Использует тот же стек, что /api/chat (OpenRouter deepseek).
+// Секретарь на Anthropic Haiku (Sonnet — фолбэк). НЕ Китай: сюда идёт весь портрет здоровья пациента.
 
 const SECRETARY_PROMPT = `Ты — секретарь персонального ассистента по здоровью.
 Твоя задача — обновить модель пациента на основе последних сообщений диалога.
@@ -51,7 +51,7 @@ export default async function handler(req, res) {
     { role: 'user', content: userPayload }
   ];
 
-  const models = ['deepseek/deepseek-v4-flash', 'deepseek/deepseek-chat-v3-0324'];
+  const models = ['anthropic/claude-haiku-4.5', 'anthropic/claude-sonnet-4.6'];
 
   for (const m of models) {
     try {
