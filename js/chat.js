@@ -584,7 +584,7 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
     this.chatData.userMsgCount++;
     // Счётчик для триггера обновления долгосрочной памяти
     try {
-      if (typeof PatientMemory !== 'undefined') PatientMemory.incrementCounter();
+      if (typeof PatientMemory !== 'undefined' && this.chatData.state === 'active') PatientMemory.incrementCounter();
     } catch (_) {}
     Storage.saveChat(this.chatData);
     this.scrollToBottom();
@@ -943,7 +943,7 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
     // Долгосрочная память — обновляем после 5 user-сообщений ИЛИ день-end фразы.
     // Fire-and-forget, не блокирует следующее сообщение.
     try {
-      if (typeof PatientMemory !== 'undefined') {
+      if (typeof PatientMemory !== 'undefined' && this.chatData.state === 'active') {
         const trig = PatientMemory.shouldTrigger(text, 5);
         if (trig.trigger) {
           console.log('[memory] trigger:', trig.reason);

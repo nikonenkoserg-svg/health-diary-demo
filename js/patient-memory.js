@@ -33,19 +33,19 @@ const PatientMemory = {
     let out = '[ПАМЯТЬ О ПАЦИЕНТЕ]\n';
     if (m.patterns && Object.keys(m.patterns).length) {
       out += 'Паттерны:\n';
-      for (const [, v] of Object.entries(m.patterns)) out += '- ' + v + '\n';
+      for (const [, v] of Object.entries(m.patterns)) { const t = typeof v === 'string' ? v : (v == null ? '' : JSON.stringify(v)); if (t) out += '- ' + t + '\n'; }
     }
     if (m.reactions && Object.keys(m.reactions).length) {
       out += 'Реакции:\n';
-      for (const [, v] of Object.entries(m.reactions)) out += '- ' + v + '\n';
+      for (const [, v] of Object.entries(m.reactions)) { const t = typeof v === 'string' ? v : (v == null ? '' : JSON.stringify(v)); if (t) out += '- ' + t + '\n'; }
     }
     if (m.lifestyle && Object.keys(m.lifestyle).length) {
       out += 'Образ жизни:\n';
-      for (const [, v] of Object.entries(m.lifestyle)) out += '- ' + v + '\n';
+      for (const [, v] of Object.entries(m.lifestyle)) { const t = typeof v === 'string' ? v : (v == null ? '' : JSON.stringify(v)); if (t) out += '- ' + t + '\n'; }
     }
     if (m.notes && m.notes.length) {
       out += 'Заметки:\n';
-      for (const n of m.notes) out += '- ' + n + '\n';
+      for (const n of m.notes) { const t = typeof n === 'string' ? n : (n == null ? '' : JSON.stringify(n)); if (t) out += '- ' + t + '\n'; }
     }
     out += '[/ПАМЯТЬ О ПАЦИЕНТЕ]\n';
     out += 'Опирайся на эту память. Если новая реплика противоречит — приоритет новой реплике, память отстаёт.';
