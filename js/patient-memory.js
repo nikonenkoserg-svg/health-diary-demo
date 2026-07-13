@@ -80,6 +80,12 @@ const PatientMemory = {
   },
 
   async update(messages) {
+    // Сбрасываем счётчик ОПТИМИСТИЧНО в момент триггера (не по успеху) + in-flight
+    // флаг: иначе при отказе (напр. нулевой баланс) вызов бьёт на каждое сообщение,
+    // а при быстрых сообщениях уходит дважды. (Fix: повторный/двойной вызов)
+    if (this._inflight) return null;
+    this._inflight = true;
+    this.resetCounter();
     try {
       const currentModel = this.get();
       const recent = (messages || []).slice(-10);
@@ -95,7 +101,6 @@ const PatientMemory = {
       const data = await res.json();
       if (data && data.updatedModel) {
         this.save(data.updatedModel);
-        this.resetCounter();
         console.log('[PatientMemory] updated:', data.updatedModel);
         return data.updatedModel;
       }
@@ -103,6 +108,8 @@ const PatientMemory = {
     } catch (e) {
       console.warn('[PatientMemory] update error:', e);
       return null;
+    } finally {
+      this._inflight = false;
     }
   }
 };

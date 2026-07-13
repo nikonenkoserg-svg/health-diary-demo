@@ -15,6 +15,7 @@ const SECRETARY_PROMPT = `Ты — секретарь персонального
 Правила:
 - Извлекай ТОЛЬКО факты из самого диалога. Не выдумывай.
 - Обновляй существующие поля если есть уточнение. Не дублируй.
+- ВСЕГДА возвращай модель ЦЕЛИКОМ: все существующие поля currentModel плюс новые. Никогда не удаляй существующие ключи.
 - Если ничего нового не сказано — верни currentModel БЕЗ ИЗМЕНЕНИЙ.
 - Не записывай эфемерное (мимолётное настроение, разовые вопросы).
 - Не записывай гипотетическое («а если бы я съел»).
@@ -95,11 +96,16 @@ export default async function handler(req, res) {
         continue;
       }
 
-      updatedModel.patterns = updatedModel.patterns || (currentModel && currentModel.patterns) || {};
-      updatedModel.reactions = updatedModel.reactions || (currentModel && currentModel.reactions) || {};
-      updatedModel.lifestyle = updatedModel.lifestyle || (currentModel && currentModel.lifestyle) || {};
-      updatedModel.notes = Array.isArray(updatedModel.notes) ? updatedModel.notes :
-                           (Array.isArray(currentModel && currentModel.notes) ? currentModel.notes : []);
+      // Ключевое слияние: секретарь может ДОБАВИТЬ или ОБНОВИТЬ ключ, но не сможет
+      // молча стереть накопленное — существующие ключи сохраняются. (Fix: забывание)
+      const cur = currentModel || {};
+      const mergeSection = (name) => ({ ...(cur[name] || {}), ...(updatedModel[name] || {}) });
+      updatedModel.patterns = mergeSection('patterns');
+      updatedModel.reactions = mergeSection('reactions');
+      updatedModel.lifestyle = mergeSection('lifestyle');
+      const priorNotes = Array.isArray(cur.notes) ? cur.notes : [];
+      const freshNotes = Array.isArray(updatedModel.notes) ? updatedModel.notes : [];
+      updatedModel.notes = [...priorNotes, ...freshNotes.filter(n => !priorNotes.includes(n))];
 
       return res.status(200).json({ updatedModel });
     } catch (err) {
