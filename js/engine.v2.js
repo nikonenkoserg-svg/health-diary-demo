@@ -560,6 +560,8 @@ const Engine = {
       // Единица сразу ПОСЛЕ числа («77кг», «5 часов», «150 грамм») → не глюкоза.
       // Смотрим суффикс, а не всё окно: иначе «сейчас 6» ловит «час» из «сейчас».
       const after = t.slice(m.index + m[0].length).replace(/^\s+/, '');
+      // «14:30», «8.00» сразу после числа → это время, не сахар.
+      if (/^[:.]\d{2}/.test(after)) continue;
       if (/^(кг|килограмм|см|сантиметр|лет|года|год|час|часа|часов|ч |раз|блин|штук|ккал|минут|мин |гр|грамм|мл|литр|штук|ложк|стакан|порц|кусоч|дольк|зубчик)/.test(after)) continue;
       if (isBloodPressure && hasFraction && m[2].length === 2 && /\d/.test(t[m.index + m[0].length] || '')) continue;
       // Целое число («сахар 6») — замер, только если сразу ПЕРЕД числом стоит
@@ -568,11 +570,23 @@ const Engine = {
       const before = t.slice(Math.max(0, m.index - 25), m.index);
       const glucosePrefix = /(сахар|глюкоз|глюкометр|замер|показал|уровень)/.test(before);
       if (!hasFraction && !hasUnit && !glucosePrefix) continue;
+      // Время замера словами: «мерил в 8 утра», «час назад», «в 14:30».
+      // parseEventTime вернёт {minute,certain}; строим timestamp на сегодня.
+      let ts = Date.now();
+      let timeCertain = false;
+      const et = this.parseEventTime(text);
+      if (et && et.certain && et.minute >= 0 && et.minute < 1440) {
+        const d = new Date();
+        d.setHours(Math.floor(et.minute / 60), et.minute % 60, 0, 0);
+        ts = d.getTime();
+        timeCertain = true;
+      }
       return {
         value,
         type: this._detectGlucoseType(t),
         source: 'manual',
-        time: Date.now(),
+        time: ts,
+        timeCertain,
         raw: m[0]
       };
     }
