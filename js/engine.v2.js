@@ -569,6 +569,12 @@ const Engine = {
       // «Йогурт 150, печенье 70, сахар 6» → возьмёт 6, а не еду.
       const before = t.slice(Math.max(0, m.index - 25), m.index);
       const glucosePrefix = /(сахар|глюкоз|глюкометр|замер|показал|уровень)/.test(before);
+      // «20.00», «03.32», «в 20.00 вечера» — время в формате ЧЧ.ММ, не сахар.
+      // Реальный замер почти всегда с ОДНИМ знаком после точки (6.1, 5.8).
+      // Двузначная дробь без сахарного слова / единицы → это время либо иное число.
+      if (hasFraction && m[2].length === 2 && !glucosePrefix && !hasUnit) continue;
+      // «в 03», «в 8» — число после предлога «в» это время, не замер сахара.
+      if (!hasFraction && /(?:^|\s)в\s+$/.test(before)) continue;
       if (!hasFraction && !hasUnit && !glucosePrefix) continue;
       // Время замера словами: «мерил в 8 утра», «час назад», «в 14:30».
       // parseEventTime вернёт {minute,certain}; строим timestamp на сегодня.

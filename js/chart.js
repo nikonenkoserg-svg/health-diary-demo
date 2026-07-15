@@ -115,7 +115,13 @@ const Chart = {
       ctx.fillText('не мерил', midX, midY + 8);
     }
 
-    // Точки + числа + контекстный лейбл
+    // Точки + числа + контекстный лейбл.
+    // Подписи-числа разводим при наложении: занятые прямоугольники запоминаем
+    // и, если новая подпись пересекается, ставим её снизу / выше.
+    const labelBoxes = [];
+    const lblW = 26 * S, lblH = 15 * S;
+    const collides = (cx, cy) => labelBoxes.some(b =>
+      Math.abs(b.x - cx) < lblW && Math.abs(b.y - cy) < lblH);
     for (let i = 0; i < measurements.length; i++) {
       const m = measurements[i];
       const x = xScale(m.minute);
@@ -127,10 +133,17 @@ const Chart = {
       ctx.fillStyle = dotColor;
       ctx.fill();
 
+      // Позиция подписи: сверху → если занято, снизу → если и там занято, выше.
+      let ly = y - r - 6 * S;
+      if (collides(x, ly)) { ly = y + r + 12 * S; }
+      if (collides(x, ly)) { ly = y - r - 6 * S - lblH; }
+      if (collides(x, ly)) { ly = y + r + 12 * S + lblH; }
+      labelBoxes.push({ x, y: ly });
+
       ctx.fillStyle = isDark ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.85)';
       ctx.font = font(11, true);
       ctx.textAlign = 'center';
-      ctx.fillText(m.value.toFixed(1), x, y - r - 6);
+      ctx.fillText(m.value.toFixed(1), x, ly);
 
       const ctxLabel = contextLabels.find(l => l.measurementIdx === i);
       if (ctxLabel) {
