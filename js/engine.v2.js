@@ -545,19 +545,27 @@ const Engine = {
   // «утром 6.2», «после еды 8.5 ммоль», «натощак 5.4», «вечером 7.1»
   parseGlucose(text) {
     if (!text) return null;
-    // Цифра вида X.Y или X,Y в диапазоне глюкозы крови (2.5-25 ммоль/л)
-    const matches = [...text.matchAll(/(\d{1,2})[.,](\d{1,2})\s*(ммоль|ммл|mmol)?/gi)];
-    if (!matches.length) return null;
     const t = text.toLowerCase();
+    // Явный сахарный контекст — разрешает трактовать целое число как замер.
+    const hasGlucoseCtx = /(сахар|глюкоз|ммоль|натощак|глюкометр|замерил|замерила|замер\b|показал)/i.test(t);
+    // X.Y / X,Y (всегда) ИЛИ целое X (только при сахарном контексте либо явных «ммоль»).
+    const matches = [...text.matchAll(/(\d{1,2})(?:[.,](\d{1,2}))?\s*(ммоль|ммл|mmol)?/gi)];
+    if (!matches.length) return null;
     // Исключения: давление 140/90, рост 183 см, вес 77 кг — не глюкоза
     const isBloodPressure = /\d{2,3}\s*\/\s*\d{2,3}/.test(t);
     for (const m of matches) {
-      const value = parseFloat(m[1] + '.' + m[2]);
+      const hasFraction = m[2] != null;
+      const hasUnit = (m[3] || '').length > 0;
+      const value = hasFraction ? parseFloat(m[1] + '.' + m[2]) : parseFloat(m[1]);
       if (value < 2.5 || value > 25) continue;
-      // Если рядом «кг» / «см» / «лет» — это не глюкоза
-      const ctx = t.slice(Math.max(0, m.index - 20), m.index + m[0].length + 20);
-      if (/(кг|килограмм|см|сантиметр|лет|года|год)\b/.test(ctx)) continue;
-      if (isBloodPressure && m[2].length === 2 && /\d/.test(t[m.index + m[0].length] || '')) continue;
+      // Единица сразу ПОСЛЕ числа («77кг», «5 часов», «6 блинов») → не глюкоза.
+      // Смотрим суффикс, а не всё окно: иначе «сейчас 6» ловит «час» из «сейчас».
+      const after = t.slice(m.index + m[0].length).replace(/^\s+/, '');
+      if (/^(кг|килограмм|см|сантиметр|лет|года|год|час|часа|часов|ч |раз|блин|штук|ккал|ккал|минут|мин )/.test(after)) continue;
+      if (isBloodPressure && hasFraction && m[2].length === 2 && /\d/.test(t[m.index + m[0].length] || '')) continue;
+      // Целое число («сахар 6») принимаем как замер только при явном сахарном
+      // контексте или единице «ммоль». Иначе «сон 5», «спорт 6» → ложный замер.
+      if (!hasFraction && !hasGlucoseCtx && !hasUnit) continue;
       return {
         value,
         type: this._detectGlucoseType(t),
@@ -571,7 +579,7 @@ const Engine = {
 
   _detectGlucoseType(t) {
     // word-boundary не работает с кириллицей, используем lookahead
-    if (/натощак|с утра|утром(?![а-яё])/.test(t)) return 'fasting';
+    if (/натощак|с утра|утром(?![а-яё])|проснул|только просну|не завтракал|ещё не ел|еще не ел|до завтрака/.test(t)) return 'fasting';
     if (/после еды|после завтрак|после обед|после ужин|через час после|через 2 часа после|через два часа после/.test(t)) return 'postprandial';
     if (/перед сном|на ночь|вечером(?![а-яё])/.test(t)) return 'bedtime';
     if (/до еды|перед едой/.test(t)) return 'preprandial';
