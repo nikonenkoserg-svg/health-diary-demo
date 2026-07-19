@@ -543,6 +543,20 @@ const Engine = {
   // === ГЛАВНЫЙ МЕТОД: анализ события ===
   // === ПАРСЕР ЗАМЕРОВ ГЛЮКОЗЫ ===
   // «утром 6.2», «после еды 8.5 ммоль», «натощак 5.4», «вечером 7.1»
+  // Сдвиг ISO-даты (YYYY-MM-DD) на N дней. deltaDays<0 = в прошлое.
+  _shiftISO(iso, deltaDays) {
+    const [y, mo, d] = iso.split('-').map(Number);
+    const dt = new Date(y, mo - 1, d);
+    dt.setDate(dt.getDate() + deltaDays);
+    return dt.getFullYear() + '-' +
+      String(dt.getMonth() + 1).padStart(2, '0') + '-' +
+      String(dt.getDate()).padStart(2, '0');
+  },
+  // ISO-дата → локальный Date на полночь этого дня.
+  _isoToDate(iso) {
+    const [y, mo, d] = iso.split('-').map(Number);
+    return new Date(y, mo - 1, d);
+  },
   parseGlucose(text) {
     if (!text) return null;
     const t = text.toLowerCase();
@@ -576,23 +590,41 @@ const Engine = {
       // «в 03», «в 8» — число после предлога «в» это время, не замер сахара.
       if (!hasFraction && /(?:^|\s)в\s+$/.test(before)) continue;
       if (!hasFraction && !hasUnit && !glucosePrefix) continue;
-      // Время замера словами: «мерил в 8 утра», «час назад», «в 14:30».
-      // parseEventTime вернёт {minute,certain}; строим timestamp на сегодня.
-      let ts = Date.now();
-      let timeCertain = false;
+      // Дата замера в поясе пациента (устойчиво к смене часовых поясов).
+      // По умолчанию — сегодня; «вчера/позавчера/N дней назад» сдвигают день.
+      const tp = (typeof Time !== 'undefined' && Time.nowParts) ? Time.nowParts() : null;
+      const todayISO = tp ? tp.dateISO : new Date().toISOString().slice(0, 10);
+      let dayOffset = 0;
+      if (/позавчера/.test(t)) dayOffset = 2;
+      else if (/вчера/.test(t)) dayOffset = 1;
+      else { const dm = t.match(/(\d+)\s*(дн[ея]|день)\s*назад/); if (dm) dayOffset = parseInt(dm[1]); }
+      const dateISO = dayOffset > 0 ? this._shiftISO(todayISO, -dayOffset) : todayISO;
+
+      // Время замера словами: «в 8 утра», «час назад», «в 14:30».
+      // Известно только при явном указании. Иначе localMinute=null → не на ось.
       const et = this.parseEventTime(text);
+      let localMinute = null, timeCertain = false;
       if (et && et.certain && et.minute >= 0 && et.minute < 1440) {
-        const d = new Date();
-        d.setHours(Math.floor(et.minute / 60), et.minute % 60, 0, 0);
+        localMinute = et.minute; timeCertain = true;
+      }
+
+      // Абсолютный ts — приближение для сортировки/«за 7 дней».
+      let ts;
+      if (timeCertain) {
+        const d = this._isoToDate(dateISO);
+        d.setHours(Math.floor(localMinute / 60), localMinute % 60, 0, 0);
         ts = d.getTime();
-        timeCertain = true;
+      } else {
+        ts = Date.now();
       }
       return {
         value,
         type: this._detectGlucoseType(t),
         source: 'manual',
         time: ts,
-        timeCertain,
+        dateISO,       // локальная дата пациента (YYYY-MM-DD)
+        localMinute,   // минута суток в его поясе, либо null если время не названо
+        timeCertain,   // true только при явно названном времени
         raw: m[0]
       };
     }
