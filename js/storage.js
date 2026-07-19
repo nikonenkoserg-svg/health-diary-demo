@@ -44,6 +44,24 @@ const Storage = {
     log.push(entry);
     this.set(this.KEYS.glucose, log);
   },
+  // Привязать точное время к ранее сохранённому замеру (пациент назвал его позже).
+  // minute — минута суток в поясе пациента; dateISO — его локальная дата.
+  setGlucoseTime(idx, minute, dateISO) {
+    const log = this.getGlucoseLog();
+    if (idx < 0 || idx >= log.length) return false;
+    const e = log[idx];
+    e.localMinute = minute;
+    if (dateISO) e.dateISO = dateISO;
+    e.timeCertain = true;
+    if (e.dateISO) {
+      const [y, mo, d] = e.dateISO.split('-').map(Number);
+      const dt = new Date(y, mo - 1, d);
+      dt.setHours(Math.floor(minute / 60), minute % 60, 0, 0);
+      e.time = dt.getTime();
+    }
+    this.set(this.KEYS.glucose, log);
+    return true;
+  },
 
   // Food log: [{time, foods, kcal, peakEstimate, certain}]
   getFoodLog() { return this.get(this.KEYS.food) || []; },

@@ -598,8 +598,29 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
     let pureGlucose = false;
     if (typeof Engine !== 'undefined' && Engine.parseGlucose) {
       const g = Engine.parseGlucose(text);
+
+      // Одноразовая привязка времени: если прошлый замер остался без времени и
+      // это сообщение — ответ про время (без нового значения) — привяжем и закроем.
+      const pending = this.chatData.pendingGlucoseTime;
+      if (pending && Engine.parseEventTime) {
+        if (!g) {
+          const et = Engine.parseEventTime(text);
+          if (et && et.certain && et.minute >= 0 && et.minute < 1440) {
+            Storage.setGlucoseTime(pending.idx, et.minute, pending.dateISO);
+          }
+        }
+        // В любом случае вопрос задан один раз — снимаем ожидание.
+        this.chatData.pendingGlucoseTime = null;
+      }
+
       if (g) {
         Storage.addGlucose(g);
+        // Замер без явного времени → просим уточнить (флаг читает промпт Спутника).
+        if (!g.timeCertain) {
+          this.chatData.pendingGlucoseTime = { idx: Storage.getGlucoseLog().length - 1, dateISO: g.dateISO };
+        } else {
+          this.chatData.pendingGlucoseTime = null;
+        }
         const t = text.toLowerCase();
         const foodIntent = /(съел|съела|поел|поела|ел\s|ела\s|выпил|выпила|пил\s|пила\s|перекус|завтрак|обед|ужин|кушал|кушала|покушал|покушала|позавтракал|позавтракала|пообедал|пообедала|поужинал|поужинала)/i.test(t);
         pureGlucose = !foodIntent;
@@ -850,7 +871,8 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
         timeUncertain,
         leverHint,
         unspecifiedFoods,
-        recapEvents
+        recapEvents,
+        !!this.chatData.pendingGlucoseTime
       );
 
       // RAG: ищем релевантную карточку ДО отправки промпта, чтобы Спутник мог

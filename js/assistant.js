@@ -4,7 +4,7 @@
 
 const Assistant = {
 
-  async buildSystemPrompt(profile, userMsgCount, questionCount, messages, state, hasChart, timeUncertain, leverHint, unspecifiedFoods, recapEvents) {
+  async buildSystemPrompt(profile, userMsgCount, questionCount, messages, state, hasChart, timeUncertain, leverHint, unspecifiedFoods, recapEvents, glucoseTimeAsk) {
     if (typeof Knowledge !== 'undefined') {
       let prompt = await Knowledge.buildPrompt(profile, userMsgCount, questionCount, messages);
 
@@ -168,6 +168,11 @@ const Assistant = {
       // Время события не указано — попросить уточнить
       if (timeUncertain) {
         prompt += '\n\n[ВРЕМЯ НЕ УКАЗАНО]\nПользователь не сказал, во сколько это было. Событие поставлено на текущее время — может быть неточно.\nВ ответе коротко уточни когда это было: «А во сколько ты это съел?» или «Это было только что или раньше?».\n[/ВРЕМЯ НЕ УКАЗАНО]';
+      }
+
+      // Замер сахара без названного времени — обязательно уточнить (точность дневника).
+      if (glucoseTimeAsk) {
+        prompt += '\n\n[ЗАМЕР БЕЗ ВРЕМЕНИ]\nПациент назвал сахар, но НЕ сказал, во сколько замерил. Точное время — основа дневника: без него цифра не встаёт на график.\nОБЯЗАТЕЛЬНО коротко уточни время именно этого замера, до любого разбора: «Во сколько замерил?».\nЕсли пациент назовёт время — прими и переходи к делу. Если ответит «не помню / не засёк» — не дави: цифра сохранится с пометкой «время не названо». Одного вопроса достаточно, не повторяй его в следующих репликах.\n[/ЗАМЕР БЕЗ ВРЕМЕНИ]';
       }
 
       // Рычаг при крупном пике
