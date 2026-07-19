@@ -1205,13 +1205,28 @@ const Engine = {
       return iso === todayISO;
     };
 
+    // На ось X идут ТОЛЬКО замеры с подтверждённым временем (localMinute в поясе
+    // пациента). Замеры без времени копятся отдельно (untimed) — их показываем
+    // строкой под графиком, но не втыкаем в произвольную точку оси.
     let measurements = [];
+    let untimed = [];
     if (typeof Storage !== 'undefined' && Storage.getGlucoseLog) {
       const log = Storage.getGlucoseLog() || [];
-      measurements = log
-        .filter(g => _isToday(g.time))
-        .map(g => ({ minute: _toMinute(g.time), value: g.value, type: g.type || 'random' }))
-        .sort((a, b) => a.minute - b.minute);
+      for (const g of log) {
+        // Легаси-замеры (сохранены до правки, без новых полей) — по-старому:
+        // минута из абсолютного ts, считаем время известным.
+        const legacy = (g.localMinute === undefined && g.timeCertain === undefined && g.dateISO === undefined);
+        const isTodayEntry = g.dateISO ? (g.dateISO === todayISO) : _isToday(g.time);
+        if (!isTodayEntry) continue;
+        if (legacy) {
+          measurements.push({ minute: _toMinute(g.time), value: g.value, type: g.type || 'random' });
+        } else if (g.timeCertain && g.localMinute != null) {
+          measurements.push({ minute: g.localMinute, value: g.value, type: g.type || 'random' });
+        } else {
+          untimed.push({ value: g.value, type: g.type || 'random' });
+        }
+      }
+      measurements.sort((a, b) => a.minute - b.minute);
     }
 
     let foodEvents = [];
@@ -1277,6 +1292,7 @@ const Engine = {
 
     return {
       measurements,
+      untimed,
       foodEvents,
       workloadEvents,
       baseline,

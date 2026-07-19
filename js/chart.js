@@ -145,6 +145,14 @@ const Chart = {
       ctx.textAlign = 'center';
       ctx.fillText(m.value.toFixed(1), x, ly);
 
+      // Точное время замера под точкой — абсолютная привязка, не «на глаз» по оси.
+      const hh = String(Math.floor(m.minute / 60)).padStart(2, '0');
+      const mm = String(m.minute % 60).padStart(2, '0');
+      ctx.fillStyle = txtDim;
+      ctx.font = font(8.5);
+      ctx.textAlign = 'center';
+      ctx.fillText(hh + ':' + mm, x, y + r + 12 * S);
+
       const ctxLabel = contextLabels.find(l => l.measurementIdx === i);
       if (ctxLabel) {
         ctx.fillStyle = lineColor;

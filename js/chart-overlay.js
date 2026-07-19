@@ -16,12 +16,23 @@ const ChartOverlay = {
 
     if (foodsPill) {
       const m = (dayData && dayData.measurements) || [];
+      const u = (dayData && dayData.untimed) || [];
+      const total = m.length + u.length;
       foodsPill.style.display = '';
       foodsPill.textContent = 'Точки — это твои измерения. Между ними не достраиваем.' +
-        (m.length ? '  ·  замеров сегодня: ' + m.length : '');
+        (total ? '  ·  замеров сегодня: ' + total : '');
     }
 
-    if (keyNumbers) keyNumbers.innerHTML = '';
+    // Замеры без точного времени: в дневнике есть, но на ось не встают — строкой.
+    if (keyNumbers) {
+      const u = (dayData && dayData.untimed) || [];
+      if (u.length) {
+        const vals = u.map(x => x.value.toFixed(1).replace('.', ',')).join(' · ');
+        keyNumbers.innerHTML = '<span class="untimed-note">Без точного времени: ' + vals + '</span>';
+      } else {
+        keyNumbers.innerHTML = '';
+      }
+    }
     if (leverCard) leverCard.classList.add('hidden');
 
     const panel = document.getElementById('chart-panel');
