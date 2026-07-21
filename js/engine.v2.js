@@ -617,14 +617,27 @@ const Engine = {
       } else {
         ts = Date.now();
       }
+      // Уровень достоверности замера (см. решение 2026-07-18).
+      // recalled — замер вспомнен задним числом («вчера сахар 6»): и цифра,
+      // и время по памяти → ненадёжно вдвойне, понижаем до 'unverified'.
+      const gtype = this._detectGlucoseType(t);
+      const recalled = dayOffset > 0;
+      const hasContext = gtype !== 'random';   // натощак/после еды/до еды/перед сном
+      let confidence;
+      if (recalled) confidence = 'unverified';
+      else if (timeCertain && hasContext) confidence = 'full';      // время И контекст
+      else if (timeCertain || hasContext) confidence = 'partial';   // что-то одно
+      else confidence = 'unverified';                                // ни времени, ни контекста
       return {
         value,
-        type: this._detectGlucoseType(t),
+        type: gtype,
         source: 'manual',
         time: ts,
         dateISO,       // локальная дата пациента (YYYY-MM-DD)
         localMinute,   // минута суток в его поясе, либо null если время не названо
         timeCertain,   // true только при явно названном времени
+        confidence,    // 'full' | 'partial' | 'unverified' — достоверность замера
+        recalled,      // true если вспомнен задним числом (не в день замера)
         raw: m[0]
       };
     }
