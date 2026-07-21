@@ -224,6 +224,19 @@ const Chart = {
       }
     }
 
+    // Замеры «со слов» (без времени) — не на оси, но пациент должен их видеть.
+    const untimed = data.untimed || [];
+    if (untimed.length) {
+      const tmap = { fasting: 'натощак', postprandial: 'после еды', preprandial: 'до еды', bedtime: 'перед сном', random: '' };
+      const parts = untimed.slice(0, 4).map(u => u.value.toFixed(1) + (tmap[u.type] ? ' ' + tmap[u.type] : ''));
+      let line = 'Со слов, без времени: ' + parts.join(', ');
+      if (untimed.length > 4) line += ' и ещё ' + (untimed.length - 4);
+      ctx.fillStyle = txtDim;
+      ctx.font = font(8.5);
+      ctx.textAlign = 'left';
+      ctx.fillText(line, pad.left, h - 6 * S);
+    }
+
     return { measurements };
   },
 
@@ -237,7 +250,8 @@ const Chart = {
 
     const hasAnything = data && (
       (data.measurements && data.measurements.length > 0) ||
-      (data.foodEvents && data.foodEvents.length > 0)
+      (data.foodEvents && data.foodEvents.length > 0) ||
+      (data.untimed && data.untimed.length > 0)
     );
     if (!hasAnything) {
       panel.classList.add('hidden');
