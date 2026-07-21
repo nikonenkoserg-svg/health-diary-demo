@@ -1232,11 +1232,11 @@ const Engine = {
         const isTodayEntry = g.dateISO ? (g.dateISO === todayISO) : _isToday(g.time);
         if (!isTodayEntry) continue;
         if (legacy) {
-          measurements.push({ minute: _toMinute(g.time), value: g.value, type: g.type || 'random' });
+          measurements.push({ minute: _toMinute(g.time), value: g.value, type: g.type || 'random', confidence: g.confidence || 'full' });
         } else if (g.timeCertain && g.localMinute != null) {
-          measurements.push({ minute: g.localMinute, value: g.value, type: g.type || 'random' });
+          measurements.push({ minute: g.localMinute, value: g.value, type: g.type || 'random', confidence: g.confidence || (g.type && g.type !== 'random' ? 'full' : 'partial') });
         } else {
-          untimed.push({ value: g.value, type: g.type || 'random' });
+          untimed.push({ value: g.value, type: g.type || 'random', confidence: g.confidence || 'unverified' });
         }
       }
       measurements.sort((a, b) => a.minute - b.minute);

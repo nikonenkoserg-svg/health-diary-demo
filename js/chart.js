@@ -128,10 +128,18 @@ const Chart = {
       const y = yScale(m.value);
       const r = 5 * Math.min(S, 1.5);
 
+      // Достоверность точки: full — сплошная; partial (время есть, но контекст
+      // натощак/после еды неизвестен) — полая, сигнал «цифра есть, смысл неполон».
       ctx.beginPath();
       ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fillStyle = dotColor;
-      ctx.fill();
+      if (m.confidence === 'partial') {
+        ctx.lineWidth = 2 * Math.min(S, 1.5);
+        ctx.strokeStyle = dotColor;
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = dotColor;
+        ctx.fill();
+      }
 
       // Позиция подписи: сверху → если занято, снизу → если и там занято, выше.
       let ly = y - r - 6 * S;
