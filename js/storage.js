@@ -53,6 +53,13 @@ const Storage = {
     e.localMinute = minute;
     if (dateISO) e.dateISO = dateISO;
     e.timeCertain = true;
+    // Время появилось задним числом — пересчитать уровень достоверности,
+    // иначе он замёрз на значении из момента создания (баг: точка на оси, но
+    // помечена как «без времени»). recalled не поднимаем — память ненадёжна.
+    if (!e.recalled) {
+      const hasContext = e.type && e.type !== 'random';
+      e.confidence = hasContext ? 'full' : 'partial';
+    }
     if (e.dateISO) {
       const [y, mo, d] = e.dateISO.split('-').map(Number);
       const dt = new Date(y, mo - 1, d);
