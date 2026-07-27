@@ -23,17 +23,29 @@ const Chart = {
 
     const eventAxisH = (foodEvents.length || workloadEvents.length) ? 38 * S : 12 * S;
 
-    const pad = {
-      top: 26 * S,
-      right: 18 * S,
-      bottom: 30 * S + eventAxisH,
-      left: 44 * S
-    };
-    const plotW = w - pad.left - pad.right;
-    const plotH = h - pad.top - pad.bottom;
-
     const minMin = data.dayStart != null ? data.dayStart : 6 * 60;
     const maxMin = data.dayEnd != null ? data.dayEnd : 24 * 60;
+
+    const padLeft = 44 * S, padRight = 18 * S;
+    const plotW = w - padLeft - padRight;
+    const _xForMin = (m) => padLeft + ((m - minMin) / (maxMin - minMin || 1)) * plotW;
+
+    // Тесные замеры (кружки/время наезжают): помечаем "тесным" тот, что ближе
+    // CALL_GAP к предыдущему по X. Его подпись уводим выноской вверх, в полосу
+    // над графиком — тогда время видно, а лента под точками чистая.
+    const CALL_GAP = 34 * S;
+    const calloutFlag = measurements.map((m, i) =>
+      i > 0 && (_xForMin(m.minute) - _xForMin(measurements[i - 1].minute) < CALL_GAP));
+    const hasCallout = calloutFlag.some(Boolean);
+    const calloutLaneH = hasCallout ? 24 * S : 0;
+
+    const pad = {
+      top: 26 * S + calloutLaneH,
+      right: padRight,
+      bottom: 30 * S + eventAxisH,
+      left: padLeft
+    };
+    const plotH = h - pad.top - pad.bottom;
 
     const vals = measurements.map(m => m.value);
     const minG = vals.length ? Math.min(4.0, Math.min(...vals) - 0.5) : 4.0;
@@ -119,6 +131,7 @@ const Chart = {
     // Подписи-числа разводим при наложении: занятые прямоугольники запоминаем
     // и, если новая подпись пересекается, ставим её снизу / выше.
     const labelBoxes = [];
+    const calloutBoxes = [];
     const lblW = 26 * S, lblH = 15 * S;
     const collides = (cx, cy) => labelBoxes.some(b =>
       Math.abs(b.x - cx) < lblW && Math.abs(b.y - cy) < lblH);
@@ -141,28 +154,54 @@ const Chart = {
         ctx.fill();
       }
 
-      // Позиция подписи: сверху → если занято, снизу → если и там занято, выше.
-      let ly = y - r - 6 * S;
-      if (collides(x, ly)) { ly = y + r + 12 * S; }
-      if (collides(x, ly)) { ly = y - r - 6 * S - lblH; }
-      if (collides(x, ly)) { ly = y + r + 12 * S + lblH; }
-      labelBoxes.push({ x, y: ly });
-
-      ctx.fillStyle = isDark ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.85)';
-      ctx.font = font(11, true);
-      ctx.textAlign = 'center';
-      ctx.fillText(m.value.toFixed(1), x, ly);
-
-      // Точное время замера под точкой — абсолютная привязка, не «на глаз» по оси.
       const hh = String(Math.floor(m.minute / 60)).padStart(2, '0');
       const mm = String(m.minute % 60).padStart(2, '0');
-      ctx.fillStyle = txtDim;
-      ctx.font = font(8.5);
-      ctx.textAlign = 'center';
-      ctx.fillText(hh + ':' + mm, x, y + r + 12 * S);
+      const timeStr = hh + ':' + mm;
+
+      if (calloutFlag[i]) {
+        // ВЫНОСКА: тонкая линия от кружка вверх в полосу над графиком; там —
+        // значение и время. Убирает наложение близких по времени замеров.
+        let cx = x;
+        while (calloutBoxes.some(b => Math.abs(b - cx) < 30 * S)) cx += 30 * S;
+        if (cx > pad.left + plotW - 14 * S) cx = x - 30 * S; // у правого края — влево
+        calloutBoxes.push(cx);
+        const laneY = 12 * S;
+
+        ctx.strokeStyle = isDark ? 'rgba(224,120,87,0.55)' : 'rgba(224,120,87,0.7)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, y - r - 2 * S);
+        ctx.lineTo(cx, laneY + 4 * S);
+        ctx.stroke();
+
+        ctx.fillStyle = isDark ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.85)';
+        ctx.font = font(10.5, true);
+        ctx.textAlign = 'center';
+        ctx.fillText(m.value.toFixed(1), cx, laneY);
+        ctx.fillStyle = txtDim;
+        ctx.font = font(8);
+        ctx.fillText(timeStr, cx, laneY + 10 * S);
+      } else {
+        // Обычная подпись: значение сверху (разводим при наложении), время снизу.
+        let ly = y - r - 6 * S;
+        if (collides(x, ly)) { ly = y + r + 12 * S; }
+        if (collides(x, ly)) { ly = y - r - 6 * S - lblH; }
+        if (collides(x, ly)) { ly = y + r + 12 * S + lblH; }
+        labelBoxes.push({ x, y: ly });
+
+        ctx.fillStyle = isDark ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.85)';
+        ctx.font = font(11, true);
+        ctx.textAlign = 'center';
+        ctx.fillText(m.value.toFixed(1), x, ly);
+
+        ctx.fillStyle = txtDim;
+        ctx.font = font(8.5);
+        ctx.textAlign = 'center';
+        ctx.fillText(timeStr, x, y + r + 12 * S);
+      }
 
       const ctxLabel = contextLabels.find(l => l.measurementIdx === i);
-      if (ctxLabel) {
+      if (ctxLabel && !calloutFlag[i]) {
         ctx.fillStyle = lineColor;
         ctx.font = font(9);
         ctx.textAlign = 'left';
