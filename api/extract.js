@@ -29,7 +29,14 @@ export default async function handler(req, res) {
   "chronic": string | null,
   "allergies": string | null,
   "heredity": string | null,
-  "region": string | null
+  "region": string | null,
+  "breakfast": string | null,
+  "lunch": string | null,
+  "dinner": string | null,
+  "snacks": string | null,
+  "training": string | null,
+  "sleep": string | null,
+  "work": string | null
 }
 
 Правила:
@@ -41,7 +48,8 @@ export default async function handler(req, res) {
 - medications: что принимает от диабета/сахара. "не принимаю", "метформин", "инсулин", "сульфонилмочевина". Если не упомянул — null.
 - glucometer: один из четырёх вариантов. "есть глюкометр" — если упомянул обычный глюкометр или просто "глюкометр есть"/"есть прибор"/"мерю сахар". "есть сенсор" — Dexcom, Libre, Stelo, CGM, постоянный сенсор. "нет, готов купить" — нет, но готов выбирать. "нет, не хочу" — нет и не хочет, "гаджетов нет", "приборов нет". null если не упомянуто.
 - bad_habits: фраза как сказал пациент.
-- Опциональные поля (chronic, allergies, heredity, region): если упомянуто "нет" — пиши "нет", если не упомянуто — null.`;
+- Опциональные поля (chronic, allergies, heredity, region): если упомянуто "нет" — пиши "нет", если не упомянуто — null.
+- breakfast/lunch/dinner/snacks/training/sleep/work: типичный образ жизни как сказал пациент («утром кофе с блинами», «спорт каждый день по 6 часов», «сон 5 часов, высыпаюсь», «работаю между подходами»). Только явно сказанное, иначе null.`;
 
     const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',

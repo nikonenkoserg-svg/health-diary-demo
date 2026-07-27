@@ -672,10 +672,14 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
       }
 
       if (typeof ProfileStore !== 'undefined') {
+        // Поля образа жизни идут в слой patterns (круг жизни), остальное — в anketa.
+        const PATTERN_KEYS = { breakfast: 'breakfast', lunch: 'lunch', dinner: 'dinner', snacks: 'snacks', training: 'training', sleep: 'sleep', work: 'work_mode' };
         Object.entries(anketa).forEach(([k, v]) => {
           if (v === null || v === undefined || v === '') return;
+          const layer = PATTERN_KEYS[k] ? 'patterns' : 'anketa';
+          const field = PATTERN_KEYS[k] || k;
           try {
-            ProfileStore.set('anketa', k, v, 'patient_input', 'confirmed_by_patient');
+            ProfileStore.set(layer, field, v, 'patient_input', 'confirmed_by_patient');
           } catch (_) {}
         });
       }

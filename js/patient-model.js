@@ -18,6 +18,14 @@ const PatientModel = {
     { key: 'life_rhythm',      layer: 1, label: 'ритм жизни',                  importance: 0.7, detect: 'passive' },
     { key: 'tone_openness',    layer: 1, label: 'тон и открытость',            importance: 0.6, detect: 'passive' },
     { key: 'stress_attitude',  layer: 1, label: 'отношение к стрессу',         importance: 0.7, detect: 'active'  },
+    // Слой 2 — круг жизни. meals/training/sleep берутся из patterns (уже известно —
+    // не переспрашивать). work/family/hobbies пока без источника → это пробелы для нити.
+    { key: 'meals',    layer: 2, label: 'питание (типичное)', importance: 0.7, detect: 'fact'   },
+    { key: 'training', layer: 2, label: 'тренировки',         importance: 0.7, detect: 'fact'   },
+    { key: 'sleep',    layer: 2, label: 'сон',                importance: 0.6, detect: 'fact'   },
+    { key: 'work',     layer: 2, label: 'работа',             importance: 0.6, detect: 'active' },
+    { key: 'family',   layer: 2, label: 'семья',              importance: 0.6, detect: 'active' },
+    { key: 'hobbies',  layer: 2, label: 'хобби/интересы',     importance: 0.5, detect: 'active' },
   ],
 
   // ── НИТИ: яркая черта открывает упорядоченную цепочку (истоки → наполнение → смысл).
@@ -49,6 +57,23 @@ const PatientModel = {
     m.glucometer = A('glucometer');
     const diag = A('diagnosis');
     m.brought_by = (diag && diag.name) ? diag.name : (typeof diag === 'string' ? diag : null);
+    // Круг жизни (слой 2) из patterns — чтобы Спутник опирался на известное, а не переспрашивал.
+    const PT = (f) => ProfileStore.get('patterns', f);
+    const _s = (v) => {
+      if (v == null) return null;
+      if (typeof v !== 'object') return String(v);
+      if (v.text) return String(v.text);
+      if (v.raw) return String(v.raw);
+      if (v.typical_duration_hours != null) return v.typical_duration_hours + ' ч';
+      return JSON.stringify(v);
+    };
+    const _meals = [['breakfast', 'завтрак'], ['lunch', 'обед'], ['dinner', 'ужин'], ['snacks', 'перекусы']]
+      .map(([f, lbl]) => { const v = PT(f); return v ? (lbl + ' — ' + _s(v)) : null; })
+      .filter(Boolean).join('; ');
+    if (_meals) m.meals = _meals;
+    const _tr = _s(PT('training')); if (_tr) m.training = _tr;
+    const _sl = _s(PT('sleep'));    if (_sl) m.sleep = _sl;
+    const _wk = _s(PT('work_mode')); if (_wk) m.work = _wk;
     ['motive', 'attitude_numbers', 'life_rhythm', 'tone_openness', 'stress_attitude',
      'li_intensity', 'li_origin', 'li_content', 'li_meaning'].forEach(k => {
       const v = P(k); if (v) m[k] = v;
@@ -170,6 +195,7 @@ const PatientModel = {
                         : 'Пока почти ничего не известно.\n';
     out += 'Читай каждое событие ЧЕРЕЗ портрет: одна цифра/сон/еда значат разное у разных людей. '
          + 'Норма — база ЭТОГО человека, не общая таблица. Тон подстрой под портрет.\n';
+    if (known.length) out += 'Что перечислено как известное — НЕ переспрашивай, опирайся на это.\n';
     if (!gap || timing === 'none') return out;
     if (timing === 'hold') {
       out += '[НЕ ВРЕМЯ ДЛЯ ТЕМ]: человек принёс замер/самочувствие — займись этим, портрет-пробел не поднимай.';
