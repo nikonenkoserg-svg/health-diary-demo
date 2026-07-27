@@ -700,6 +700,10 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
       // диалог, никаких блокирующих состояний. Чего не хватает в профиле
       // (имя, прибор, диагноз) — Спутник добирает в разговоре, читая контекст.
       // Прибор как порог входа теперь поведение Спутника (промпт), не хардкод-ветка.
+      // Модель пациента: пассивно вычитываем характер из анкетного сообщения
+      // (жёсткий режим/аномалия/мотив) — до первого живого диалога.
+      try { if (typeof PatientModel !== 'undefined') PatientModel.observe(text); } catch (_) {}
+
       this.hideTyping();
       this.chatData.state = 'active';
       Storage.saveChat(this.chatData);
@@ -879,6 +883,15 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
         }
       } catch (_) {}
 
+      // Модель пациента: дочитываем характер из этой реплики и строим блок [ПОРТРЕТ].
+      let portraitBlock = '';
+      try {
+        if (typeof PatientModel !== 'undefined') {
+          PatientModel.observe(text);
+          portraitBlock = PatientModel.inject(text);
+        }
+      } catch (_) {}
+
       let systemPrompt = await Assistant.buildSystemPrompt(
         currentProfile,
         this.chatData.userMsgCount,
@@ -891,7 +904,8 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
         unspecifiedFoods,
         recapEvents,
         !!this.chatData.pendingGlucoseTime,
-        chartState
+        chartState,
+        portraitBlock
       );
 
       // RAG: ищем релевантную карточку ДО отправки промпта, чтобы Спутник мог

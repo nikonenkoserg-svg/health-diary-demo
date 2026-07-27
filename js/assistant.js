@@ -4,7 +4,7 @@
 
 const Assistant = {
 
-  async buildSystemPrompt(profile, userMsgCount, questionCount, messages, state, hasChart, timeUncertain, leverHint, unspecifiedFoods, recapEvents, glucoseTimeAsk, chartState) {
+  async buildSystemPrompt(profile, userMsgCount, questionCount, messages, state, hasChart, timeUncertain, leverHint, unspecifiedFoods, recapEvents, glucoseTimeAsk, chartState, portraitBlock) {
     if (typeof Knowledge !== 'undefined') {
       let prompt = await Knowledge.buildPrompt(profile, userMsgCount, questionCount, messages);
 
@@ -45,6 +45,10 @@ const Assistant = {
           if (memBlock) prompt += '\n\n' + memBlock;
         }
       } catch (e) { console.warn('[memory prompt]', e); }
+
+      // Портрет пациента (движок модели) — читать событие ЧЕРЕЗ характер, а не по
+      // общей таблице. Код решает, что известно и какой ОДИН пробел добрать по случаю.
+      if (portraitBlock) prompt += '\n\n' + portraitBlock;
 
       // Внимание к цифрам и режиму. Если пациент сообщает время, длительность,
       // частоту, количество — проверяй на правдоподобие. Не подтверждай молча
