@@ -864,6 +864,21 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
         }
       }
 
+      // Реальное состояние графика на СЕЙЧАС (то, что рисует панель) — в промпт.
+      // Независимо от текущего сообщения: пациент может спросить «где график» без нового замера.
+      let chartState = null;
+      try {
+        if (typeof Engine !== 'undefined' && Engine.getDayData) {
+          const dd = Engine.getDayData(currentProfile || {});
+          const fmt = (min) => (typeof Time !== 'undefined' && Time.fmtMinute) ? Time.fmtMinute(min)
+            : (Math.floor(min/60) + ':' + String(min%60).padStart(2,'0'));
+          chartState = {
+            timed: (dd.measurements || []).map(m => ({ t: fmt(m.minute), v: m.value, type: m.type })),
+            untimed: (dd.untimed || []).map(u => ({ v: u.value, type: u.type }))
+          };
+        }
+      } catch (_) {}
+
       let systemPrompt = await Assistant.buildSystemPrompt(
         currentProfile,
         this.chatData.userMsgCount,
@@ -875,7 +890,8 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
         leverHint,
         unspecifiedFoods,
         recapEvents,
-        !!this.chatData.pendingGlucoseTime
+        !!this.chatData.pendingGlucoseTime,
+        chartState
       );
 
       // RAG: ищем релевантную карточку ДО отправки промпта, чтобы Спутник мог

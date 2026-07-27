@@ -4,7 +4,7 @@
 
 const Assistant = {
 
-  async buildSystemPrompt(profile, userMsgCount, questionCount, messages, state, hasChart, timeUncertain, leverHint, unspecifiedFoods, recapEvents, glucoseTimeAsk) {
+  async buildSystemPrompt(profile, userMsgCount, questionCount, messages, state, hasChart, timeUncertain, leverHint, unspecifiedFoods, recapEvents, glucoseTimeAsk, chartState) {
     if (typeof Knowledge !== 'undefined') {
       let prompt = await Knowledge.buildPrompt(profile, userMsgCount, questionCount, messages);
 
@@ -174,6 +174,24 @@ const Assistant = {
       // Замер сахара без названного времени — обязательно уточнить (точность дневника).
       if (glucoseTimeAsk) {
         prompt += '\n\n[ЗАМЕР БЕЗ ВРЕМЕНИ]\nПациент назвал сахар, но НЕ сказал, во сколько замерил. Точное время — основа дневника: без него цифра не встаёт на график.\nОБЯЗАТЕЛЬНО коротко уточни время именно этого замера, до любого разбора: «Во сколько замерил?».\nЕсли пациент назовёт время — прими и переходи к делу. Если ответит «не помню / не засёк» — не дави: цифра сохранится с пометкой «время не названо». Одного вопроса достаточно, не повторяй его в следующих репликах.\n[/ЗАМЕР БЕЗ ВРЕМЕНИ]';
+      }
+
+      // Реальное состояние графика — мост «состояние→модель». Без него Спутник
+      // думал на статичном скрипте и повторял «замеров нет», когда точки ЕСТЬ.
+      if (chartState) {
+        const TW = { fasting:'натощак', postprandial:'после еды', bedtime:'перед сном', preprandial:'до еды', random:'' };
+        const timed = (chartState.timed || []).map(m => m.t + ' — ' + m.v + (TW[m.type] ? ' ' + TW[m.type] : '')).join('; ');
+        const untimed = (chartState.untimed || []).map(u => u.v + (TW[u.type] ? ' ' + TW[u.type] : '')).join('; ');
+        prompt += '\n\n[СОСТОЯНИЕ ГРАФИКА — ФАКТ из данных, не память]\n';
+        if (timed || untimed) {
+          prompt += 'Сегодня у пациента ЕСТЬ замеры.';
+          if (timed) prompt += ' На оси графика: ' + timed + '.';
+          if (untimed) prompt += ' Без времени (строкой под графиком): ' + untimed + '.';
+          prompt += '\nЕсли спрашивает «где график / почему пусто / к чему привязан» — отвечай ПО ЭТОМУ состоянию: точки есть, вот они. НЕ говори «замеров нет».';
+        } else {
+          prompt += 'Сегодня замеров ещё нет — график пуст. Точка появится, когда пациент пришлёт замер сахара с прибора. Так и отвечай, если спросит «где график».';
+        }
+        prompt += '\n[/СОСТОЯНИЕ ГРАФИКА]';
       }
 
       // Рычаг при крупном пике
