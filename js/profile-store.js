@@ -24,6 +24,12 @@ const ProfileStore = {
           region: [], native_language: [],
           glucometer: []
         },
+        portrait: {
+          // Ядро характера (5 осей) — заполняет движок модели пациента пассивным чтением.
+          motive: [], attitude_numbers: [], life_rhythm: [], tone_openness: [], stress_attitude: [],
+          // Нить «образ жизни»: яркая черта → истоки → наполнение → смысл.
+          li_intensity: [], li_origin: [], li_content: [], li_meaning: []
+        },
         patterns: {
           breakfast: [], lunch: [], dinner: [], snacks: [],
           training: [], sleep: [], work_mode: [],
