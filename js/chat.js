@@ -615,8 +615,11 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
 
       if (g) {
         Storage.addGlucose(g);
-        // Замер без явного времени → просим уточнить (флаг читает промпт Спутника).
-        if (!g.timeCertain) {
+        // Уточняем время ТОЛЬКО у замера без времени И без контекста (голая цифра).
+        // «Натощак / перед сном / до / после еды» уже несут временное окно — спрашивать
+        // точную минуту у них = выдуманная просьба (Спутник сочинял вопрос на пустом месте).
+        const hasCtx = g.type && g.type !== 'random';
+        if (!g.timeCertain && !hasCtx) {
           this.chatData.pendingGlucoseTime = { idx: Storage.getGlucoseLog().length - 1, dateISO: g.dateISO };
         } else {
           this.chatData.pendingGlucoseTime = null;
