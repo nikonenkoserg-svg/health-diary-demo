@@ -15,7 +15,7 @@ const ProfileOverlay = {
   _mode: 'edit',           // 'edit' | 'required'
   _onSaved: null,
 
-  REQUIRED_FIELDS: ['sex','age','height','weight','diagnosis','bad_habits'],
+  REQUIRED_FIELDS: ['sex','age','height','weight','diagnosis','bad_habits','region'],
 
   ANKETA_FIELDS: [
     { name: 'sex',         label: 'Пол',                          type: 'text',   required: true  },
@@ -28,7 +28,7 @@ const ProfileOverlay = {
     { name: 'allergies',   label: 'Аллергии',                     type: 'text',   required: false },
     { name: 'medications', label: 'Медикаменты',                  type: 'text',   required: false },
     { name: 'heredity',    label: 'Наследственность',             type: 'text',   required: false },
-    { name: 'region',      label: 'Регион',                       type: 'text',   required: false }
+    { name: 'region',      label: 'Регион (город/страна — для часового пояса)', type: 'text', required: true  }
   ],
 
   open() {
@@ -90,7 +90,7 @@ const ProfileOverlay = {
             ${required ? `
             <div class="profile-bulk">
               <label class="profile-bulk-label">Можешь надиктовать или вставить блоком — разложу по полям</label>
-              <textarea id="profile-bulk-text" rows="3" placeholder="Например: мужской, 53 года, рост 183, вес 77, преддиабет, не курю, не пью"></textarea>
+              <textarea id="profile-bulk-text" rows="3" placeholder="Например: мужской, 53 года, рост 183, вес 77, Тбилиси, преддиабет, не курю, не пью"></textarea>
               <div class="profile-bulk-actions">
                 <button class="profile-mic-btn" id="profile-mic-btn" type="button" aria-label="Записать голосом">🎙 Голос</button>
                 <button class="profile-bulk-parse" id="profile-bulk-parse" type="button" disabled>Разобрать и заполнить</button>
