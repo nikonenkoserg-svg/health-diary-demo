@@ -74,9 +74,11 @@ const PatientModel = {
     const _tr = _s(PT('training')); if (_tr) m.training = _tr;
     const _sl = _s(PT('sleep'));    if (_sl) m.sleep = _sl;
     const _wk = _s(PT('work_mode')); if (_wk) m.work = _wk;
+    const FORM_AXES = { attitude_numbers: 1, tone_openness: 1 };
     ['motive', 'attitude_numbers', 'life_rhythm', 'tone_openness', 'stress_attitude',
      'li_intensity', 'li_origin', 'li_content', 'li_meaning'].forEach(k => {
-      const v = P(k); if (v) m[k] = v;
+      const v = FORM_AXES[k] ? this._stableAxis(k) : P(k);
+      if (v) m[k] = v;
     });
     return m;
   },
@@ -103,8 +105,9 @@ const PatientModel = {
     else if (wc > 40 || emotion >= 2 || exclam >= 1) portrait.tone_openness = 'развёрнут, эмоционален, делится';
     else portrait.tone_openness = 'нейтральный';
 
+    // Черту приписываем только по ПОЛОЖИТЕЛЬНОМУ сигналу (плотность цифр). Отсутствие
+    // чисел в реплике — не «избегает конкретики»: у вопроса цифр и не бывает.
     if (numbers >= 4 && units >= 3) portrait.attitude_numbers = 'любит точность, педант';
-    else if (numbers <= 1) portrait.attitude_numbers = 'избегает конкретики';
 
     if (discipline) portrait.life_rhythm = 'жёсткий режим';
 
@@ -135,6 +138,22 @@ const PatientModel = {
       if (stable && ProfileStore.get('portrait', k)) return;
       try { ProfileStore.set('portrait', k, v, 'passive_read', 'inferred'); } catch (_) {}
     });
+  },
+
+  // ── Стабильное чтение оси-из-формы: берём доминанту по истории, а не последнюю реплику.
+  // Одно сообщение не лепит черту — нужно ≥ minCount совпадений.
+  _stableAxis(field, minCount) {
+    minCount = minCount || 2;
+    if (typeof ProfileStore === 'undefined' || !ProfileStore.getHistory) {
+      return (typeof ProfileStore !== 'undefined' && ProfileStore.get) ? ProfileStore.get('portrait', field) : null;
+    }
+    const hist = (ProfileStore.getHistory('portrait', field) || []).slice(-8);
+    if (!hist.length) return null;
+    const tally = {};
+    for (const e of hist) { const v = e && e.value; if (v) tally[v] = (tally[v] || 0) + 1; }
+    let best = null, bestN = 0;
+    for (const k in tally) { if (tally[k] > bestN) { best = k; bestN = tally[k]; } }
+    return bestN >= minCount ? best : null;
   },
 
   // ── СНИМОК карты: по каждому пункту {known|thin|empty}.
@@ -196,6 +215,7 @@ const PatientModel = {
     out += 'Читай каждое событие ЧЕРЕЗ портрет: одна цифра/сон/еда значат разное у разных людей. '
          + 'Норма — база ЭТОГО человека, не общая таблица. Тон подстрой под портрет.\n';
     if (known.length) out += 'Что перечислено как известное — НЕ переспрашивай, опирайся на это.\n';
+    out += 'Черты характера здесь — ГИПОТЕЗЫ из наблюдения, не факты. Не заявляй их пациенту как приговор («ты такой-то»); держи как фон. Не уверен или пациент возразил — не настаивай, признай ошибку.\n';
     if (!gap || timing === 'none') return out;
     if (timing === 'hold') {
       out += '[НЕ ВРЕМЯ ДЛЯ ТЕМ]: человек принёс замер/самочувствие — займись этим, портрет-пробел не поднимай.';
