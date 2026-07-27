@@ -77,9 +77,15 @@ const Chart = {
     ctx.font = font(9);
     ctx.textAlign = 'right';
     for (const g of yTicks) ctx.fillText(g.toString(), pad.left - 6, yScale(g) + 3 * S);
-    ctx.textAlign = 'left';
     ctx.font = font(8.5);
-    ctx.fillText('сахар, ммоль/л', pad.left, pad.top - 10 * S);
+    if (hasCallout) {
+      // при выносках слева подпись оси уводим вправо, чтобы линия выноски её не пересекала
+      ctx.textAlign = 'right';
+      ctx.fillText('сахар, ммоль/л', pad.left + plotW, pad.top - 10 * S);
+    } else {
+      ctx.textAlign = 'left';
+      ctx.fillText('сахар, ммоль/л', pad.left, pad.top - 10 * S);
+    }
 
     // "Твоя обычная"
     if (data.baseline != null) {
@@ -122,9 +128,9 @@ const Chart = {
       const gap = b.minute - a.minute;
       if (gap <= this.GAP_THRESHOLD_MIN) continue;
       const midX = (xScale(a.minute) + xScale(b.minute)) / 2;
-      const midY = (yScale(a.value) + yScale(b.value)) / 2;
-      ctx.fillText('не достраиваем', midX, midY - 6);
-      ctx.fillText('не мерил', midX, midY + 8);
+      // «не достраиваем» уже сказано в подзаголовке панели — тут только суть разрыва,
+      // в чистой верхней полосе, чтобы не налезать на точки и подписи.
+      ctx.fillText('не мерил', midX, pad.top + 11 * S);
     }
 
     // Точки + числа + контекстный лейбл.
@@ -167,11 +173,17 @@ const Chart = {
         calloutBoxes.push(cx);
         const laneY = 12 * S;
 
-        ctx.strokeStyle = isDark ? 'rgba(224,120,87,0.55)' : 'rgba(224,120,87,0.7)';
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = isDark ? 'rgba(224,120,87,0.7)' : 'rgba(224,120,87,0.85)';
+        ctx.lineWidth = 1.2 * Math.min(S, 1.5);
         ctx.beginPath();
         ctx.moveTo(x, y - r - 2 * S);
         ctx.lineTo(cx, laneY + 4 * S);
+        ctx.stroke();
+        // стрелка у кружка — ясно, к какой точке относится выноска
+        ctx.beginPath();
+        ctx.moveTo(x - 3 * S, y - r - 6 * S);
+        ctx.lineTo(x, y - r - 1 * S);
+        ctx.lineTo(x + 3 * S, y - r - 6 * S);
         ctx.stroke();
 
         ctx.fillStyle = isDark ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.85)';
