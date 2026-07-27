@@ -78,6 +78,52 @@ const Time = {
     }
   },
 
+  // Как nowParts, но для произвольного момента ms — читает его в ТЕКУЩЕМ поясе-якоре.
+  // Принадлежность замера дню должна считаться в том же поясе, что и «сегодня»,
+  // иначе смена региона сиротит прошлые замеры у полуночи (график исчезает).
+  partsForTs(ms) {
+    const tz = this.getTz();
+    const d = new Date(ms);
+    if (!tz) {
+      return {
+        hour: d.getHours(),
+        minute: d.getMinutes(),
+        minuteOfDay: d.getHours() * 60 + d.getMinutes(),
+        dateISO: d.getFullYear() + '-' +
+                 String(d.getMonth() + 1).padStart(2, '0') + '-' +
+                 String(d.getDate()).padStart(2, '0'),
+        tz: 'device'
+      };
+    }
+    try {
+      const fmt = new Intl.DateTimeFormat('en-US', {
+        timeZone: tz,
+        hour: '2-digit', minute: '2-digit',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour12: false
+      });
+      const parts = fmt.formatToParts(d);
+      const get = (t) => parseInt(parts.find(p => p.type === t).value);
+      const hour = get('hour') % 24;
+      const minute = get('minute');
+      return {
+        hour, minute,
+        minuteOfDay: hour * 60 + minute,
+        dateISO: get('year') + '-' +
+                 String(get('month')).padStart(2, '0') + '-' +
+                 String(get('day')).padStart(2, '0'),
+        tz
+      };
+    } catch {
+      return {
+        hour: d.getHours(), minute: d.getMinutes(),
+        minuteOfDay: d.getHours() * 60 + d.getMinutes(),
+        dateISO: d.toISOString().slice(0, 10),
+        tz: 'device-fallback'
+      };
+    }
+  },
+
   fmtMinute(min) {
     return Math.floor(min / 60) + ':' + String(min % 60).padStart(2, '0');
   },

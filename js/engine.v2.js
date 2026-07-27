@@ -1210,13 +1210,15 @@ const Engine = {
       const d = new Date(ms);
       return d.getHours()*60 + d.getMinutes();
     };
-    const _isToday = (ms) => {
+    // Локальная дата произвольного момента в ТЕКУЩЕМ поясе-якоре (не в поясе устройства).
+    const _localDateISO = (ms) => {
+      if (typeof Time !== 'undefined' && Time.partsForTs) return Time.partsForTs(ms).dateISO;
       const d = new Date(ms);
-      const iso = d.getFullYear() + '-' +
+      return d.getFullYear() + '-' +
         String(d.getMonth()+1).padStart(2,'0') + '-' +
         String(d.getDate()).padStart(2,'0');
-      return iso === todayISO;
     };
+    const _isToday = (ms) => _localDateISO(ms) === todayISO;
 
     // На ось X идут ТОЛЬКО замеры с подтверждённым временем (localMinute в поясе
     // пациента). Замеры без времени копятся отдельно (untimed) — их показываем
@@ -1229,12 +1231,19 @@ const Engine = {
         // Легаси-замеры (сохранены до правки, без новых полей) — по-старому:
         // минута из абсолютного ts, считаем время известным.
         const legacy = (g.localMinute === undefined && g.timeCertain === undefined && g.dateISO === undefined);
-        const isTodayEntry = g.dateISO ? (g.dateISO === todayISO) : _isToday(g.time);
+        // Принадлежность дню: стабильная метка dateISO ИЛИ (устойчиво к смене пояса)
+        // абсолютное время замера, прочитанное в текущем поясе-якоре. OR только ДОБАВЛЯет
+        // замеры обратно — смена региона больше не сиротит точку у полуночи.
+        const isTodayEntry = (g.dateISO && g.dateISO === todayISO) || _isToday(g.time);
         if (!isTodayEntry) continue;
         if (legacy) {
           measurements.push({ minute: _toMinute(g.time), value: g.value, type: g.type || 'random', confidence: g.confidence || 'full' });
         } else if (g.timeCertain && g.localMinute != null) {
-          measurements.push({ minute: g.localMinute, value: g.value, type: g.type || 'random', confidence: g.confidence || (g.type && g.type !== 'random' ? 'full' : 'partial') });
+          let plotMinute = g.localMinute;
+          if (g.dateISO && g.dateISO !== todayISO && typeof Time !== 'undefined' && Time.partsForTs) {
+            plotMinute = Time.partsForTs(g.time).minuteOfDay; // пояс сменился — минуту в поясе-якоре
+          }
+          measurements.push({ minute: plotMinute, value: g.value, type: g.type || 'random', confidence: g.confidence || (g.type && g.type !== 'random' ? 'full' : 'partial') });
         } else {
           untimed.push({ value: g.value, type: g.type || 'random', confidence: g.confidence || 'unverified' });
         }
