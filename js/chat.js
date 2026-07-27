@@ -925,6 +925,13 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
           const eventsCount = (this.chatData.dayLog && this.chatData.dayLog.events) ? this.chatData.dayLog.events.length : 0;
           const phase = (userMsgCount < 15 || eventsCount < 3) ? 'onboarding' : 'stable';
           relevantCard = await window.RAG.searchCard(text, null, { sex: (Storage.getProfile() || {}).sex, phase });
+          // Дедуп + троттлинг плашки библиотеки: одну и ту же карточку не повторять,
+          // и не давать плашку чаще раза в 3 сообщения — иначе Спутник повторяет материал подряд.
+          const _shownCards = this.chatData.shownCards || [];
+          const _lastCardAt = (this.chatData.lastCardAt == null) ? -99 : this.chatData.lastCardAt;
+          if (relevantCard && (_shownCards.includes(relevantCard.id) || (this.chatData.userMsgCount - _lastCardAt) < 3)) {
+            relevantCard = null;
+          }
           if (relevantCard && window.RAG.formatCardForPrompt) {
             systemPrompt += window.RAG.formatCardForPrompt(relevantCard);
             // Спутник должен ЗНАТЬ что к его ответу будет приклеена плашка с карточкой.
@@ -969,8 +976,12 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
 
           // Плашка «Глубже:» — используем карточку, найденную ДО запроса.
           if (relevantCard) {
-            try { this.addCardLink(relevantCard.id, '«' + relevantCard.title + '»'); }
-            catch (e) { console.warn('[RAG] card link failed:', e); }
+            try {
+              this.addCardLink(relevantCard.id, '«' + relevantCard.title + '»');
+              (this.chatData.shownCards = this.chatData.shownCards || []).push(relevantCard.id);
+              this.chatData.lastCardAt = this.chatData.userMsgCount;
+              Storage.saveChat(this.chatData);
+            } catch (e) { console.warn('[RAG] card link failed:', e); }
           }
 
           if (this.chatData.state === 'bridge') {
