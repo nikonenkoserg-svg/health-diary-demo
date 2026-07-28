@@ -105,6 +105,9 @@ const Chat = {
       try {
         const el = document.getElementById('register-cta');
         if (el) el.remove();
+        // Вернувшийся пользователь (тот же email) — тянем бэкап с сервера. Если он есть,
+        // Sync.pull() восстановит данные и перезагрузит страницу (сюда не вернёмся).
+        try { if (typeof Sync !== 'undefined') await Sync.pull(); } catch (_) {}
         this.chatData.state = 'registered';
         Storage.saveChat(this.chatData);
         await this.typeMessage(Onboarding.REGISTERED_INTRO, 'bot');
