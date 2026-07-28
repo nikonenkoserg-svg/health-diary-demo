@@ -957,7 +957,7 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
         ...this.chatData.messages.filter(m => !m.chartData).slice(-12)
       ];
 
-      const resp = await fetch('/api/chat', {
+      const _post = () => fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -966,6 +966,7 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
           stream: true
         })
       });
+      let resp = await _post();
 
       if (resp.ok && resp.body) {
         // Обновляем график пока модель думает
@@ -973,7 +974,17 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
           Chart.updatePanel(Engine.getDayData(Storage.getProfile() || {}));
         }
 
-        const raw = await this._streamReply(resp);
+        let raw = await this._streamReply(resp);
+        if (!raw) {
+          // Пустой поток (обе модели молчат — обычно разовый сбой провайдера).
+          // Молча пробуем ещё раз: пациент видит только «печатает…», сбоя не замечает.
+          console.warn('[chat] пустой ответ — авто-ретрай');
+          await new Promise(r => setTimeout(r, 700));
+          try {
+            const resp2 = await _post();
+            if (resp2.ok && resp2.body) raw = await this._streamReply(resp2);
+          } catch (e) { console.error('[chat] retry failed:', e); }
+        }
         this.hideTyping();
         if (raw) {
           const longCtx3 = isLongAnswerContext(text, this.chatData);
@@ -999,13 +1010,13 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
             Storage.saveChat(this.chatData);
           }
         } else {
-          console.error('[chat] Empty reply from API. Status:', resp.status, 'headers:', Object.fromEntries(resp.headers.entries()));
-          this.addMessageToDOM('bot', 'Пустой ответ (status ' + resp.status + '). Попробуйте ещё раз.');
+          console.error('[chat] Empty reply even after retry. Status:', resp.status, 'headers:', Object.fromEntries(resp.headers.entries()));
+          this.addMessageToDOM('bot', 'Связь на секунду прервалась. Повтори, пожалуйста — я здесь.');
         }
       } else {
         const errText = await resp.text().catch(() => '');
         console.error('[chat] API error:', resp.status, errText);
-        this.addMessageToDOM('bot', 'Ошибка ' + resp.status + '. Попробуйте ещё раз.');
+        this.addMessageToDOM('bot', 'Связь на секунду прервалась. Повтори, пожалуйста — я здесь.');
       }
     } catch (err) {
       this.hideTyping();

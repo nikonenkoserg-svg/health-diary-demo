@@ -107,12 +107,23 @@ async function handleStream(req, res, models, messages, temperature, max_tokens)
           }
           try {
             const parsed = JSON.parse(data);
+            // Ошибка в середине стрима (лимит/перегрузка апстрима). Раньше молча
+            // проглатывалась -> клиент видел «пусто». Теперь логируем причину и,
+            // если контента ещё не было, быстро уходим на запасную модель.
+            if (parsed.error) {
+              const em = typeof parsed.error === 'string' ? parsed.error : JSON.stringify(parsed.error);
+              console.error(`[chat-stream] ${m} stream error: ${em.slice(0, 200)}`);
+              if (gotContent) { res.write('data: [DONE]\n\n'); res.end(); return; }
+              throw new Error('upstream stream error');
+            }
             const delta = parsed.choices?.[0]?.delta?.content;
             if (delta) {
               gotContent = true;
               res.write('data: ' + JSON.stringify({ content: delta, model: m }) + '\n\n');
             }
-          } catch (_) {}
+          } catch (e) {
+            if (e && e.message === 'upstream stream error') throw e;
+          }
         }
       }
       if (gotContent) {
