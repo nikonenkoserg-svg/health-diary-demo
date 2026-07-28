@@ -4,25 +4,7 @@ const APP_VERSION = 'v50';
 
 const App = {
   init() {
-    // ?reset=1 — полный сброс локальных данных перед запуском.
-    // Удобно для тестов: даёт чистый старт без DevTools.
-    try {
-      const url = new URL(window.location.href);
-      if (url.searchParams.get('reset') === '1') {
-        try {
-          // Snapshot ключей в массив — иначе Safari при удалении внутри цикла
-          // может пропускать ключи (live-снимок keys() меняется при removeItem).
-          const keys = [];
-          for (let i = 0; i < localStorage.length; i++) keys.push(localStorage.key(i));
-          keys.forEach(k => {
-            if (k && (k.startsWith('hd_') || k === 'theme')) localStorage.removeItem(k);
-          });
-        } catch (e) { console.warn('[reset keys]', e); }
-        try { sessionStorage.removeItem('hd_sync_pulled'); } catch (_) {}
-        url.searchParams.delete('reset');
-        window.history.replaceState({}, '', url.toString());
-      }
-    } catch (e) { console.warn('[reset] failed:', e); }
+    // ?reset=1 обрабатывается синхронно в <head> (до Sync.pull) — см. index.html.
 
     // Set app height for iOS
     this.setAppHeight();

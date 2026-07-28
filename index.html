@@ -14,6 +14,12 @@
 <link rel="stylesheet" href="/css/chat.css">
   <link rel="stylesheet" href="/css/profile.css?v=20260620a">
   <link rel="stylesheet" href="/css/auth.css?v=20260623a">
+<script>
+/* Синхронный сброс ДО всех скриптов и до Sync.pull — честный чистый старт для тестов.
+   Раньше reset жил в App.init на window.load (поздно) и pull успевал восстановить по
+   ещё не стёртому email в том же вкладке. Теперь чистим первыми. */
+(function(){try{var u=new URL(location.href);if(u.searchParams.get('reset')==='1'){var ks=[];for(var i=0;i<localStorage.length;i++)ks.push(localStorage.key(i));ks.forEach(function(k){if(k&&(k.indexOf('hd_')===0||k==='theme'))localStorage.removeItem(k);});try{sessionStorage.removeItem('hd_sync_pulled');}catch(e){}u.searchParams.delete('reset');history.replaceState({},'',u.toString());}}catch(e){}})();
+</script>
 </head>
 <body>
 
@@ -153,6 +159,6 @@
 <script src="/js/assistant.js?v=20260609b"></script>
 <script src="/js/chat.js?v=20260614c"></script>
 <script src="/js/sync.js?v=20260728a"></script>
-<script src="/js/app.js?v=20260615a"></script>
+<script src="/js/app.js?v=20260728d"></script>
 </body>
 </html>
