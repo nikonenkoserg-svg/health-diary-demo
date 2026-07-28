@@ -36,11 +36,14 @@ const Sync = {
   },
 
   // все пользовательские блобы localStorage (hd_*), кроме служебной метки синхры
+  // Не синхронизируем: служебную метку синхры, кэш векторов библиотеки (общий для всех,
+  // ~87% объёма, пересобирается на устройстве) и лог отладки. Синкаем только личные данные.
+  _SKIP: { hd_synced_at: 1, hd_lib_vec_cache: 1, hd_debug_log: 1 },
   _collect() {
     const out = {};
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (k && k.indexOf('hd_') === 0 && k !== 'hd_synced_at') out[k] = localStorage.getItem(k);
+      if (k && k.indexOf('hd_') === 0 && !this._SKIP[k]) out[k] = localStorage.getItem(k);
     }
     return out;
   },
