@@ -18,6 +18,7 @@ const App = {
             if (k && (k.startsWith('hd_') || k === 'theme')) localStorage.removeItem(k);
           });
         } catch (e) { console.warn('[reset keys]', e); }
+        try { sessionStorage.removeItem('hd_sync_pulled'); } catch (_) {}
         url.searchParams.delete('reset');
         window.history.replaceState({}, '', url.toString());
       }

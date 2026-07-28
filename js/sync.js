@@ -46,8 +46,8 @@ const Sync = {
   },
 
   // Тянем бэкап с сервера. Если сервер свежее или локально пусто — подставляем и перезагружаемся.
-  async pull() {
-    if (sessionStorage.getItem('hd_sync_pulled')) return false;
+  async pull(force) {
+    if (!force && sessionStorage.getItem('hd_sync_pulled')) return false;
     const id = this.patientId();
     if (!id) return false;
     sessionStorage.setItem('hd_sync_pulled', '1');
