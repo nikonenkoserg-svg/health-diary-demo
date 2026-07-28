@@ -80,6 +80,11 @@ const Sync = {
   async push() {
     const id = this.patientId();
     if (!id || !this._dirty) return;
+    // Защита бэкапа: не пушим, пока в этой сессии не отработал pull (иначе свежая
+    // сессия после сброса затрёт хороший серверный бэкап до восстановления).
+    if (!sessionStorage.getItem('hd_sync_pulled')) { return; }
+    // И не пишем пустоту поверх бэкапа.
+    if (!localStorage.getItem('hd_profile_v2') && !localStorage.getItem('hd_chat')) { return; }
     this._dirty = false;
     const now = Date.now();
     const payload = { id: id, data: { blobs: this._collect(), updated_at: new Date(now).toISOString() } };

@@ -107,7 +107,7 @@ const Chat = {
         if (el) el.remove();
         // Вернувшийся пользователь (тот же email) — тянем бэкап с сервера. Если он есть,
         // Sync.pull() восстановит данные и перезагрузит страницу (сюда не вернёмся).
-        try { if (typeof Sync !== 'undefined') await Sync.pull(true); } catch (_) {}
+        try { if (typeof Sync !== 'undefined' && await Sync.pull(true)) { return; } } catch (_) {}
         this.chatData.state = 'registered';
         Storage.saveChat(this.chatData);
         await this.typeMessage(Onboarding.REGISTERED_INTRO, 'bot');
