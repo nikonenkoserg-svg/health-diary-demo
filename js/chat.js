@@ -213,6 +213,42 @@ const Chat = {
     Storage.saveChat(this.chatData);
   },
 
+  // Есть ли в тексте кандидат-замер (быстрый детектор, чтобы решить, звать ли LLM-разбор).
+  hasGlucoseNumber(text) {
+    return typeof Engine !== 'undefined' && Engine.parseGlucose && !!Engine.parseGlucose(text);
+  },
+
+  // Собрать запись замера из структурного ответа LLM-экстрактора.
+  // Формат совпадает с Engine.parseGlucose — чтобы график/память читали одинаково.
+  buildGlucoseFromExtract(gl) {
+    if (!gl || typeof gl.value !== 'number' || gl.value < 2.5 || gl.value > 25) return null;
+    const tp = (typeof Time !== 'undefined' && Time.nowParts) ? Time.nowParts() : null;
+    const todayISO = tp ? tp.dateISO : new Date().toISOString().slice(0, 10);
+    const dayOffset = Math.max(0, parseInt(gl.day_offset) || 0);
+    const dateISO = (dayOffset > 0 && Engine._shiftISO) ? Engine._shiftISO(todayISO, -dayOffset) : todayISO;
+    const type = ['fasting', 'postprandial', 'preprandial', 'bedtime', 'random'].includes(gl.type) ? gl.type : 'random';
+    let localMinute = null, timeCertain = false;
+    if (gl.certain && gl.time) {
+      const mn = this.hmToMin(gl.time);
+      if (mn != null && mn >= 0 && mn < 1440) { localMinute = mn; timeCertain = true; }
+    }
+    let ts;
+    if (timeCertain) {
+      const [y, mo, d] = dateISO.split('-').map(Number);
+      const dt = new Date(y, mo - 1, d);
+      dt.setHours(Math.floor(localMinute / 60), localMinute % 60, 0, 0);
+      ts = dt.getTime();
+    } else { ts = Date.now(); }
+    const recalled = dayOffset > 0;
+    const hasContext = type !== 'random';
+    let confidence;
+    if (recalled) confidence = 'unverified';
+    else if (timeCertain && hasContext) confidence = 'full';
+    else if (timeCertain || hasContext) confidence = 'partial';
+    else confidence = 'unverified';
+    return { value: gl.value, type, source: 'manual', time: ts, dateISO, localMinute, timeCertain, confidence, recalled, raw: String(gl.value) };
+  },
+
   addCardLink(cardId, title) {
     const chat = document.getElementById('chat');
     const div = document.createElement('div');
@@ -520,7 +556,7 @@ const Chat = {
     sys += `
 
 Верни ТОЛЬКО валидный JSON, без markdown и пояснений:
-{"kind":"fact|pattern|recap|plan|hypothetical","wake":"ЧЧ:ММ" или null,"events":[...],"workload":{"active":true|false,"hours":число|null,"kind":"тренировка|спорт|прогулка|бег|велик|...","starts_now":true|false}}
+{"kind":"fact|pattern|recap|plan|hypothetical","wake":"ЧЧ:ММ" или null,"events":[...],"workload":{"active":true|false,"hours":число|null,"kind":"тренировка|спорт|прогулка|бег|велик|...","starts_now":true|false},"glucose":[{"value":число,"type":"fasting|postprandial|preprandial|bedtime|random","time":"ЧЧ:ММ" или null,"certain":true|false,"day_offset":число}]}
 
 КРИТИЧНО — классификация реплики (поле kind):
 - "fact" — пациент описывает РЕАЛЬНОЕ событие еды только что или недавно. Маркеры: "съел", "выпил", "поел", "час назад", "сейчас", "только что", "30 минут назад", упоминание текущего приёма с прошедшим временем. ТОЛЬКО эти случаи строят график.
@@ -557,7 +593,8 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
     - "high" — граммовка указана точно («150 г», «250 мл», «200 грамм»)
     - "medium" — бытовая мера (чашка=200, стакан=250, кружка=300, ст.ложка=15, ч.ложка=5, горсть=30, кусок=50, ломтик=30)
     - "low" — порция не указана, прикидываешь средние
-- Глюкозу, давление, рост, вес — НЕ включай
+- Давление, рост, вес — НЕ включай.
+- ЗАМЕРЫ САХАРА/ГЛЮКОЗЫ — в поле glucose (НЕ в events). Каждый замер — отдельный элемент. value в ммоль/л (6.1, 5.9). type: натощак=fasting, после еды=postprandial, до еды=preprandial, перед сном=bedtime, иначе random. time — ЧЧ:ММ ИМЕННО этого замера: привязывай ко времени, стоящему рядом с этим числом сахара, НЕ ко времени подъёма и НЕ ко времени другого замера; null если время замера не названо. certain=true только при явно названном времени замера. day_offset: 0 сегодня, 1 вчера, 2 позавчера. glucose заполняй ВСЕГДА, когда в сообщении есть замер — даже если еды нет и kind не fact.
 - Нет еды в сообщении → {"kind":"fact","wake":null,"events":[]}
 - Если pattern или plan — events можно вернуть для информации, но граф НЕ построится
 
@@ -573,7 +610,10 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
 (это анкета о типичном режиме питания, не разовое событие — график НЕ строим)
 
 "Через час планирую съесть овсянку с бананом" →
-{"kind":"plan","wake":null,"events":[]}`;
+{"kind":"plan","wake":null,"events":[]}
+
+"Проснулся в 01.30. Натощак в 01.45 замер 6,1. После завтрака показал 6,3, это было в 02.00" →
+{"kind":"recap","wake":"01:30","events":[],"glucose":[{"value":6.1,"type":"fasting","time":"01:45","certain":true,"day_offset":0},{"value":6.3,"type":"postprandial","time":"02:00","certain":true,"day_offset":0}]}`;
 
     try {
       const resp = await fetch('/api/chat', {
@@ -659,17 +699,8 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
       }
 
       if (g) {
-        Storage.addGlucose(g);
-        this.addGlucoseReceipt(g);   // пациент видит, что записано (синхрон чат↔график)
-        // Уточняем время ТОЛЬКО у замера без времени И без контекста (голая цифра).
-        // «Натощак / перед сном / до / после еды» уже несут временное окно — спрашивать
-        // точную минуту у них = выдуманная просьба (Спутник сочинял вопрос на пустом месте).
-        const hasCtx = g.type && g.type !== 'random';
-        if (!g.timeCertain && !hasCtx) {
-          this.chatData.pendingGlucoseTime = { idx: Storage.getGlucoseLog().length - 1, dateISO: g.dateISO };
-        } else {
-          this.chatData.pendingGlucoseTime = null;
-        }
+        // Сохранение замера — ниже, через структурный LLM-разбор (несколько замеров
+        // за сообщение + верная привязка времени). Здесь лишь помечаем: речь про замер.
         const t = text.toLowerCase();
         const foodIntent = /(съел|съела|поел|поела|ел\s|ела\s|выпил|выпила|пил\s|пила\s|перекус|завтрак|обед|ужин|кушал|кушала|покушал|покушала|позавтракал|позавтракала|пообедал|пообедала|поужинал|поужинала)/i.test(t);
         pureGlucose = !foodIntent;
@@ -774,6 +805,7 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
     let timeUncertain = false;
     let leverHint = null;
     let recapEvents = null;
+    let extracted = null;
 
     // Уточнение существующего event (граммы/время в отдельной реплике без еды)
     if (typeof Engine !== 'undefined' && Engine.updateLastEventFromContext &&
@@ -791,8 +823,8 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
         !pureGlucose &&
         this.looksLikeFood(text)) {
       const foodProfile = Storage.getProfile() || {};
-      // LLM извлекает события с временем
-      const extracted = await this.extractDayEvents(text);
+      // LLM извлекает события с временем (общий вызов — переиспользуется для замеров ниже)
+      extracted = await this.extractDayEvents(text);
       // Намерение физической нагрузки — ставим только для kind=fact (свежее событие).
       // Для recap/pattern LLM может ошибочно поставить starts_now=true для тренировки
       // из утра — это создаст ложный «активная тренировка прямо сейчас» в Engine.
@@ -905,6 +937,37 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
           leverHint = result.leverHint || null;
         }
       }
+    }
+
+    // === ЗАМЕРЫ сахара через структурный LLM-разбор ===================
+    // Несколько замеров в одном сообщении + верная привязка времени к каждому.
+    // Переиспользуем extracted (если еда уже вызвала экстрактор), иначе зовём сами.
+    if ((this.chatData.state === 'active' || this.chatData.state === 'bridge') &&
+        this.hasGlucoseNumber(text)) {
+      if (!extracted) {
+        try { extracted = await this.extractDayEvents(text); } catch (_) { extracted = null; }
+      }
+      let saved = 0, lastEntry = null;
+      const glArr = (extracted && Array.isArray(extracted.glucose)) ? extracted.glucose : [];
+      for (const gl of glArr) {
+        const g = this.buildGlucoseFromExtract(gl);
+        if (!g) continue;
+        Storage.addGlucose(g);
+        this.addGlucoseReceipt(g);
+        saved++; lastEntry = g;
+      }
+      // Фолбэк: LLM не дал замеров, а кандидат есть → регэксп (первый замер).
+      if (!saved) {
+        const g = Engine.parseGlucose(text);
+        if (g) { Storage.addGlucose(g); this.addGlucoseReceipt(g); saved++; lastEntry = g; }
+      }
+      // Уточнить время только у голого замера (нет времени И нет контекста).
+      if (lastEntry && !lastEntry.timeCertain && (!lastEntry.type || lastEntry.type === 'random')) {
+        this.chatData.pendingGlucoseTime = { idx: Storage.getGlucoseLog().length - 1, dateISO: lastEntry.dateISO };
+      } else {
+        this.chatData.pendingGlucoseTime = null;
+      }
+      if (saved) chartData = Engine.getDayData(Storage.getProfile() || {});
     }
 
     try {

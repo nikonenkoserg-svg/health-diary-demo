@@ -1286,8 +1286,12 @@ const Engine = {
     if (typeof Storage !== 'undefined' && Storage.getGlucoseLog) {
       const log = Storage.getGlucoseLog() || [];
       const cutoff = Date.now() - 14*24*60*60*1000;
-      const vals = log.filter(g => g.time >= cutoff).map(g => g.value).sort((a,b) => a-b);
-      if (vals.length >= 5) {
+      const recent = log.filter(g => g.time >= cutoff);
+      // «Твоя обычная» осмысленна только на нескольких днях — иначе рисуется
+      // по замерам одного (тестового) дня. Порог: >=5 замеров из >=3 разных дней.
+      const days = new Set(recent.map(g => g.dateISO || new Date(g.time).toISOString().slice(0, 10)));
+      const vals = recent.map(g => g.value).sort((a,b) => a-b);
+      if (vals.length >= 5 && days.size >= 3) {
         baseline = vals[Math.floor(vals.length / 2)];
       }
     }
