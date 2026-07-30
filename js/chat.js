@@ -1063,7 +1063,7 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
 
       const apiMessages = [
         { role: 'system', content: systemPrompt },
-        ...this.chatData.messages.filter(m => !m.chartData && !m.receipt).slice(-12)
+        ...this.chatData.messages.filter(m => !m.chartData && !m.receipt).slice(-30)
       ];
 
       const _post = () => fetch('/api/chat', {
