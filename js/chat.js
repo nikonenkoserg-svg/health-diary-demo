@@ -634,7 +634,10 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
       const match = raw.match(/\{[\s\S]*\}/);
       if (!match) return null;
       const parsed = JSON.parse(match[0]);
-      if (!parsed || !Array.isArray(parsed.events)) return null;
+      if (!parsed) return null;
+      // events может отсутствовать (чисто-замерное сообщение) — нормализуем в [],
+      // чтобы не потерять parsed.glucose. Замеры разбираются даже без еды.
+      if (!Array.isArray(parsed.events)) parsed.events = [];
       return parsed;
     } catch (err) {
       console.error('extractDayEvents error:', err);
