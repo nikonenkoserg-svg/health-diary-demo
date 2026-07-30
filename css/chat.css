@@ -625,3 +625,12 @@
 
 .register-cta-btn:hover { filter: brightness(1.1); }
 .register-cta-btn:active { filter: brightness(0.95); }
+
+/* Квитанция замера — служебная строка, тише обычной реплики */
+.message.receipt {
+  font-size: 0.82rem;
+  opacity: 0.72;
+  font-style: italic;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}

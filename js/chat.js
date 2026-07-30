@@ -154,6 +154,13 @@ const Chat = {
     chat.innerHTML = '';
     this.chatData.messages.forEach(m => {
       if (m.chartData) return; // графики теперь в панели
+      if (m.receipt) {
+        const div = document.createElement('div');
+        div.className = 'message bot receipt';
+        div.textContent = m.content;
+        chat.appendChild(div);
+        return;
+      }
       this.addMessageToDOM(m.role === 'user' ? 'user' : 'bot', m.content);
     });
     // Панель графика: из движка (если события дня восстановлены) либо из сохранённого
@@ -169,6 +176,41 @@ const Chat = {
     div.className = `message ${role}`;
     div.textContent = text;
     chat.appendChild(div);
+  },
+
+  // Человекочитаемая квитанция замера: пациент ВИДИТ, что именно записалось в
+  // дневник. Гарантия синхрона чат↔график — в дневник идёт ровно то, что показано.
+  formatGlucoseReceipt(g) {
+    const typeMap = { fasting: 'натощак', postprandial: 'после еды', preprandial: 'до еды', bedtime: 'перед сном', random: '' };
+    const parts = [g.value.toFixed(1).replace('.', ',') + ' ммоль/л'];
+    const tp = typeMap[g.type]; if (tp) parts.push(tp);
+    if (g.localMinute != null) {
+      const hh = String(Math.floor(g.localMinute / 60)).padStart(2, '0');
+      const mm = String(g.localMinute % 60).padStart(2, '0');
+      parts.push(hh + ':' + mm);
+    } else {
+      parts.push('время не указал');
+    }
+    if (g.recalled && g.dateISO) {
+      const d = g.dateISO.split('-');
+      parts.push('за ' + d[2] + '.' + d[1]);
+    }
+    return 'Записал: ' + parts.join(' · ');
+  },
+
+  // Показать квитанцию мгновенно (без побуквенной печати), под сообщением
+  // пациента и ДО ответа Спутника. Персистится, но в контекст модели не идёт.
+  addGlucoseReceipt(g) {
+    const chat = document.getElementById('chat');
+    const text = this.formatGlucoseReceipt(g);
+    const div = document.createElement('div');
+    div.className = 'message bot receipt';
+    div.textContent = text;
+    const typing = document.getElementById('typing');
+    if (typing) chat.insertBefore(div, typing); else chat.appendChild(div);
+    this.scrollToBottom();
+    this.chatData.messages.push({ role: 'assistant', content: text, receipt: true });
+    Storage.saveChat(this.chatData);
   },
 
   addCardLink(cardId, title) {
@@ -618,6 +660,7 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
 
       if (g) {
         Storage.addGlucose(g);
+        this.addGlucoseReceipt(g);   // пациент видит, что записано (синхрон чат↔график)
         // Уточняем время ТОЛЬКО у замера без времени И без контекста (голая цифра).
         // «Натощак / перед сном / до / после еды» уже несут временное окно — спрашивать
         // точную минуту у них = выдуманная просьба (Спутник сочинял вопрос на пустом месте).
@@ -954,7 +997,7 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
 
       const apiMessages = [
         { role: 'system', content: systemPrompt },
-        ...this.chatData.messages.filter(m => !m.chartData).slice(-12)
+        ...this.chatData.messages.filter(m => !m.chartData && !m.receipt).slice(-12)
       ];
 
       const _post = () => fetch('/api/chat', {
