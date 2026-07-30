@@ -28,6 +28,16 @@ const Assistant = {
           if (region) prompt += 'Регион: ' + region + '.\n';
           prompt += 'Часовой пояс пациента: ' + (tp.tz || 'device') + '.\n';
           prompt += 'Текущее время пациента: ' + hh + ':' + mm + '.\n';
+          // Календарная привязка: Спутник должен знать, какой сегодня день.
+          try {
+            const _wd = ['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
+            const _mo = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+            const _p = (tp.dateISO || '').split('-').map(Number);
+            if (_p.length === 3) {
+              const _d = new Date(_p[0], _p[1]-1, _p[2]);
+              prompt += 'Сегодня: ' + _wd[_d.getDay()] + ', ' + _p[2] + ' ' + _mo[_p[1]-1] + ' ' + _p[0] + '.\n';
+            }
+          } catch (_) {}
           if (devTz && tp.tz && devTz !== tp.tz && tp.tz !== 'device' && tp.tz !== 'device-fallback') {
             prompt += 'Внимание: часовой пояс устройства (' + devTz + ') НЕ совпадает с зоной пациента. Все упоминания времени пациентом считай по зоне пациента, не по устройству.\n';
           }
@@ -248,12 +258,22 @@ const Assistant = {
         if (gl.length > 0) {
           const sorted = gl.slice().sort((a, b) => b.time - a.time);
           const last10 = sorted.slice(0, 10).reverse();
+          const _todayISO = (typeof Time !== 'undefined' && Time.nowParts) ? Time.nowParts().dateISO : new Date().toISOString().slice(0,10);
+          const _isoOf = (g) => g.dateISO || (() => { const d = new Date(g.time); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); })();
+          const _relDay = (iso) => {
+            if (iso === _todayISO) return 'сегодня';
+            const a = new Date(_todayISO), b = new Date(iso);
+            const diff = Math.round((a - b) / 86400000);
+            if (diff === 1) return 'вчера';
+            if (diff === 2) return 'позавчера';
+            const p = iso.split('-'); return p[2] + '.' + p[1];
+          };
           const lines = last10.map(g => {
-            const d = new Date(g.time);
-            const day = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
-            const time = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+            const iso = _isoOf(g);
+            const mins = (g.localMinute != null) ? g.localMinute : (() => { const d = new Date(g.time); return d.getHours()*60 + d.getMinutes(); })();
+            const time = String(Math.floor(mins/60)).padStart(2,'0') + ':' + String(mins%60).padStart(2,'0');
             const typeMap = { fasting: 'натощак', postprandial: 'после еды', bedtime: 'перед сном', preprandial: 'до еды', random: '' };
-            return '  ' + day + ' ' + time + ' — ' + g.value.toFixed(1) + (typeMap[g.type] ? ' (' + typeMap[g.type] + ')' : '');
+            return '  ' + _relDay(iso) + ' ' + time + ' — ' + g.value.toFixed(1) + (typeMap[g.type] ? ' (' + typeMap[g.type] + ')' : '');
           }).join('\n');
           // Сводка
           const last7d = sorted.filter(g => Date.now() - g.time < 7*24*3600*1000);
