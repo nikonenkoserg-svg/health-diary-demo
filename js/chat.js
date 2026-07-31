@@ -955,14 +955,14 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
       for (const gl of glArr) {
         const g = this.buildGlucoseFromExtract(gl);
         if (!g) continue;
-        Storage.addGlucose(g);
+        if (!Storage.addGlucose(g)) continue; // дубль-призрак отброшен — без квитанции
         this.addGlucoseReceipt(g);
         saved++; lastEntry = g;
       }
       // Фолбэк: LLM не дал замеров, а кандидат есть → регэксп (первый замер).
       if (!saved) {
         const g = Engine.parseGlucose(text);
-        if (g) { Storage.addGlucose(g); this.addGlucoseReceipt(g); saved++; lastEntry = g; }
+        if (g && Storage.addGlucose(g)) { this.addGlucoseReceipt(g); saved++; lastEntry = g; }
       }
       // Уточнить время только у голого замера (нет времени И нет контекста).
       if (lastEntry && !lastEntry.timeCertain && (!lastEntry.type || lastEntry.type === 'random')) {

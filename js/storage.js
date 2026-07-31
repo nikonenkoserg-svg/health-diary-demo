@@ -41,8 +41,34 @@ const Storage = {
   getGlucoseLog() { return this.get(this.KEYS.glucose) || []; },
   addGlucose(entry) {
     const log = this.getGlucoseLog();
+    // Дедуп замеров-призраков (БАГ-2): пересланное сообщение или «я же написал 5,9»
+    // не должны заводить НОВЫЙ замер. Дубль = то же значение+тип+день в узком окне
+    // времени (<=20 мин). Разные реальные замеры (другой тип/далеко во времени) — целы.
+    if (this._isDuplicateGlucose(log, entry)) return false;
     log.push(entry);
     this.set(this.KEYS.glucose, log);
+    return true;
+  },
+  _isDuplicateGlucose(log, e) {
+    const WINDOW_MS = 20 * 60 * 1000;
+    const eType = e.type || 'random';
+    for (let i = log.length - 1; i >= 0; i--) {
+      const p = log[i];
+      if (p.value !== e.value) continue;
+      if ((p.type || 'random') !== eType) continue;
+      const sameDay = (p.dateISO && e.dateISO)
+        ? p.dateISO === e.dateISO
+        : Math.abs((p.time || 0) - (e.time || 0)) < 24 * 60 * 60 * 1000;
+      if (!sameDay) continue;
+      let close;
+      if (p.localMinute != null && e.localMinute != null && p.dateISO && p.dateISO === e.dateISO) {
+        close = Math.abs(p.localMinute - e.localMinute) <= 20;
+      } else {
+        close = Math.abs((p.time || 0) - (e.time || 0)) <= WINDOW_MS;
+      }
+      if (close) return true;
+    }
+    return false;
   },
   // Привязать точное время к ранее сохранённому замеру (пациент назвал его позже).
   // minute — минута суток в поясе пациента; dateISO — его локальная дата.
