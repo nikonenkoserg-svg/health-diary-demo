@@ -123,30 +123,52 @@ const App = {
       }
     });
     document.getElementById('btnExport').addEventListener('click', () => Storage.exportAll());
-    document.getElementById('btnCopyChat').addEventListener('click', () => {
+    const btnCopy = document.getElementById('btnCopyChat');
+    // Снимок выделения ДО того, как тап по кнопке его сбросит (iOS схлопывает
+    // выделение на touchstart). Читаем текущее состояние безусловно — так снимок
+    // отражает реальное намерение (в т.ч. пустое, если ничего не выделено).
+    let copySelSnapshot = '';
+    const snapSelection = () => {
+      copySelSnapshot = (window.getSelection && window.getSelection().toString() || '').trim();
+    };
+    btnCopy.addEventListener('pointerdown', snapSelection, { capture: true });
+    btnCopy.addEventListener('touchstart', snapSelection, { capture: true });
+    const flashCopied = () => {
+      btnCopy.textContent = '✅';
+      setTimeout(() => btnCopy.textContent = '📋', 1500);
+    };
+    const legacyCopy = (text) => {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch (_) {}
+      document.body.removeChild(ta);
+      flashCopied();
+    };
+    const putToClipboard = (text) => {
+      if (!text) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(flashCopied).catch(() => legacyCopy(text));
+      } else {
+        legacyCopy(text);
+      }
+    };
+    btnCopy.addEventListener('click', () => {
+      // Есть выделение (в т.ч. через несколько сообщений) → копируем РОВНО его,
+      // не полагаясь на системную плашку, которая на 2+ пузырях хватает весь чат.
+      const sel = copySelSnapshot || ((window.getSelection && window.getSelection().toString() || '').trim());
+      if (sel) { putToClipboard(sel); copySelSnapshot = ''; return; }
+      // Ничего не выделено → весь чат (позже здесь появится выбор дня).
       const chat = Storage.getChat();
-      const text = (chat.messages || []).map(m => {
-        const who = m.role === 'user' ? 'Я' : 'Ассистент';
-        return who + ': ' + m.content;
-      }).join('\n\n');
-      navigator.clipboard.writeText(text).then(() => {
-        const btn = document.getElementById('btnCopyChat');
-        btn.textContent = '✅';
-        setTimeout(() => btn.textContent = '📋', 1500);
-      }).catch(() => {
-        // Fallback for iOS
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-        const btn = document.getElementById('btnCopyChat');
-        btn.textContent = '✅';
-        setTimeout(() => btn.textContent = '📋', 1500);
-      });
+      const text = (chat.messages || [])
+        .filter(m => m.content && m.content !== '[график]')
+        .map(m => (m.role === 'user' ? 'Я' : 'Ассистент') + ': ' + m.content)
+        .join('\n\n');
+      putToClipboard(text);
+      copySelSnapshot = '';
     });
     document.getElementById('btnImport').addEventListener('click', () => {
       document.getElementById('fileImport').click();

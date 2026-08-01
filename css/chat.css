@@ -12,6 +12,10 @@
   line-height: 1.5; font-size: var(--font-size);
   animation: fadeIn 0.3s ease;
   word-wrap: break-word;
+  /* Явно разрешаем выделять текст пальцем (в т.ч. через несколько сообщений). */
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
 }
 .message.bot {
   background: var(--bot-bg);
