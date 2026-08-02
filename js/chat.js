@@ -973,9 +973,10 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
       // остаётся безвременной и на ось не встаёт.
       if (lastEntry && !lastEntry.timeCertain) {
         this.chatData.pendingGlucoseTime = { idx: Storage.getGlucoseLog().length - 1, dateISO: lastEntry.dateISO };
-        // ПЕРЕСПРАШИВАТЬ время ассистенту — только у голого замера (нет контекста).
-        // Типизированный (натощак/после еды) не донимаем, но время принять готовы.
-        this.chatData.pendingGlucoseAsk = (!lastEntry.type || lastEntry.type === 'random');
+        // ПЕРЕСПРАШИВАТЬ время — у ЛЮБОГО безвременного замера: точность = ядро,
+        // на ось точка встаёт только с точным временем (решение с Тренером 02.08,
+        // мягкий вариант: короткий разбор + запрос времени в одной реплике).
+        this.chatData.pendingGlucoseAsk = true;
       } else {
         this.chatData.pendingGlucoseTime = null;
         this.chatData.pendingGlucoseAsk = false;
