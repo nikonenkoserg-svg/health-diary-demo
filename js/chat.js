@@ -958,6 +958,23 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
       for (const gl of glArr) {
         const g = this.buildGlucoseFromExtract(gl);
         if (!g) continue;
+        // Мост «сейчас»: экстрактор (Haiku) НЕ считает «сейчас/только что» явным
+        // временем и отдаёт замер безвременным, хотя это текущий момент. Если в
+        // сообщении ОДИН замер и он без времени — доопределяем детерминированно
+        // через parseEventTime (ловит «сейчас», «в 8 утра» и пр.). Так чат и график
+        // говорят одно время. Несколько замеров не трогаем — там время у каждого своё.
+        if (glArr.length === 1 && !g.timeCertain && Engine.parseEventTime) {
+          const et = Engine.parseEventTime(text);
+          if (et && et.certain && et.minute >= 0 && et.minute < 1440) {
+            g.localMinute = et.minute;
+            g.timeCertain = true;
+            const [gy, gmo, gd] = g.dateISO.split('-').map(Number);
+            const gdt = new Date(gy, gmo - 1, gd);
+            gdt.setHours(Math.floor(et.minute / 60), et.minute % 60, 0, 0);
+            g.time = gdt.getTime();
+            if (!g.recalled) g.confidence = (g.type && g.type !== 'random') ? 'full' : 'partial';
+          }
+        }
         if (!Storage.addGlucose(g)) continue; // дубль-призрак отброшен — без квитанции
         this.addGlucoseReceipt(g);
         saved++; lastEntry = g;
