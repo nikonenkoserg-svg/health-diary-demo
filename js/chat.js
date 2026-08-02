@@ -701,6 +701,7 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
         }
         // В любом случае вопрос задан один раз — снимаем ожидание.
         this.chatData.pendingGlucoseTime = null;
+        this.chatData.pendingGlucoseAsk = false;
       }
 
       if (g) {
@@ -966,11 +967,18 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
         const g = Engine.parseGlucose(text);
         if (g && Storage.addGlucose(g)) { this.addGlucoseReceipt(g); saved++; lastEntry = g; }
       }
-      // Уточнить время только у голого замера (нет времени И нет контекста).
-      if (lastEntry && !lastEntry.timeCertain && (!lastEntry.type || lastEntry.type === 'random')) {
+      // Готовность ПРИВЯЗАТЬ время — у ЛЮБОГО замера без точного времени: пациент
+      // может назвать время позже («последний замер был в 02:47»), и оно должно
+      // привязаться независимо от типа (натощак/после еды), иначе точка навсегда
+      // остаётся безвременной и на ось не встаёт.
+      if (lastEntry && !lastEntry.timeCertain) {
         this.chatData.pendingGlucoseTime = { idx: Storage.getGlucoseLog().length - 1, dateISO: lastEntry.dateISO };
+        // ПЕРЕСПРАШИВАТЬ время ассистенту — только у голого замера (нет контекста).
+        // Типизированный (натощак/после еды) не донимаем, но время принять готовы.
+        this.chatData.pendingGlucoseAsk = (!lastEntry.type || lastEntry.type === 'random');
       } else {
         this.chatData.pendingGlucoseTime = null;
+        this.chatData.pendingGlucoseAsk = false;
       }
       if (saved) chartData = Engine.getDayData(Storage.getProfile() || {});
     }
@@ -1021,7 +1029,7 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
         leverHint,
         unspecifiedFoods,
         recapEvents,
-        !!this.chatData.pendingGlucoseTime,
+        !!this.chatData.pendingGlucoseAsk,
         chartState,
         portraitBlock
       );
