@@ -638,3 +638,41 @@
   padding-top: 4px;
   padding-bottom: 4px;
 }
+
+/* ===== Окно «Скопировать день» ===== */
+.copyday-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(20,28,36,0.45);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.copyday-card {
+  width: 100%; max-width: 340px;
+  background: #fff; border-radius: 20px;
+  padding: 22px 20px 16px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+  display: flex; flex-direction: column; gap: 12px;
+}
+.copyday-title { font-size: 1.15rem; font-weight: 700; text-align: center; color: #2a3742; }
+.copyday-label { font-size: 0.82rem; color: #8a97a2; }
+.copyday-row { display: flex; gap: 10px; }
+.copyday-input {
+  flex: 1; padding: 14px 14px; font-size: 1.15rem; letter-spacing: 1px;
+  border: 2px solid #c7d0d8; border-radius: 12px; background: #f2f4f6; color: #2a3742;
+}
+.copyday-input:focus { outline: none; border-color: var(--accent, #e56b3d); background: #fff; }
+.copyday-take {
+  padding: 0 18px; font-size: 1rem; font-weight: 700; color: #fff;
+  background: var(--accent, #e56b3d); border: none; border-radius: 12px; cursor: pointer;
+}
+.copyday-info { min-height: 20px; font-size: 0.9rem; padding: 2px 2px; }
+.copyday-info.ok { color: #2f7d4f; }
+.copyday-info.empty { color: #9aa6b0; }
+.copyday-all {
+  margin-top: 4px; padding: 14px; font-size: 1rem; color: #5a6874;
+  background: #fff; border: 2px solid #b7c2cb; border-radius: 12px; cursor: pointer;
+}
+.copyday-close {
+  padding: 8px; font-size: 0.95rem; color: #9aa6b0;
+  background: none; border: none; cursor: pointer;
+}
