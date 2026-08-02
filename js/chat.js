@@ -478,6 +478,20 @@ const Chat = {
   },
 
   // Сохранить данные графика для восстановления
+  // Ответ ли это на «во сколько был замер?» (а не новый замер). Нужен, чтобы
+  // «Время замера 12.10» / «12:10» привязались как ВРЕМЯ, а не создали фантом 12,1.
+  _isTimeAnswer(text) {
+    const t = (text || '').toLowerCase();
+    // Явный сигнал НОВОГО замера — это не ответ про время.
+    if (/сахар|глюкоз|ммоль|мг\s*\/\s*дл/.test(t)) return false;
+    // Явное указание времени словом.
+    if (/врем|во\s*сколько|часов|утра|вечера|\bдня\b|ночи|полдень|полноч/.test(t)) return true;
+    // Голый ответ временем: «12:10», «12.10», «в 12.10», «в 12».
+    if (/^\s*(в\s+)?\d{1,2}[:.]\d{2}\s*$/.test(t)) return true;
+    if (/^\s*в\s+\d{1,2}\s*$/.test(t)) return true;
+    return false;
+  },
+
   saveChartData(chartData) {
     this.chatData.messages.push({
       role: 'assistant',
@@ -686,25 +700,35 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
     // "глюкоза 6,2 натощак") и не содержит глагола приёма пищи. В этом случае
     // food extractor пропускается — иначе слово "сахар" попадает в график еды.
     let pureGlucose = false;
+    // bindOnly=true → сообщение это ОТВЕТ ПРО ВРЕМЯ к висящему замеру, а не новый
+    // замер. Тогда ниже блок создания замеров пропускаем — иначе «12.10» уйдёт
+    // фантомным замером 12,1.
+    let bindOnly = false;
     if (typeof Engine !== 'undefined' && Engine.parseGlucose) {
       const g = Engine.parseGlucose(text);
 
       // Одноразовая привязка времени: если прошлый замер остался без времени и
-      // это сообщение — ответ про время (без нового значения) — привяжем и закроем.
+      // это сообщение — ответ про время — привяжем и закроем.
       const pending = this.chatData.pendingGlucoseTime;
       if (pending && Engine.parseEventTime) {
-        if (!g) {
-          const et = Engine.parseEventTime(text);
-          if (et && et.certain && et.minute >= 0 && et.minute < 1440) {
-            Storage.setGlucoseTime(pending.idx, et.minute, pending.dateISO);
-          }
+        const et = Engine.parseEventTime(text);
+        const certain = et && et.certain && et.minute >= 0 && et.minute < 1440;
+        // «Время замера 12.10» / голое «12:10» = ВРЕМЯ существующего замера, даже
+        // если parseGlucose жадно принял «12.10» за 12,1 (слово «замер» включает
+        // сахарный префикс). Привязываем время, НЕ создаём фантомный замер.
+        if (certain && this._isTimeAnswer(text)) {
+          Storage.setGlucoseTime(pending.idx, et.minute, pending.dateISO);
+          bindOnly = true;
+        } else if (certain && !g) {
+          // Время названо без нового значения — обычная привязка.
+          Storage.setGlucoseTime(pending.idx, et.minute, pending.dateISO);
         }
-        // В любом случае вопрос задан один раз — снимаем ожидание.
+        // Вопрос задан один раз — снимаем ожидание.
         this.chatData.pendingGlucoseTime = null;
         this.chatData.pendingGlucoseAsk = false;
       }
 
-      if (g) {
+      if (g && !bindOnly) {
         // Сохранение замера — ниже, через структурный LLM-разбор (несколько замеров
         // за сообщение + верная привязка времени). Здесь лишь помечаем: речь про замер.
         const t = text.toLowerCase();
@@ -949,7 +973,7 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
     // Несколько замеров в одном сообщении + верная привязка времени к каждому.
     // Переиспользуем extracted (если еда уже вызвала экстрактор), иначе зовём сами.
     if ((this.chatData.state === 'active' || this.chatData.state === 'bridge') &&
-        this.hasGlucoseNumber(text)) {
+        this.hasGlucoseNumber(text) && !bindOnly) {
       if (!extracted) {
         try { extracted = await this.extractDayEvents(text); } catch (_) { extracted = null; }
       }
