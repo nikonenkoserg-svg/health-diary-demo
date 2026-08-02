@@ -131,6 +131,29 @@ const PatientModel = {
   // Стабильные оси (мотив/ритм/интенсивность) пишем один раз; тон/цифры — обновляем.
   observe(text) {
     if (typeof ProfileStore === 'undefined') return;
+    // ЗАКРЫТИЕ ПРОБЕЛА НИТИ: если на прошлом ходу открыли тему (li_origin и т.п.),
+    // ответ пациента ПИШЕМ в этот ключ — иначе пробел вечно пуст и вопрос всплывает
+    // снова («анкетная амнезия»). Событие здоровья/еды между вопросом и ответом
+    // не трогаем — ждём настоящий ответ.
+    try {
+      const asked = ProfileStore.get('portrait', '_askedThread');
+      if (asked) {
+        const t = (text || '').trim();
+        const isEvent = this.moment(text) === 'health'
+          || /съел|съела|поел|поела|выпил|выпила|перекус|завтрак|обед|ужин|замер|сахар|ммоль|глюкоз/i.test(t);
+        if (!isEvent && !ProfileStore.get('portrait', asked)) {
+          const complaint = /уже\s+спраш|не помн|я\s+(же\s+)?ответил|говорил уже|повтор/i.test(t);
+          const wc = t.split(/\s+/).filter(Boolean).length;
+          if (complaint) {
+            ProfileStore.set('portrait', asked, 'рассказано ранее', 'answered', 'stated');
+            ProfileStore.set('portrait', '_askedThread', '', 'thread', 'meta');
+          } else if (wc >= 3) {
+            ProfileStore.set('portrait', asked, (t.length > 200 ? t.slice(0, 200) : t), 'answered', 'stated');
+            ProfileStore.set('portrait', '_askedThread', '', 'thread', 'meta');
+          }
+        }
+      }
+    } catch (_) {}
     const { portrait } = this.passiveRead(text);
     Object.entries(portrait).forEach(([k, v]) => {
       if (v == null || v === '') return;
@@ -236,6 +259,11 @@ const PatientModel = {
     const snap = this.snapshot(merged);
     const gap = this.pickGap(snap, merged, merged);
     const timing = this.timingFor(text, gap);
+    // Открываем тему нити → запоминаем ключ, чтобы ответ пациента закрыл пробел.
+    if (typeof ProfileStore !== 'undefined' && gap && gap.key && gap.fromThread
+        && (timing === 'now-hook' || timing === 'now-calm')) {
+      try { ProfileStore.set('portrait', '_askedThread', gap.key, 'thread', 'meta'); } catch (_) {}
+    }
     return this.buildInjection(merged, gap, timing);
   }
 };
