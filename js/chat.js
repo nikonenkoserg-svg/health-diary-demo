@@ -209,7 +209,7 @@ const Chat = {
     const typing = document.getElementById('typing');
     if (typing) chat.insertBefore(div, typing); else chat.appendChild(div);
     this.scrollToBottom();
-    this.chatData.messages.push({ role: 'assistant', content: text, receipt: true });
+    this.chatData.messages.push({ role: 'assistant', content: text, receipt: true, ts: Date.now() });
     Storage.saveChat(this.chatData);
   },
 
@@ -391,7 +391,7 @@ const Chat = {
       console.error('[chat] _streamReply empty: parseError=' + parseError + ', acc.length=' + acc.length + ', buffer.length=' + buffer.length);
       return null;
     }
-    this.chatData.messages.push({ role: 'assistant', content: acc });
+    this.chatData.messages.push({ role: 'assistant', content: acc, ts: Date.now() });
     Storage.saveChat(this.chatData);
     return acc;
   },
@@ -424,7 +424,8 @@ const Chat = {
 
     this.chatData.messages.push({
       role: role === 'user' ? 'user' : 'assistant',
-      content: text
+      content: text,
+      ts: Date.now()
     });
     Storage.saveChat(this.chatData);
   },
@@ -481,7 +482,8 @@ const Chat = {
     this.chatData.messages.push({
       role: 'assistant',
       content: '[график]',
-      chartData: chartData
+      chartData: chartData,
+      ts: Date.now()
     });
     Storage.saveChat(this.chatData);
   },
@@ -668,7 +670,7 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
     this.isSending = true;
 
     this.addMessageToDOM('user', text);
-    this.chatData.messages.push({ role: 'user', content: text });
+    this.chatData.messages.push({ role: 'user', content: text, ts: Date.now() });
     this.chatData.userMsgCount++;
     // Счётчик для триггера обновления долгосрочной памяти
     try {
