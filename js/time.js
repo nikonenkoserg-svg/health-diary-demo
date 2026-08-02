@@ -20,6 +20,28 @@ const Time = {
     const profile = Storage.getProfile() || {};
     if (tz) profile.tzOverride = tz; else delete profile.tzOverride;
     Storage.saveProfile(profile);
+    // Пояс подтверждён/сменился → пересчитать день и минуту замеров из их
+    // абсолютного времени в НОВОМ поясе-якоре. Это «пересчёт один раз» из
+    // договорённости: замер держит свой день записи, прошлые дни не сиротеют,
+    // а не подтверждённый ранее пояс (черновик устройства) исправляется.
+    this._realignEntries();
+  },
+
+  // Пересчёт dateISO/localMinute всех замеров под текущий пояс-якорь.
+  // Нарративные (recalled: «вчера/N дней назад») не трогаем — их день назван явно.
+  _realignEntries() {
+    if (typeof Storage === 'undefined' || !Storage.getGlucoseLog) return;
+    const log = Storage.getGlucoseLog() || [];
+    let changed = false;
+    for (const e of log) {
+      if (!e || !e.time || e.recalled) continue;
+      const parts = this.partsForTs(e.time);
+      if (e.dateISO !== parts.dateISO) { e.dateISO = parts.dateISO; changed = true; }
+      if (e.timeCertain && e.localMinute != null && e.localMinute !== parts.minuteOfDay) {
+        e.localMinute = parts.minuteOfDay; changed = true;
+      }
+    }
+    if (changed) Storage.set(Storage.KEYS.glucose, log);
   },
 
   // Описание текущего пояса для UI

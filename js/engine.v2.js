@@ -1231,11 +1231,13 @@ const Engine = {
         // Легаси-замеры (сохранены до правки, без новых полей) — по-старому:
         // минута из абсолютного ts, считаем время известным.
         const legacy = (g.localMinute === undefined && g.timeCertain === undefined && g.dateISO === undefined);
-        // Принадлежность дню: стабильная метка dateISO ИЛИ (устойчиво к смене пояса)
-        // абсолютное время замера, прочитанное в текущем поясе-якоре. OR только ДОБАВЛЯет
-        // замеры обратно — смена региона больше не сиротит точку у полуночи.
-        const isTodayEntry = (g.dateISO && g.dateISO === todayISO) || _isToday(g.time);
-        if (!isTodayEntry) continue;
+        // День замера — СТРОГО его стабильная метка dateISO (для легаси без метки —
+        // из абсолютного времени в текущем поясе-якоре). Замер с dateISO ДРУГОГО дня
+        // на сегодняшнюю ось НЕ попадает — устраняет наложение вчерашних точек на
+        // сегодня. Против сироты при смене пояса работает пересчёт dateISO в Time.setTz
+        // (замер держит день записи в подтверждённом поясе, не по абсолютному времени).
+        const entryDayISO = g.dateISO || _localDateISO(g.time);
+        if (entryDayISO !== todayISO) continue;
         if (legacy) {
           measurements.push({ minute: _toMinute(g.time), value: g.value, type: g.type || 'random', confidence: g.confidence || 'full' });
         } else if (g.timeCertain && g.localMinute != null) {
