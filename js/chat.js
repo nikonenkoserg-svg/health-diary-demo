@@ -310,6 +310,7 @@ const Chat = {
     const chat = document.getElementById('chat');
     const div = document.createElement('div');
     div.className = 'message bot';
+    this._lastStreamDiv = div;
     let added = false;
     let buffer = '';
     let acc = '';            // полный полученный текст
@@ -391,8 +392,8 @@ const Chat = {
       console.error('[chat] _streamReply empty: parseError=' + parseError + ', acc.length=' + acc.length + ', buffer.length=' + buffer.length);
       return null;
     }
-    this.chatData.messages.push({ role: 'assistant', content: acc, ts: Date.now() });
-    Storage.saveChat(this.chatData);
+    // Пузырь и сохранение финализирует вызывающий ПОСЛЕ фильтра (filterResponse),
+    // иначе на экран и в историю уходит сырой markdown. Здесь — только сырой текст.
     return acc;
   },
 
@@ -1150,6 +1151,12 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
         if (raw) {
           const longCtx3 = isLongAnswerContext(text, this.chatData);
           const reply = Assistant.filterResponse(raw, text, longCtx3);
+          // Финализируем пузырь и историю ОЧИЩЕННЫМ текстом: стрим показывал сырой
+          // markdown, а раньше и в историю уходил сырой acc, фильтр работал вхолостую.
+          const finalText = (reply && reply.trim()) ? reply : raw;
+          if (this._lastStreamDiv) this._lastStreamDiv.textContent = finalText;
+          this.chatData.messages.push({ role: 'assistant', content: finalText, ts: Date.now() });
+          Storage.saveChat(this.chatData);
           if (reply.includes('?')) this.chatData.questionCount++;
           else this.chatData.questionCount = 0;
 

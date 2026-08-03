@@ -386,6 +386,7 @@ const Assistant = {
 
     r = r.replace(/\*\*(.+?)\*\*/g, '$1');
     r = r.replace(/__(.+?)__/g, '$1');
+    r = r.replace(/\s*-{3,}\s*/g, ' ');   // markdown-разделители «---» / «--»→пробел
     r = r.replace(/\*(.+?)\*/g, '$1');
     r = r.replace(/_(.+?)_/g, '$1');
     r = r.replace(/```[\s\S]*?```/g, '');
