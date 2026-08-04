@@ -380,7 +380,7 @@ const PatientModel = {
   },
 
   // ── ИНЪЕКЦИЯ: портрет + (по времени) либо «не лезь», либо опенер (разговорить, не вопрос).
-  buildInjection(profile, gap, timing, eng, state) {
+  buildInjection(profile, gap, timing, eng, state, live, stressDoor) {
     const p = profile || {};
     const known = this.KNOWLEDGE_MAP
       .filter(f => p[f.key] != null && p[f.key] !== '')
@@ -399,6 +399,7 @@ const PatientModel = {
     if (eng && eng.level === 'сухой') out += 'Расположенность к диалогу: СУХАЯ (на отъебись). Не рыбачь, не заводи темы, не дави вопросами — коротко, по делу, держись фактов.\n';
     else if (eng && eng.level === 'охотный') out += 'Расположенность к диалогу: ОХОТНАЯ (делится, с пониманием). Момент ценен — можно чуть глубже: живой комментарий, оставь дверь, чтобы рассказал сам.\n';
     else if (eng && eng.level === 'нейтральный') out += 'Расположенность к диалогу: нейтральная. Тему тронь по случаю, лёгким комментарием, без нажима.\n';
+    if (live) out += '[ЖИВАЯ ТЕМА]: ' + live.label + ' — на это пациент откликается охотнее всего, его дверь. Через неё можно аккуратно разговорить в любую сторону; не в лоб, по случаю.\n';
     if (!gap || timing === 'none') return out;
     if (eng && eng.level === 'сухой') {
       out += '[НЕ ВРЕМЯ ДЛЯ ТЕМ]: расположенность сухая — портрет-пробел не поднимай, ответь по существу и не тяни разговор.';
@@ -412,6 +413,7 @@ const PatientModel = {
     out += timing === 'now-hook'
       ? 'Зацепись за то, что он только что сказал: дай живой короткий комментарий и оставь дверь, чтобы рассказал сам.'
       : 'Момент спокойный: подведи к теме мягко, комментарием, не допросом. По одному, по случаю.';
+    if (stressDoor) out += ' [СТРЕСС-ДВЕРЬ]: живой темы пока нет — стресс всегда уместный мягкий вход (как спишь, что выматывает в последнее время), но как ФИЗИОЛОГИЮ (влияет на сахар), не «что на душе». Изредка, не дави.';
     return out;
   },
 
@@ -432,7 +434,20 @@ const PatientModel = {
       try { ProfileStore.set('portrait', '_askedThread', gap.key, 'thread', 'meta'); } catch (_) {}
     }
     const state = this.readState(text);
-    return this.buildInjection(merged, gap, timing, eng, state);
+    const live = this.liveTopic();
+    // СТРЕСС-ДВЕРЬ (fallback): нет живой темы, не сухой, не в стрессе прямо сейчас.
+    // Троттл: не чаще чем раз в ~8 разговорных реплик (часы = длина истории вовлечённости).
+    let stressDoor = false;
+    if (!dry && !live && !state.acuteStress && (timing === 'now-hook' || timing === 'now-calm')) {
+      try {
+        const clock = (ProfileStore.getHistory ? (ProfileStore.getHistory('portrait', 'engagement') || []).length : 0);
+        const raw = ProfileStore.get ? ProfileStore.get('portrait', '_stressDoorAt') : null;
+        const lastN = raw == null ? NaN : Number(raw);
+        const last = Number.isNaN(lastN) ? -999 : lastN;
+        if (clock - last >= 8) { stressDoor = true; ProfileStore.set('portrait', '_stressDoorAt', String(clock), 'thread', 'meta'); }
+      } catch (_) {}
+    }
+    return this.buildInjection(merged, gap, timing, eng, state, live, stressDoor);
   }
 };
 
