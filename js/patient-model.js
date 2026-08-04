@@ -127,10 +127,76 @@ const PatientModel = {
     return { signals, portrait };
   },
 
+  // ── ДАТЧИК ВОВЛЕЧЁННОСТИ: расположенность к диалогу из ФОРМЫ реплики.
+  // Детерминированный балл: охотно (делится) / нейтрально / сухо (на отъебись).
+  // Кормит гейт: на «сухом» ассистент не рыбачит темами. Твердеет за 3-4 реплики.
+
+  // Чистый замер/лог еды — не «сухость», это данные. Такие реплики не оцениваем.
+  _isDataDrop(text) {
+    const t = (text || '').trim();
+    if (!t) return true;
+    if (t.includes('?')) return false;
+    const wc = t.split(/\s+/).filter(Boolean).length;
+    const hasNum = /\d/.test(t);
+    if (wc <= 4 && hasNum) return true;
+    const foodOnly = /^(съел|съела|поел|поела|выпил|выпила|перекус|завтрак|обед|ужин)[\s,]/i.test(t);
+    if (foodOnly && wc <= 6) return true;
+    return false;
+  },
+
+  // Балл одной реплики [-2..+2]. skip=true — не разговорная (замер/лог), не считаем.
+  readEngagement(text) {
+    const t = (text || '').trim();
+    if (this._isDataDrop(text)) return { skip: true, score: 0, read: null };
+    const wc = t.split(/\s+/).filter(Boolean).length;
+    const hasQ = t.includes('?');
+    const exclam = /!/.test(t);
+    const emotion = /бо(юсь|ялся)|страшно|тревог|устал|надоел|не могу|помоги|переживаю|зл(юсь|ит)|тяжело|рад|нрав|хочу|интересно|важно/i.test(t);
+    // местоимения — через границы пробелов: JS \b не срабатывает на кириллице
+    const shares = /(^|[\s,.:;(])(я|мне|меня|мной|мой|моя|мои|мы|нам)([\s,.:;!?)]|$)/i.test(t)
+      || /работ|семь|жен(а|ы|е|у)|муж|дет(и|ей|ьми)|друз|отпуск|привыч|люблю|обычно|дома/i.test(t);
+    const dismiss = /^(норм|нормально|пофиг|похер|похрен|не знаю|хз|ну да|да|нет|ок|окей|угу|ага|ладно|неважно|не важно|всё равно|все равно|как обычно|отстань|отвали|потом|не сейчас|нет времени)[\s.!]*$/i.test(t);
+    // Отмашка доминирует: бонусы не начисляем (иначе «как обычно» ловит маркер близости).
+    if (dismiss) return { skip: false, score: -2, read: 'сухой', signals: { wc, hasQ, emotion, shares, dismiss, exclam } };
+    let s = 0;
+    if (wc <= 3 && !hasQ) s -= 1;
+    if (wc >= 12) s += 1;
+    if (wc >= 30) s += 1;
+    if (hasQ && wc >= 3) s += 1;
+    if (emotion) s += 1;
+    if (shares) s += 1;
+    if (exclam) s += 1;
+    if (s > 2) s = 2; if (s < -2) s = -2;
+    const read = s <= -1 ? 'сухой' : (s >= 1 ? 'охотный' : 'нейтральный');
+    return { skip: false, score: s, read, signals: { wc, hasQ, emotion, shares, dismiss, exclam } };
+  },
+
+  // Пишем балл разговорной реплики в историю portrait.engagement.
+  observeEngagement(text) {
+    if (typeof ProfileStore === 'undefined') return;
+    const r = this.readEngagement(text);
+    if (r.skip) return;
+    try { ProfileStore.set('portrait', 'engagement', String(r.score), 'passive_read', 'inferred'); } catch (_) {}
+  },
+
+  // Стабильная расположенность: среднее последних оценок. Нужно ≥2, твердеет к 3-4.
+  stableEngagement() {
+    if (typeof ProfileStore === 'undefined' || !ProfileStore.getHistory) return null;
+    const hist = (ProfileStore.getHistory('portrait', 'engagement') || []).slice(-6);
+    if (hist.length < 2) return null;
+    let sum = 0, n = 0;
+    for (const e of hist) { const v = e && Number(e.value); if (!Number.isNaN(v)) { sum += v; n++; } }
+    if (!n) return null;
+    const avg = sum / n;
+    const level = avg <= -0.6 ? 'сухой' : (avg >= 0.7 ? 'охотный' : 'нейтральный');
+    return { level, avg: Math.round(avg * 100) / 100, n };
+  },
+
   // ── НАБЛЮДЕНИЕ: пассивно вычитанные оси кладём в слой portrait.
   // Стабильные оси (мотив/ритм/интенсивность) пишем один раз; тон/цифры — обновляем.
   observe(text) {
     if (typeof ProfileStore === 'undefined') return;
+    this.observeEngagement(text);
     // ЗАКРЫТИЕ ПРОБЕЛА НИТИ: если на прошлом ходу открыли тему (li_origin и т.п.),
     // ответ пациента ПИШЕМ в этот ключ — иначе пробел вечно пуст и вопрос всплывает
     // снова («анкетная амнезия»). Событие здоровья/еды между вопросом и ответом
@@ -227,7 +293,7 @@ const PatientModel = {
   },
 
   // ── ИНЪЕКЦИЯ: портрет + (по времени) либо «не лезь», либо опенер (разговорить, не вопрос).
-  buildInjection(profile, gap, timing) {
+  buildInjection(profile, gap, timing, eng) {
     const p = profile || {};
     const known = this.KNOWLEDGE_MAP
       .filter(f => p[f.key] != null && p[f.key] !== '')
@@ -239,7 +305,14 @@ const PatientModel = {
          + 'Норма — база ЭТОГО человека, не общая таблица. Тон подстрой под портрет.\n';
     if (known.length) out += 'Что перечислено как известное — НЕ переспрашивай, опирайся на это.\n';
     out += 'Черты характера здесь — ГИПОТЕЗЫ из наблюдения, не факты. Не заявляй их пациенту как приговор («ты такой-то»); держи как фон. Не уверен или пациент возразил — не настаивай, признай ошибку.\n';
+    if (eng && eng.level === 'сухой') out += 'Расположенность к диалогу: СУХАЯ (на отъебись). Не рыбачь, не заводи темы, не дави вопросами — коротко, по делу, держись фактов.\n';
+    else if (eng && eng.level === 'охотный') out += 'Расположенность к диалогу: ОХОТНАЯ (делится, с пониманием). Момент ценен — можно чуть глубже: живой комментарий, оставь дверь, чтобы рассказал сам.\n';
+    else if (eng && eng.level === 'нейтральный') out += 'Расположенность к диалогу: нейтральная. Тему тронь по случаю, лёгким комментарием, без нажима.\n';
     if (!gap || timing === 'none') return out;
+    if (eng && eng.level === 'сухой') {
+      out += '[НЕ ВРЕМЯ ДЛЯ ТЕМ]: расположенность сухая — портрет-пробел не поднимай, ответь по существу и не тяни разговор.';
+      return out;
+    }
     if (timing === 'hold') {
       out += '[НЕ ВРЕМЯ ДЛЯ ТЕМ]: человек принёс замер/самочувствие — займись этим, портрет-пробел не поднимай.';
       return out;
@@ -259,12 +332,15 @@ const PatientModel = {
     const snap = this.snapshot(merged);
     const gap = this.pickGap(snap, merged, merged);
     const timing = this.timingFor(text, gap);
+    const eng = this.stableEngagement();
+    const dry = !!(eng && eng.level === 'сухой');
     // Открываем тему нити → запоминаем ключ, чтобы ответ пациента закрыл пробел.
-    if (typeof ProfileStore !== 'undefined' && gap && gap.key && gap.fromThread
+    // На сухой расположенности тему не открываем — ключ не ставим.
+    if (typeof ProfileStore !== 'undefined' && gap && gap.key && gap.fromThread && !dry
         && (timing === 'now-hook' || timing === 'now-calm')) {
       try { ProfileStore.set('portrait', '_askedThread', gap.key, 'thread', 'meta'); } catch (_) {}
     }
-    return this.buildInjection(merged, gap, timing);
+    return this.buildInjection(merged, gap, timing, eng);
   }
 };
 
