@@ -1319,6 +1319,7 @@ const Engine = {
     }
 
     return {
+      dateISO: todayISO,
       measurements,
       untimed,
       foodEvents,

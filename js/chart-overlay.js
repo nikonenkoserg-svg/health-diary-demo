@@ -10,7 +10,7 @@ const ChartOverlay = {
     const keyNumbers = document.getElementById('chart-key-numbers');
     const leverCard = document.getElementById('chart-lever-card');
 
-    if (phaseLabel) phaseLabel.textContent = 'КАРТИНА ДНЯ';
+    if (phaseLabel) phaseLabel.textContent = 'КАРТИНА ДНЯ' + this._dateSuffix(dayData);
 
     if (headline) headline.textContent = 'С прибором. Реальные замеры.';
 
@@ -41,6 +41,19 @@ const ChartOverlay = {
 
     const panel = document.getElementById('chart-panel');
     if (panel) panel.classList.remove('phase-3');
+  }
+,
+
+  _MONTHS: ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'],
+  // Дата — из dayData.dateISO (тот же todayISO, что фильтрует точки). Парсим строку,
+  // не new Date, чтобы пояс устройства не сдвинул день. Нет метки → пустая подпись.
+  _dateSuffix(dayData) {
+    const iso = dayData && dayData.dateISO;
+    if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return '';
+    const mo = parseInt(iso.slice(5, 7), 10) - 1;
+    const day = parseInt(iso.slice(8, 10), 10);
+    if (mo < 0 || mo > 11 || !day) return '';
+    return ' · ' + day + ' ' + this._MONTHS[mo];
   }
 };
 
