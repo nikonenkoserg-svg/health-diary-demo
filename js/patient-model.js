@@ -292,6 +292,15 @@ const PatientModel = {
     return this.hasHook(text) ? 'now-hook' : 'now-calm';
   },
 
+  // ── СЛОЙ 2: СОСТОЯНИЕ НА СЕЙЧАС. Читаем в реплике, учитываем при чтении цифр,
+  // НЕ пишем в постоянный портрет как черту. Прочитал → учёл → отпустил.
+  readState(text) {
+    const t = (text || '').trim();
+    const acuteStress = /стресс|нерв|аврал|дедлайн|ссор|сканда|переж(иваю|ивал)|паник|не сплю|бессонниц|горю|горит|завал|замота|вымота|на нервах|напряг|тревож|сорвал/i.test(t);
+    const busy = /аврал|дедлайн|некогда|замота|весь день|беготн|на ногах|запар|разрыва/i.test(t);
+    return { acuteStress, busy };
+  },
+
   // ── РАМКА ТОНА (узел характера №1): возраст задаёт энергию/темп/формальность,
   // пол сужает риск нелепого вопроса про тело. Детерминированно, из фактов анкеты.
   toneFrame(profile) {
@@ -314,7 +323,7 @@ const PatientModel = {
   },
 
   // ── ИНЪЕКЦИЯ: портрет + (по времени) либо «не лезь», либо опенер (разговорить, не вопрос).
-  buildInjection(profile, gap, timing, eng) {
+  buildInjection(profile, gap, timing, eng, state) {
     const p = profile || {};
     const known = this.KNOWLEDGE_MAP
       .filter(f => p[f.key] != null && p[f.key] !== '')
@@ -324,6 +333,8 @@ const PatientModel = {
                         : 'Пока почти ничего не известно.\n';
     const tf = this.toneFrame(p);
     if (tf) out += tf + '\n';
+    if (state && state.acuteStress) out += '[СОСТОЯНИЕ СЕЙЧАС]: в реплике острый стресс — учти при чтении сахара (кортизол его поднимает), поддержи по-человечески. Это МОМЕНТ, не черта — в характер не записывай.\n';
+    else if (state && state.busy) out += '[СОСТОЯНИЕ СЕЙЧАС]: день плотный/рваный — читай цифры с этой поправкой, не как черту характера.\n';
     out += 'Читай каждое событие ЧЕРЕЗ портрет: одна цифра/сон/еда значат разное у разных людей. '
          + 'Норма — база ЭТОГО человека, не общая таблица. Тон подстрой под портрет.\n';
     if (known.length) out += 'Что перечислено как известное — НЕ переспрашивай, опирайся на это.\n';
@@ -363,7 +374,8 @@ const PatientModel = {
         && (timing === 'now-hook' || timing === 'now-calm')) {
       try { ProfileStore.set('portrait', '_askedThread', gap.key, 'thread', 'meta'); } catch (_) {}
     }
-    return this.buildInjection(merged, gap, timing, eng);
+    const state = this.readState(text);
+    return this.buildInjection(merged, gap, timing, eng, state);
   }
 };
 
