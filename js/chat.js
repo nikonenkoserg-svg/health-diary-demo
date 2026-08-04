@@ -99,27 +99,22 @@ const Chat = {
 
   async _openRegistration() {
     if (typeof Auth === 'undefined') return;
-    if (this._registrationInProgress) return;
-    this._registrationInProgress = true;
+    // Дедуп открытия модалки делает сам Auth (guard по #auth-overlay). Прежний флаг
+    // _registrationInProgress ставился в true, а сбрасывался ТОЛЬКО в success-колбэке;
+    // при «Отмене» колбэк не звался → флаг залипал true → кнопка умирала до перезагрузки.
     Auth.openRegistration(async (email) => {
-      try {
-        const el = document.getElementById('register-cta');
-        if (el) el.remove();
-        // Вернувшийся пользователь (тот же email) — тянем бэкап с сервера. Если он есть,
-        // Sync.pull() восстановит данные и перезагрузит страницу (сюда не вернёмся).
-        try { if (typeof Sync !== 'undefined' && await Sync.pull(true)) { return; } } catch (_) {}
-        this.chatData.state = 'registered';
-        Storage.saveChat(this.chatData);
-        await this.typeMessage(Onboarding.REGISTERED_INTRO, 'bot');
-        // Анкета теперь собирается в свободной форме: ждём ответ пациента в чат.
-        // Парсер /api/extract раскладывает реплику по полям ProfileStore.
-        // Старый путь через ProfileOverlay.openRequired остаётся только как
-        // редактор анкеты из меню профиля.
-        this.chatData.state = 'awaiting_anketa';
-        Storage.saveChat(this.chatData);
-      } finally {
-        this._registrationInProgress = false;
-      }
+      const el = document.getElementById('register-cta');
+      if (el) el.remove();
+      // Вернувшийся пользователь (тот же email) — тянем бэкап с сервера. Если он есть,
+      // Sync.pull() восстановит данные и перезагрузит страницу (сюда не вернёмся).
+      try { if (typeof Sync !== 'undefined' && await Sync.pull(true)) { return; } } catch (_) {}
+      this.chatData.state = 'registered';
+      Storage.saveChat(this.chatData);
+      await this.typeMessage(Onboarding.REGISTERED_INTRO, 'bot');
+      // Анкета собирается в свободной форме: ждём ответ пациента в чат.
+      // Парсер /api/extract раскладывает реплику по полям ProfileStore.
+      this.chatData.state = 'awaiting_anketa';
+      Storage.saveChat(this.chatData);
     });
   },
 
