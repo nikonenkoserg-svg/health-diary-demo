@@ -179,6 +179,62 @@ const PatientModel = {
     try { ProfileStore.set('portrait', 'engagement', String(r.score), 'passive_read', 'inferred'); } catch (_) {}
   },
 
+  // ── ЖИВАЯ ТЕМА (узел №3): на ЧЁМ пациент загорается. Копим тему→балл в постоянную
+  // память. Тема с устойчиво высоким баллом = «дверь», через неё можно разговорить.
+  TOPICS: [
+    { key: 'family', label: 'семья и близкие',
+      stems: ['семь','жена','жены','жене','жену','муж','дети','детей','детьми','детям','ребён','ребен','мама','мам','папа','пап','бабуш','дедуш','внук','дочь','доч','сын','родител','брат','сестр'] },
+    { key: 'hobby', label: 'хобби / увлечение',
+      stems: ['хобби','рыбалк','рыбач','охот','музык','гитар','книг','читаю','читать','огород','дача','дач','рукодел','рисую','рисова','фото','коллекц','мастер','вяза','вышив'] },
+    { key: 'sport', label: 'спорт / движение',
+      stems: ['спорт','трениров','бег','бега','плаван','плава','велосип','йог','турник','штанг','фитнес','футбол','лыж','поход','качалк','зарядк'] },
+    { key: 'travel', label: 'поездки / места',
+      stems: ['путешеств','поездк','поехал','отпуск','море','моря','горы','горах','стран','город','виза','переезд','переех','релокац','заграниц'] },
+    { key: 'work', label: 'работа / дело',
+      stems: ['работ','коллег','начальник','офис','проект','бизнес','клиент','зарплат','карьер','совещан'] },
+    { key: 'money', label: 'деньги / финансы',
+      stems: ['деньг','финанс','ипотек','кредит','расход','бюджет','инвест','накопл','зараб'] },
+    { key: 'food', label: 'еда / готовка',
+      stems: ['готов','кухн','рецепт','пеку','печь','варю','вари','поесть','вкусн','ресторан','блюд'] },
+  ],
+
+  // тема реплики: токены реплики, совпадение по НАЧАЛУ слова (склонение — суффикс).
+  // Первое совпадение по приоритету TOPICS, иначе null.
+  classifyTopic(text) {
+    const tokens = String(text || '').toLowerCase().split(/[^а-яёa-z]+/).filter(Boolean);
+    if (!tokens.length) return null;
+    for (const tp of this.TOPICS) {
+      for (const tok of tokens) {
+        for (const st of tp.stems) { if (tok.startsWith(st)) return tp.key; }
+      }
+    }
+    return null;
+  },
+
+  // копим тему ТОЛЬКО когда пациент на ней загорелся (балл вовлечённости ≥1)
+  observeTopic(text) {
+    if (typeof ProfileStore === 'undefined') return;
+    const r = this.readEngagement(text);
+    if (r.skip || r.score < 1) return;
+    const topic = this.classifyTopic(text);
+    if (!topic) return;
+    try { ProfileStore.set('portrait', 'topic_' + topic, String(r.score), 'passive_read', 'inferred'); } catch (_) {}
+  },
+
+  // живая тема = с наибольшим накопленным баллом, сработавшая ≥2 раз
+  liveTopic() {
+    if (typeof ProfileStore === 'undefined' || !ProfileStore.getHistory) return null;
+    let best = null, bestSum = 0;
+    for (const tp of this.TOPICS) {
+      const hist = ProfileStore.getHistory('portrait', 'topic_' + tp.key) || [];
+      if (hist.length < 2) continue;
+      let sum = 0;
+      for (const e of hist) { const v = Number(e && e.value); if (!Number.isNaN(v)) sum += v; }
+      if (sum > bestSum) { bestSum = sum; best = { topic: tp.key, label: tp.label, score: sum, n: hist.length }; }
+    }
+    return best;
+  },
+
   // Стабильная расположенность: среднее последних оценок. Нужно ≥2, твердеет к 3-4.
   stableEngagement() {
     if (typeof ProfileStore === 'undefined' || !ProfileStore.getHistory) return null;
@@ -197,6 +253,7 @@ const PatientModel = {
   observe(text) {
     if (typeof ProfileStore === 'undefined') return;
     this.observeEngagement(text);
+    this.observeTopic(text);
     // ЗАКРЫТИЕ ПРОБЕЛА НИТИ: если на прошлом ходу открыли тему (li_origin и т.п.),
     // ответ пациента ПИШЕМ в этот ключ — иначе пробел вечно пуст и вопрос всплывает
     // снова («анкетная амнезия»). Событие здоровья/еды между вопросом и ответом
