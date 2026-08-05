@@ -949,8 +949,12 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
         leverHint = Engine.computeLeverHint(lastEvent, foodProfile);
         // Сохранить в history лог еды для будущих запросов «что я ел вчера»
         if (lastEvent) {
-          const now = new Date();
-          const eatTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(),
+          // День еды — по поясу-якорю пациента (тот же «сегодня», что у замеров),
+          // не по устройству: иначе история еды и график расходятся при смене пояса.
+          const _etp = (typeof Time !== 'undefined' && Time.nowParts) ? Time.nowParts() : null;
+          const _etISO = _etp ? _etp.dateISO : new Date().toISOString().slice(0, 10);
+          const [_ety, _etm, _etd] = _etISO.split('-').map(Number);
+          const eatTime = new Date(_ety, _etm - 1, _etd,
             Math.floor(lastEvent.eventMinute / 60), lastEvent.eventMinute % 60).getTime();
           Storage.addFood({
             time: eatTime,
