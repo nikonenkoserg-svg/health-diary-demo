@@ -175,6 +175,28 @@ const Chat = {
 
   // Человекочитаемая квитанция замера: пациент ВИДИТ, что именно записалось в
   // дневник. Гарантия синхрона чат↔график — в дневник идёт ровно то, что показано.
+  formatLoadReceipt(e) {
+    let qty;
+    if (e.kind === 'time') qty = (e.qty >= 1) ? (e.qty + ' мин') : (Math.round(e.qty * 60) + ' сек');
+    else if (e.kind === 'steps') qty = e.qty + ' шагов';
+    else qty = '×' + e.qty;
+    const parts = [e.label +  + qty];
+    if (e.kcal != null) parts.push('~' + (e.kcal >= 10 ? Math.round(e.kcal) : e.kcal) + ' ккал');
+    return 'Записал: ' + parts.join(' · ');
+  },
+  addLoadReceipt(e) {
+    const chat = document.getElementById('chat');
+    const text = this.formatLoadReceipt(e);
+    const div = document.createElement('div');
+    div.className = 'message bot receipt';
+    div.textContent = text;
+    const typing = document.getElementById('typing');
+    if (typing) chat.insertBefore(div, typing); else chat.appendChild(div);
+    this.scrollToBottom();
+    this.chatData.messages.push({ role: 'assistant', content: text, receipt: true, ts: Date.now() });
+    Storage.saveChat(this.chatData);
+  },
+
   formatGlucoseReceipt(g) {
     const typeMap = { fasting: 'натощак', postprandial: 'после еды', preprandial: 'до еды', bedtime: 'перед сном', random: '' };
     const parts = [g.value.toFixed(1).replace('.', ',') + ' ммоль/л'];
@@ -1030,6 +1052,27 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
         this.chatData.pendingGlucoseAsk = false;
       }
       if (saved) chartData = Engine.getDayData(Storage.getProfile() || {});
+    }
+
+    // === НАГРУЗКИ: микро-упражнения, детерминированный разбор =============
+    // «присел 20, отжался 15, планка 1 мин» — копим за день, ккал под вес пациента.
+    if ((this.chatData.state === 'active' || this.chatData.state === 'bridge') &&
+        typeof Loads !== 'undefined' && Loads.parse) {
+      const loads = Loads.parse(text);
+      if (loads.length) {
+        const prof = Storage.getProfile() || {};
+        let wKg = parseFloat(prof.weight);
+        if (!(wKg > 0) && typeof ProfileStore !== 'undefined') wKg = parseFloat(ProfileStore.get('anketa', 'weight'));
+        const tp = (typeof Time !== 'undefined' && Time.nowParts) ? Time.nowParts() : null;
+        const dISO = tp ? tp.dateISO : new Date().toISOString().slice(0, 10);
+        const lMin = tp ? tp.minuteOfDay : (new Date().getHours() * 60 + new Date().getMinutes());
+        for (const ld of loads) {
+          const kcal = Loads.kcalFor(ld, wKg > 0 ? wKg : null);
+          const entry = { key: ld.key, label: ld.label, cat: ld.cat, kind: ld.kind, qty: ld.qty, unit: ld.unit, kcal, weightUsed: wKg > 0 ? wKg : null, time: Date.now(), localMinute: lMin, dateISO: dISO };
+          Storage.addLoad(entry);
+          this.addLoadReceipt(entry);
+        }
+      }
     }
 
     try {

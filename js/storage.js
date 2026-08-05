@@ -7,7 +7,8 @@ const Storage = {
     entries: 'hd_entries',
     settings: 'hd_settings',
     glucose: 'hd_glucose',
-    food: 'hd_food'
+    food: 'hd_food',
+    loads: 'hd_loads'
   },
 
   get(key) {
@@ -102,6 +103,23 @@ const Storage = {
     const log = this.getFoodLog();
     log.push(entry);
     this.set(this.KEYS.food, log);
+  },
+
+  // Loads log (микронагрузки): [{key,label,cat,kind,qty,unit,kcal,time,dateISO}]
+  getLoadLog() { return this.get(this.KEYS.loads) || []; },
+  addLoad(entry) {
+    const log = this.getLoadLog();
+    log.push(entry);
+    this.set(this.KEYS.loads, log);
+  },
+  // Нагрузки за конкретный день (по якорной dateISO; дефолт — сегодня в поясе-якоре).
+  getLoadsForDay(dateISO) {
+    let day = dateISO;
+    if (!day) {
+      const tp = (typeof Time !== 'undefined' && Time.nowParts) ? Time.nowParts() : null;
+      day = tp ? tp.dateISO : new Date().toISOString().slice(0, 10);
+    }
+    return this.getLoadLog().filter(e => (e.dateISO || '') === day);
   },
 
   // Diary entries

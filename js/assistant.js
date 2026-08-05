@@ -303,6 +303,26 @@ const Assistant = {
           prompt += '\n\n[ИСТОРИЯ ЕДЫ ПАЦИЕНТА]\n' + linesF +
             '\nЕсли пациент спрашивает что ел вчера, сколько раз ел сладкое, какой был самый высокий прогноз пика — отвечай по этим данным точно.\n[/ИСТОРИЯ ЕДЫ]';
         }
+
+        // Нагрузки за сегодня — для вечернего отчёта «что накопилось».
+        if (Storage.getLoadsForDay) {
+          const todayLoads = Storage.getLoadsForDay();
+          if (todayLoads.length) {
+            const fmtQty = (a) => a.kind === 'time' ? (a.qty >= 1 ? (Math.round(a.qty*10)/10) + ' мин' : Math.round(a.qty*60) + ' сек') : (a.kind === 'steps' ? a.qty + ' шагов' : '×' + a.qty);
+            const agg = {};
+            for (const e of todayLoads) {
+              if (!agg[e.key]) agg[e.key] = { label: e.label, kind: e.kind, qty: 0, kcal: 0 };
+              agg[e.key].qty += e.qty; agg[e.key].kcal += (e.kcal || 0);
+            }
+            const linesL = Object.values(agg).map(a => '  ' + a.label + ' ' + fmtQty(a) + ' · ~' + (a.kcal >= 10 ? Math.round(a.kcal) : Math.round(a.kcal*10)/10) + ' ккал').join('\n');
+            const totalK = Object.values(agg).reduce((s, a) => s + a.kcal, 0);
+            const weightKnown = todayLoads.some(e => e.weightUsed);
+            prompt += '\n\n[НАГРУЗКИ СЕГОДНЯ]\n' + linesL +
+              '\nВсего за день: ~' + Math.round(totalK) + ' ккал.' +
+              (weightKnown ? '' : ' (вес неизвестен — расчёт по среднему, менее точно).') +
+              '\nЭто РАСЧЁТ по весу и типу нагрузки, не измерение — подавай как оценку («примерно», «около»), не точный факт. Просит отчёт за день / «что накопилось» — перечисли эти нагрузки и сумму. Своих цифр сверх этих не выдумывай.\n[/НАГРУЗКИ СЕГОДНЯ]';
+          }
+        }
       }
     // Правдивость дат и памяти — против выдумывания под нажимом пациента.
     prompt += '\n\n[ПРАВДИВОСТЬ ДАТ И ПАМЯТИ — ЖЁСТКО]\n' +
