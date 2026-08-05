@@ -215,11 +215,18 @@ const Chat = {
 
   // Собрать запись замера из структурного ответа LLM-экстрактора.
   // Формат совпадает с Engine.parseGlucose — чтобы график/память читали одинаково.
-  buildGlucoseFromExtract(gl) {
+  buildGlucoseFromExtract(gl, srcText) {
     if (!gl || typeof gl.value !== 'number' || gl.value < 2.5 || gl.value > 25) return null;
     const tp = (typeof Time !== 'undefined' && Time.nowParts) ? Time.nowParts() : null;
     const todayISO = tp ? tp.dateISO : new Date().toISOString().slice(0, 10);
-    const dayOffset = Math.max(0, parseInt(gl.day_offset) || 0);
+    let dayOffset = Math.max(0, parseInt(gl.day_offset) || 0);
+    // ЗАЩИТА ОТ ЛОЖНОГО ВЧЕРА: экстрактор бэкдейтит на «отчитываюсь с запозданием» и т.п.
+    // day_offset>0 уважаем ТОЛЬКО при явном маркере прошлого дня в тексте пациента.
+    // «С запозданием / записываю поздно» — это тот же день, не вчера.
+    if (dayOffset > 0 && srcText) {
+      const past = /вчера|позавчера|позапрошл|на\s+прошл|\d+\s*дн(я|ей|)\s*назад|в\s+(понедельник|вторник|сред[уа]|четверг|пятниц[уы]|суббот[уы]|воскресень?е)|\d{1,2}\s*(январ|феврал|март|апрел|ма[йя]|июн|июл|август|сентябр|октябр|ноябр|декабр)/i.test(srcText);
+      if (!past) dayOffset = 0;
+    }
     const dateISO = (dayOffset > 0 && Engine._shiftISO) ? Engine._shiftISO(todayISO, -dayOffset) : todayISO;
     const type = ['fasting', 'postprandial', 'preprandial', 'bedtime', 'random'].includes(gl.type) ? gl.type : 'random';
     let localMinute = null, timeCertain = false;
@@ -976,7 +983,7 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
       let saved = 0, lastEntry = null;
       const glArr = (extracted && Array.isArray(extracted.glucose)) ? extracted.glucose : [];
       for (const gl of glArr) {
-        const g = this.buildGlucoseFromExtract(gl);
+        const g = this.buildGlucoseFromExtract(gl, text);
         if (!g) continue;
         // Мост «сейчас»: экстрактор (Haiku) НЕ считает «сейчас/только что» явным
         // временем и отдаёт замер безвременным, хотя это текущий момент. Если в
