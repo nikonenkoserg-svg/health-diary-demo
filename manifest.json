@@ -1,6 +1,6 @@
 {
   "name": "Дневник здоровья",
-  "short_name": "Дневник",
+  "short_name": "Разворот",
   "description": "Ваш ассистент по управлению здоровьем",
   "start_url": "/",
   "display": "standalone",
