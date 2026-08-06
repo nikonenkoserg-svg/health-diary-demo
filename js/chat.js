@@ -277,13 +277,11 @@ const Chat = {
     const chat = document.getElementById('chat');
     const div = document.createElement('div');
     div.className = 'message bot card-hint';
-    const intro = document.createElement('span');
-    intro.textContent = 'Глубже: ';
-    div.appendChild(intro);
     const link = document.createElement('a');
     link.href = '#';
     link.className = 'card-link';
-    link.textContent = title;
+    link.textContent = 'Подробнее';
+    void title; // тихая дверь: заголовок раскрывается по тапу в оверлее, не кричит в чате
     link.addEventListener('click', (e) => {
       e.preventDefault();
       this.openCardOverlay(cardId);
@@ -1130,13 +1128,12 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
       // опереться на её материал в ответе. Карточку сохраняем для плашки внизу.
       let relevantCard = null;
       try {
-        // Жёсткий детектор вопроса: либо «?» в реплике, либо вопросительное слово
-        // в самом начале первой фразы. «Когда до этого дойду» в середине не считается.
+        // РЕШЕНИЕ ПО СМЫСЛУ, не по «?»: карточку ищем по содержанию реплики.
+        // searchCard сам вернёт null без темы/при низком косинусе — по умолчанию тишина.
+        // Отсекаем лишь операционные/мета реплики: они не к библиотеке.
         const trimmed = (text || '').trim();
-        const firstSentence = trimmed.split(/[.!?]/)[0] || '';
-        const startsWithQ = /^\s*(что|как|почему|зачем|когда|где|какой|какая|какое|какие|нужно ли|можно ли|стоит ли|правда ли|поможет ли|есть ли|правда|почему именно)\b/i.test(firstSentence);
-        const isQuestion = trimmed.includes('?') || startsWithQ;
-        if (isQuestion && typeof window.RAG !== 'undefined' && window.RAG.isReady && window.RAG.isReady()) {
+        const isOperational = /график|таблиц|ссылк|карточк|кто ты|ты кто|какой\s+(сегодня\s+)?день|спасибо|привет|здравств|как дела|где\s+(мой|мои|мо[её])\s*(график|данные|замер)/i.test(trimmed);
+        if (!isOperational && typeof window.RAG !== 'undefined' && window.RAG.isReady && window.RAG.isReady()) {
           // Определяем фазу пациента для фильтрации RAG. Onboarding:
           // первые 15 сообщений ИЛИ менее 3 событий еды в dayLog. Иначе stable.
           const userMsgCount = this.chatData.messages.filter(m => m.role === 'user').length;
@@ -1155,7 +1152,7 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
             // Спутник должен ЗНАТЬ что к его ответу будет приклеена плашка с карточкой.
             // Без этого блока он отрицает что отправил «ссылку», когда пациент спрашивает.
             systemPrompt += '\n\n[ПРИКРЕПЛЕНА КАРТОЧКА]\n' +
-              'Под твоим ответом фронт прикрепит плашку «Глубже: «' + relevantCard.title + '»».\n' +
+              'Под твоим ответом фронт прикрепит тихую плашку «Подробнее» (раскрывает карточку «' + relevantCard.title + '»).\n' +
               'Это произойдёт автоматически — твоя ответственность.\n' +
               'Если пациент спросит про ссылку/карточку — НЕ говори «не отправлял». Признай: «да, приклеил карточку «' + relevantCard.title + '»». Если она не в тему — извинись одной фразой.\n' +
               '[/ПРИКРЕПЛЕНА КАРТОЧКА]';

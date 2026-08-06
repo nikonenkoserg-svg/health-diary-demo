@@ -149,7 +149,7 @@ RAG._topicsOf = function(text) {
 RAG.searchCard = async function(query, minScore, opts){
   // Порог поднят с 0.35 до 0.55 — лучше пусто, чем вредно. См. разбор от Тренера 2026-06-20:
   // карточка про "сдались на третьей неделе" предложилась пациенту на 1-й день вовлечения.
-  minScore = minScore || 0.55;
+  minScore = minScore || 0.62;
   opts = opts || {};
   const userSex = opts.sex;
   const phase = opts.phase || 'stable';
@@ -165,6 +165,7 @@ RAG.searchCard = async function(query, minScore, opts){
   if (!this.library || !this.embedder) return null;
   const qVec = await this.embed(query);
   const queryTopics = this._topicsOf(query);
+  if (!queryTopics.length) return null; // нет темы у реплики → молчим (решение по смыслу, не по «?»)
   let best = null;
   for (const a of this.library) {
     if (!a.vec) continue; // карточки без эмбеддинга пропускаем
@@ -176,10 +177,8 @@ RAG.searchCard = async function(query, minScore, opts){
     }
     // Тематический фильтр: тема карточки берётся из title (теги ненадёжны —
     // они "поводы вызова", а не тематика самой карточки).
-    if (queryTopics.length) {
-      const cardTopics = this._topicsOf(a.title || '');
-      if (cardTopics.length && !cardTopics.some(t => queryTopics.includes(t))) continue;
-    }
+    const cardTopics = this._topicsOf(a.title || '');
+    if (!cardTopics.length || !cardTopics.some(t => queryTopics.includes(t))) continue; // тема обязательна
     const score = this._cosine(qVec, a.vec);
     if (!best || score > best.score) best = { id: a.id, title: a.title, text: a.text, score };
   }
