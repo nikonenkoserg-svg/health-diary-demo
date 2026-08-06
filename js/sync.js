@@ -38,7 +38,7 @@ const Sync = {
   // все пользовательские блобы localStorage (hd_*), кроме служебной метки синхры
   // Не синхронизируем: служебную метку синхры, кэш векторов библиотеки (общий для всех,
   // ~87% объёма, пересобирается на устройстве) и лог отладки. Синкаем только личные данные.
-  _SKIP: { hd_synced_at: 1, hd_lib_vec_cache: 1, hd_debug_log: 1 },
+  _SKIP: { hd_synced_at: 1, hd_owner: 1, hd_lib_vec_cache: 1, hd_debug_log: 1 },
   _collect() {
     const out = {};
     for (let i = 0; i < localStorage.length; i++) {
@@ -48,28 +48,57 @@ const Sync = {
     return out;
   },
 
-  // Тянем бэкап с сервера. Если сервер свежее или локально пусто — подставляем и перезагружаемся.
+  // Убрать локальные данные пациента (hd_*), оставив логин. Для смены аккаунта.
+  _clearLocalData() {
+    const keep = { hd_account: 1 };
+    const ks = [];
+    for (let i = 0; i < localStorage.length; i++) ks.push(localStorage.key(i));
+    ks.forEach(k => { if (k && k.indexOf('hd_') === 0 && !keep[k]) { try { localStorage.removeItem(k); } catch (_) {} } });
+  },
+
+  // Тянем бэкап с сервера. ПОДТЯЖКА ПЕР-АККАУНТ (не «раз за сессию»): флаг привязан к
+  // patientId. Локальные данные помечены владельцем (hd_owner); если владелец не совпал
+  // с текущим аккаунтом — они чужие, стираем перед восстановлением (иначе чат одного
+  // аккаунта виден/пишется под другим и затирает его бэкап).
   async pull(force) {
-    if (!force && sessionStorage.getItem('hd_sync_pulled')) return false;
     const id = this.patientId();
     if (!id) return false;
-    sessionStorage.setItem('hd_sync_pulled', '1');
-    let server;
+    const pulledFor = sessionStorage.getItem('hd_pulled_for');
+    if (!force && pulledFor === id) return false;
+    sessionStorage.setItem('hd_pulled_for', id);
+
+    const owner = localStorage.getItem('hd_owner');
+    const foreignLocal = !!(owner && owner !== id);
+
+    let server = null;
     try {
       const r = await fetch('/api/sync?id=' + id);
-      if (r.status !== 200) return false;
-      server = await r.json();
-    } catch (_) { return false; }
-    if (!server || !server.blobs) return false;
-    const serverAt = +new Date(server.updated_at || 0);
-    const localAt = +(localStorage.getItem('hd_synced_at') || 0);
+      if (r.status === 200) server = await r.json();
+    } catch (_) {}
+    const blobs = server && server.blobs;
+
+    // Локальные данные принадлежат ДРУГОМУ аккаунту → они не наши, убираем.
+    if (foreignLocal) this._clearLocalData();
+
     const localEmpty = !localStorage.getItem('hd_profile_v2') && !localStorage.getItem('hd_chat');
-    if (localEmpty || serverAt > localAt) {
-      Object.keys(server.blobs).forEach(k => { try { localStorage.setItem(k, server.blobs[k]); } catch (_) {} });
-      localStorage.setItem('hd_synced_at', String(serverAt || Date.now()));
+    if (blobs) {
+      const serverAt = +new Date(server.updated_at || 0);
+      const localAt = +(localStorage.getItem('hd_synced_at') || 0);
+      if (foreignLocal || localEmpty || serverAt > localAt) {
+        Object.keys(blobs).forEach(k => { try { localStorage.setItem(k, blobs[k]); } catch (_) {} });
+        localStorage.setItem('hd_synced_at', String(serverAt || Date.now()));
+        localStorage.setItem('hd_owner', id);
+        location.reload();
+        return true;
+      }
+    } else if (foreignLocal) {
+      // Сервер пуст для этого аккаунта, чужое локальное очищено → чистый старт.
+      localStorage.setItem('hd_owner', id);
       location.reload();
       return true;
     }
+    // Локальное наше (или пусто) — закрепляем владельца.
+    localStorage.setItem('hd_owner', id);
     return false;
   },
 
@@ -83,12 +112,17 @@ const Sync = {
   async push() {
     const id = this.patientId();
     if (!id || !this._dirty) return;
-    // Защита бэкапа: не пушим, пока в этой сессии не отработал pull (иначе свежая
-    // сессия после сброса затрёт хороший серверный бэкап до восстановления).
-    if (!sessionStorage.getItem('hd_sync_pulled')) { return; }
+    // Не пушим, пока не подтянули ИМЕННО ЭТОТ аккаунт в этой сессии (иначе свежая
+    // сессия/смена емейла затрёт хороший бэкап до восстановления).
+    if (sessionStorage.getItem('hd_pulled_for') !== id) return;
+    // Локальные данные принадлежат другому аккаунту → НЕ пишем под текущий id (защита
+    // от затирания чужого бэкапа при переключении емейлов на одном устройстве).
+    const owner = localStorage.getItem('hd_owner');
+    if (owner && owner !== id) return;
     // И не пишем пустоту поверх бэкапа.
     if (!localStorage.getItem('hd_profile_v2') && !localStorage.getItem('hd_chat')) { return; }
     this._dirty = false;
+    localStorage.setItem('hd_owner', id);
     const now = Date.now();
     const payload = { id: id, data: { blobs: this._collect(), updated_at: new Date(now).toISOString() } };
     try {

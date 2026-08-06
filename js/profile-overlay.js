@@ -389,6 +389,7 @@ const ProfileOverlay = {
         if (k && (k.startsWith('hd_') || k === 'theme')) localStorage.removeItem(k);
       });
     } catch(e) { console.warn('[reset] failed:', e); }
+    try { sessionStorage.removeItem('hd_pulled_for'); } catch(e) {}
     window.location.replace(window.location.origin + window.location.pathname);
   }
 };
