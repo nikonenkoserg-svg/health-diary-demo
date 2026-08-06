@@ -1,5 +1,5 @@
 // v=20260615-a — версия меняется при каждом деплое, заставляет браузер обновить SW
-const VERSION = '20260731-u';
+const VERSION = '20260731-v';
 const CACHE = 'diary-' + VERSION;
 const STATIC = [
   '/', '/index.html', '/manifest.json',
