@@ -72,7 +72,7 @@
 </div>
 <script>
 const $=s=>document.querySelector(s), wait=ms=>new Promise(r=>setTimeout(r,ms));
-function type(el,txt,sp=28){return new Promise(async res=>{
+function type(el,txt,sp=52){return new Promise(async res=>{
   const c=document.createElement('span');c.className='caret';el.appendChild(c);
   for(const ch of txt){c.insertAdjacentText('beforebegin',ch);await wait(sp);}
   c.remove();res();
