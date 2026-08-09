@@ -1004,7 +1004,7 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
       if (!extracted) {
         try { extracted = await this.extractDayEvents(text); } catch (_) { extracted = null; }
       }
-      let saved = 0, lastEntry = null;
+      let saved = 0, lastEntry = null, firstNoTime = null;
       const glArr = (extracted && Array.isArray(extracted.glucose)) ? extracted.glucose : [];
       for (const gl of glArr) {
         const g = this.buildGlucoseFromExtract(gl, text);
@@ -1029,18 +1029,24 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
         if (!Storage.addGlucose(g)) continue; // дубль-призрак отброшен — без квитанции
         this.addGlucoseReceipt(g);
         saved++; lastEntry = g;
+        // До-привязку времени наводим на ПЕРВЫЙ безвременный замер реплики, а не на
+        // последний: в мультизамере последний может быть с временем, а висит первый.
+        if (!g.timeCertain && !firstNoTime) firstNoTime = { idx: Storage.getGlucoseLog().length - 1, dateISO: g.dateISO };
       }
       // Фолбэк: LLM не дал замеров, а кандидат есть → регэксп (первый замер).
       if (!saved) {
         const g = Engine.parseGlucose(text);
-        if (g && Storage.addGlucose(g)) { this.addGlucoseReceipt(g); saved++; lastEntry = g; }
+        if (g && Storage.addGlucose(g)) {
+          this.addGlucoseReceipt(g); saved++; lastEntry = g;
+          if (!g.timeCertain && !firstNoTime) firstNoTime = { idx: Storage.getGlucoseLog().length - 1, dateISO: g.dateISO };
+        }
       }
       // Готовность ПРИВЯЗАТЬ время — у ЛЮБОГО замера без точного времени: пациент
       // может назвать время позже («последний замер был в 02:47»), и оно должно
       // привязаться независимо от типа (натощак/после еды), иначе точка навсегда
       // остаётся безвременной и на ось не встаёт.
-      if (lastEntry && !lastEntry.timeCertain) {
-        this.chatData.pendingGlucoseTime = { idx: Storage.getGlucoseLog().length - 1, dateISO: lastEntry.dateISO };
+      if (firstNoTime) {
+        this.chatData.pendingGlucoseTime = { idx: firstNoTime.idx, dateISO: firstNoTime.dateISO };
         // ПЕРЕСПРАШИВАТЬ время — у ЛЮБОГО безвременного замера: точность = ядро,
         // на ось точка встаёт только с точным временем (решение с Тренером 02.08,
         // мягкий вариант: короткий разбор + запрос времени в одной реплике).
