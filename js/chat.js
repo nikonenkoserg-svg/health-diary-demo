@@ -182,7 +182,7 @@ const Chat = {
     else qty = '×' + e.qty;
     const parts = [e.label +  + qty];
     if (e.kcal != null) parts.push('~' + (e.kcal >= 10 ? Math.round(e.kcal) : e.kcal) + ' ккал');
-    return 'Записал: ' + parts.join(' · ');
+    return parts.join(' · ');
   },
   addLoadReceipt(e) {
     const chat = document.getElementById('chat');
@@ -206,13 +206,13 @@ const Chat = {
       const mm = String(g.localMinute % 60).padStart(2, '0');
       parts.push(hh + ':' + mm);
     } else {
-      parts.push('время не указал');
+      parts.push('без времени');
     }
     if (g.recalled && g.dateISO) {
       const d = g.dateISO.split('-');
       parts.push('за ' + d[2] + '.' + d[1]);
     }
-    return 'Записал: ' + parts.join(' · ');
+    return parts.join(' · ');
   },
 
   // Показать квитанцию мгновенно (без побуквенной печати), под сообщением
