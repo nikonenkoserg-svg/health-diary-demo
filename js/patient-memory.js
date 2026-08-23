@@ -1,5 +1,5 @@
 // PatientMemory — долгосрочная модель пациента в localStorage.
-// Структура: { patterns, reactions, lifestyle, notes:[] }.
+// Структура: { patterns, reactions, lifestyle, disclosures, notes:[] }.
 // Обновляется LLM-секретарём после 5 user-сообщений ИЛИ день-end фразы.
 const PatientMemory = {
   STORAGE_KEY: 'hd_patient_model',
@@ -24,7 +24,7 @@ const PatientMemory = {
     const m = this.get();
     if (!m || Object.keys(m).length === 0) return true;
     const has = (k) => m[k] && (Array.isArray(m[k]) ? m[k].length > 0 : Object.keys(m[k]).length > 0);
-    return !(has('patterns') || has('reactions') || has('lifestyle') || has('notes'));
+    return !(has('patterns') || has('reactions') || has('lifestyle') || has('disclosures') || has('notes'));
   },
 
   format() {
@@ -43,12 +43,16 @@ const PatientMemory = {
       out += 'Образ жизни:\n';
       for (const [, v] of Object.entries(m.lifestyle)) { const t = typeof v === 'string' ? v : (v == null ? '' : JSON.stringify(v)); if (t) out += '- ' + t + '\n'; }
     }
+    if (m.disclosures && Object.keys(m.disclosures).length) {
+      out += 'Ключевые самораскрытия (слова пациента, долговременные улики):\n';
+      for (const [, v] of Object.entries(m.disclosures)) { const t = typeof v === 'string' ? v : (v == null ? '' : JSON.stringify(v)); if (t) out += '- ' + t + '\n'; }
+    }
     if (m.notes && m.notes.length) {
       out += 'Заметки:\n';
       for (const n of m.notes) { const t = typeof n === 'string' ? n : (n == null ? '' : JSON.stringify(n)); if (t) out += '- ' + t + '\n'; }
     }
     out += '[/ПАМЯТЬ О ПАЦИЕНТЕ]\n';
-    out += 'Опирайся на эту память. Если новая реплика противоречит — приоритет новой реплике, память отстаёт.';
+    out += 'Опирайся на эту память. Перед фразой «не знаю / ты не говорил» сначала проверь её, особенно самораскрытия. Если новая реплика противоречит — приоритет новой реплике, память отстаёт.';
     return out;
   },
 

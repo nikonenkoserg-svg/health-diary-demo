@@ -1109,7 +1109,8 @@ events с едой + workload:{"active":true,"hours":6,"kind":"трениров�
       let portraitBlock = '';
       try {
         if (typeof PatientModel !== 'undefined') {
-          PatientModel.observe(text);
+          const previousAssistant = this.chatData.messages.slice(0, -1).reverse().find(m => m.role === 'assistant' && Number.isFinite(m.ts));
+          PatientModel.observe(text, { responseLatencyMs: previousAssistant ? Date.now() - previousAssistant.ts : null });
           portraitBlock = PatientModel.inject(text);
         }
       } catch (_) {}

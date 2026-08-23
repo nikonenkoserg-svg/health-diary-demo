@@ -10,6 +10,7 @@ const SECRETARY_PROMPT = `Ты — секретарь персонального
 - patterns: повторяющиеся паттерны питания, времени, режима (примеры ключей: morning_routine, typical_breakfast, post_workout_snack)
 - reactions: реакции организма на конкретную еду / нагрузку, с цифрами если есть (примеры: morning_peak, coffee_cream, caffeine_window)
 - lifestyle: образ жизни, условия, контекст (примеры: condition, training_load, region)
+- disclosures: ключевые самораскрытия пациента — мотивы, ценности, границы, «ради чего», то, что он не готов отдать. Сохраняй близко к исходной формулировке; это долговременная улика, а не твой гладкий вывод
 - notes: массив строк — важные заметки, цели, предпочтения
 
 Правила:
@@ -17,13 +18,14 @@ const SECRETARY_PROMPT = `Ты — секретарь персонального
 - Обновляй существующие поля если есть уточнение. Не дублируй.
 - ВСЕГДА возвращай модель ЦЕЛИКОМ: все существующие поля currentModel плюс новые. Никогда не удаляй существующие ключи.
 - Если ничего нового не сказано — верни currentModel БЕЗ ИЗМЕНЕНИЙ.
-- Не записывай эфемерное (мимолётное настроение, разовые вопросы).
+- Одиночное состояние не превращай в черту. Но ключевое самораскрытие уровня мотива сохраняй сразу в disclosures, даже если оно прозвучало один раз.
+- Повторяющееся состояние сохраняй как patterns только когда диалог содержит не меньше двух эпизодов; укажи состояние, контекст и частоту.
 - Не записывай гипотетическое («а если бы я съел»).
 - Имена полей внутри секций — латиница snake_case.
 - Значения полей — на русском, короткие фразы.
 
 Верни ТОЛЬКО валидный JSON в формате:
-{"patterns":{...},"reactions":{...},"lifestyle":{...},"notes":[...]}
+{"patterns":{...},"reactions":{...},"lifestyle":{...},"disclosures":{...},"notes":[...]}
 Без markdown, без префиксов, без объяснений.`;
 
 export default async function handler(req, res) {
@@ -103,6 +105,7 @@ export default async function handler(req, res) {
       updatedModel.patterns = mergeSection('patterns');
       updatedModel.reactions = mergeSection('reactions');
       updatedModel.lifestyle = mergeSection('lifestyle');
+      updatedModel.disclosures = mergeSection('disclosures');
       const priorNotes = Array.isArray(cur.notes) ? cur.notes : [];
       const freshNotes = Array.isArray(updatedModel.notes) ? updatedModel.notes : [];
       updatedModel.notes = [...priorNotes, ...freshNotes.filter(n => !priorNotes.includes(n))];

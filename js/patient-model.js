@@ -84,7 +84,7 @@ const PatientModel = {
   },
 
   // ── ПАССИВНОЕ ЧТЕНИЕ формы ответа: характер из ФОРМЫ, не из содержания.
-  passiveRead(text) {
+  passiveRead(text, context) {
     const t = (text || '').trim();
     const words = t.split(/\s+/).filter(Boolean);
     const wc = words.length;
@@ -98,7 +98,25 @@ const PatientModel = {
     const noDiag = /диагноза нет|нет диагноза|заболеваний нет|не болею/i.test(t);
     const fear = !noDiag && /анализ показал|поставили диагноз|врач сказал|бо(юсь|ялся)|тревог|страшно/i.test(t);
 
-    const signals = { wc, avgLen: Math.round(avgLen * 10) / 10, numbers, units, exclam, emotion, discipline, noDiag };
+    // Канонические имена: один сигнал называется одинаково в классификаторе,
+    // хранилище и портрете. Сигнал остаётся уликой, а не готовой чертой.
+    const signals = {
+      response_length_words: wc,
+      sentence_length_words: Math.round(avgLen * 10) / 10,
+      number_count: numbers,
+      unit_count: units,
+      exclamation_count: exclam,
+      emotion_marker_count: emotion,
+      hedging: (t.match(/(может быть|возможно|наверное|кажется|не уверен|вроде)/gi) || []).length,
+      self_correction: (t.match(/(точнее|вернее|нет,|то есть|поправлюсь)/gi) || []).length,
+      abandoned_topic: /(?:\.\.\.|…)$/.test(t) ? 1 : 0,
+      punctuation_break: /[!?]{2,}|\.{3,}|…/.test(t) ? 1 : 0,
+      response_latency_seconds: context && Number.isFinite(context.responseLatencyMs)
+        ? Math.round(context.responseLatencyMs / 1000) : null,
+      volunteered: context && context.wasPrompted ? 0 : 1,
+      discipline_marker: discipline ? 1 : 0,
+      no_diagnosis_marker: noDiag ? 1 : 0
+    };
     const portrait = {};
 
     if (avgLen <= 5 && emotion === 0 && exclam === 0) portrait.tone_openness = 'сух, по делу, закрытый';
@@ -121,7 +139,9 @@ const PatientModel = {
     const shortSleepHeld = sleepH != null && sleepH <= 5 && sleepsFine;
     if (dailySport || shortSleepHeld) {
       portrait.li_intensity = 'высокая — аномальный режим, требует объяснения';
-      signals.dailySport = dailySport; signals.sleepH = sleepH; signals.shortSleepHeld = shortSleepHeld;
+      signals.daily_sport = dailySport ? 1 : 0;
+      signals.sleep_hours = sleepH;
+      signals.short_sleep_normalized = shortSleepHeld ? 1 : 0;
     }
 
     return { signals, portrait };
@@ -211,26 +231,33 @@ const PatientModel = {
     return null;
   },
 
-  // копим тему ТОЛЬКО когда пациент на ней загорелся (балл вовлечённости ≥1)
+  // Копим и положительную, и отрицательную вовлечённость: яркая боль тоже дверь.
   observeTopic(text) {
     if (typeof ProfileStore === 'undefined') return;
     const r = this.readEngagement(text);
-    if (r.skip || r.score < 1) return;
+    if (r.skip || r.score === 0) return;
     const topic = this.classifyTopic(text);
     if (!topic) return;
-    try { ProfileStore.set('portrait', 'topic_' + topic, String(r.score), 'passive_read', 'inferred'); } catch (_) {}
+    const painful = /стресс|нерв|ссор|сканда|боюсь|страшно|тревог|устал|вымота|злит|бесит|боль|тяжело|проблем|не могу|напряг/i.test(String(text || ''));
+    const signed = painful ? -Math.max(1, Math.abs(r.score)) : r.score;
+    try { ProfileStore.set('portrait', 'topic_' + topic, String(signed), 'passive_read', 'inferred'); } catch (_) {}
   },
 
-  // живая тема = с наибольшим накопленным баллом, сработавшая ≥2 раз
+  // Дверь = повторная высокая вовлечённость. Знак обязателен: боль не тепло.
   liveTopic() {
     if (typeof ProfileStore === 'undefined' || !ProfileStore.getHistory) return null;
-    let best = null, bestSum = 0;
+    let best = null, bestMagnitude = 0;
     for (const tp of this.TOPICS) {
       const hist = ProfileStore.getHistory('portrait', 'topic_' + tp.key) || [];
       if (hist.length < 2) continue;
       let sum = 0;
       for (const e of hist) { const v = Number(e && e.value); if (!Number.isNaN(v)) sum += v; }
-      if (sum > bestSum) { bestSum = sum; best = { topic: tp.key, label: tp.label, score: sum, n: hist.length }; }
+      const magnitude = Math.abs(sum);
+      if (magnitude > bestMagnitude) {
+        bestMagnitude = magnitude;
+        best = { topic: tp.key, label: tp.label, score: sum, n: hist.length,
+          valence: sum < 0 ? 'negative' : (sum > 0 ? 'positive' : 'mixed') };
+      }
     }
     return best;
   },
@@ -250,10 +277,12 @@ const PatientModel = {
 
   // ── НАБЛЮДЕНИЕ: пассивно вычитанные оси кладём в слой portrait.
   // Стабильные оси (мотив/ритм/интенсивность) пишем один раз; тон/цифры — обновляем.
-  observe(text) {
+  observe(text, context) {
     if (typeof ProfileStore === 'undefined') return;
     this.observeEngagement(text);
     this.observeTopic(text);
+    this.observeState(text);
+    this.observeEvidence(text, context);
     // ЗАКРЫТИЕ ПРОБЕЛА НИТИ: если на прошлом ходу открыли тему (li_origin и т.п.),
     // ответ пациента ПИШЕМ в этот ключ — иначе пробел вечно пуст и вопрос всплывает
     // снова («анкетная амнезия»). Событие здоровья/еды между вопросом и ответом
@@ -349,13 +378,70 @@ const PatientModel = {
     return this.hasHook(text) ? 'now-hook' : 'now-calm';
   },
 
-  // ── СЛОЙ 2: СОСТОЯНИЕ НА СЕЙЧАС. Читаем в реплике, учитываем при чтении цифр,
-  // НЕ пишем в постоянный портрет как черту. Прочитал → учёл → отпустил.
+  // ── СОСТОЯНИЕ НА СЕЙЧАС. Одиночный эпизод не черта, но и не мусор:
+  // сохраняем улику, повтор повышаем в паттерн.
   readState(text) {
     const t = (text || '').trim();
     const acuteStress = /стресс|нерв|аврал|дедлайн|ссор|сканда|переж(иваю|ивал)|паник|не сплю|бессонниц|горю|горит|завал|замота|вымота|на нервах|напряг|тревож|сорвал/i.test(t);
     const busy = /аврал|дедлайн|некогда|замота|весь день|беготн|на ногах|запар|разрыва/i.test(t);
-    return { acuteStress, busy };
+    return { acuteStress, busy, valence: (acuteStress || busy) ? 'negative' : 'neutral' };
+  },
+
+  observeState(text) {
+    if (typeof ProfileStore === 'undefined') return;
+    const state = this.readState(text);
+    const evidence = String(text || '').trim().slice(0, 220);
+    const keys = [];
+    if (state.acuteStress) keys.push('acute_stress');
+    if (state.busy) keys.push('busy_day');
+    for (const key of keys) {
+      ProfileStore.set('portrait', 'state_' + key,
+        { state: key, valence: 'negative', evidence }, 'passive_read', 'observed');
+      const hist = ProfileStore.getHistory('portrait', 'state_' + key) || [];
+      if (hist.length >= 2) {
+        ProfileStore.set('portrait', 'state_patterns',
+          { state: key, valence: 'negative', frequency: hist.length,
+            evidence: hist.slice(-3).map(e => e.value && e.value.evidence).filter(Boolean) },
+          'state_accumulator', 'repeated');
+      }
+    }
+  },
+
+  // Улики формы и прямые слова пациента живут отдельно от гладких выводов портрета.
+  observeEvidence(text, context) {
+    if (typeof ProfileStore === 'undefined') return;
+    const t = String(text || '').trim();
+    if (!t) return;
+    const asked = ProfileStore.get('portrait', '_askedThread');
+    const ctx = Object.assign({}, context || {}, { wasPrompted: !!asked });
+    const { signals } = this.passiveRead(t, ctx);
+    const prior = ProfileStore.getHistory('portrait', 'delivery_signals') || [];
+    const previous = prior.length ? prior[prior.length - 1].value : null;
+    const prevLen = previous && Number(previous.response_length_words);
+    if (prevLen > 0) signals.response_length_jump = Math.round((signals.response_length_words / prevLen) * 100) / 100;
+    else signals.response_length_jump = null;
+    ProfileStore.set('portrait', 'delivery_signals', signals, 'passive_read', 'observed');
+    const disclosure = /для меня (?:это )?важно|не отдам|ни при каких обстоятельствах|ради (?:этого|чего)|смысл (?:в|этого)|да[её]т мне|не готов(?:а)? отказаться|моя ценност|я выбираю это потому/i.test(t);
+    if (disclosure) {
+      ProfileStore.set('portrait', 'self_disclosures',
+        { kind: 'motive_or_value', quote: t.slice(0, 500) }, 'patient_input', 'stated');
+    }
+  },
+
+  stableStates() {
+    if (typeof ProfileStore === 'undefined' || !ProfileStore.getHistory) return [];
+    const result = [];
+    for (const key of ['acute_stress', 'busy_day']) {
+      const hist = ProfileStore.getHistory('portrait', 'state_' + key) || [];
+      if (hist.length >= 2) result.push({ state: key, valence: 'negative', frequency: hist.length });
+    }
+    return result;
+  },
+
+  disclosures() {
+    if (typeof ProfileStore === 'undefined' || !ProfileStore.getHistory) return [];
+    return (ProfileStore.getHistory('portrait', 'self_disclosures') || [])
+      .slice(-6).map(e => e && e.value).filter(Boolean);
   },
 
   // ── РАМКА ТОНА (узел характера №1): возраст задаёт энергию/темп/формальность,
@@ -380,7 +466,7 @@ const PatientModel = {
   },
 
   // ── ИНЪЕКЦИЯ: портрет + (по времени) либо «не лезь», либо опенер (разговорить, не вопрос).
-  buildInjection(profile, gap, timing, eng, state, live, stressDoor) {
+  buildInjection(profile, gap, timing, eng, state, live, stressDoor, statePatterns, disclosures) {
     const p = profile || {};
     const known = this.KNOWLEDGE_MAP
       .filter(f => p[f.key] != null && p[f.key] !== '')
@@ -392,6 +478,8 @@ const PatientModel = {
     if (tf) out += tf + '\n';
     if (state && state.acuteStress) out += '[СОСТОЯНИЕ СЕЙЧАС]: в реплике острый стресс — учти при чтении сахара (кортизол его поднимает), поддержи по-человечески. Это МОМЕНТ, не черта — в характер не записывай.\n';
     else if (state && state.busy) out += '[СОСТОЯНИЕ СЕЙЧАС]: день плотный/рваный — читай цифры с этой поправкой, не как черту характера.\n';
+    if (statePatterns && statePatterns.length) out += '[ПОВТОРЯЮЩИЕСЯ СОСТОЯНИЯ — ещё не черты]: ' + statePatterns.map(s => s.state + ', знак=' + s.valence + ', эпизодов=' + s.frequency).join('; ') + '. Ищи контекст и закономерность; не называй чертой без дальнейших повторов.\n';
+    if (disclosures && disclosures.length) out += '[САМОРАСКРЫТИЯ — долговременные улики]: ' + disclosures.map(d => '«' + d.quote + '»').join('; ') + '. Это пациент уже говорил. Перед «не знаю / не говорил» проверь эти улики.\n';
     out += 'Читай каждое событие ЧЕРЕЗ портрет: одна цифра/сон/еда значат разное у разных людей. '
          + 'Норма — база ЭТОГО человека, не общая таблица. Тон подстрой под портрет.\n';
     if (known.length) out += 'Что перечислено как известное — НЕ переспрашивай, опирайся на это.\n';
@@ -399,7 +487,7 @@ const PatientModel = {
     if (eng && eng.level === 'сухой') out += 'Расположенность к диалогу: СУХАЯ (на отъебись). Не рыбачь, не заводи темы, не дави вопросами — коротко, по делу, держись фактов.\n';
     else if (eng && eng.level === 'охотный') out += 'Расположенность к диалогу: ОХОТНАЯ (делится, с пониманием). Момент ценен — можно чуть глубже: живой комментарий, оставь дверь, чтобы рассказал сам.\n';
     else if (eng && eng.level === 'нейтральный') out += 'Расположенность к диалогу: нейтральная. Тему тронь по случаю, лёгким комментарием, без нажима.\n';
-    if (live) out += '[ЖИВАЯ ТЕМА]: ' + live.label + ' — на это пациент откликается охотнее всего, его дверь. Через неё можно аккуратно разговорить в любую сторону; не в лоб, по случаю.\n';
+    if (live) out += '[ДВЕРЬ]: ' + live.label + '; сила=' + Math.abs(live.score) + '; знак=' + live.valence + '. ' + (live.valence === 'negative' ? 'Это может быть рана, а не тёплая тема: входи мягко только по случаю, не используй как универсальный рычаг.' : 'Через неё можно аккуратно разговорить; не в лоб, по случаю.') + '\n';
     if (!gap || timing === 'none') return out;
     if (eng && eng.level === 'сухой') {
       out += '[НЕ ВРЕМЯ ДЛЯ ТЕМ]: расположенность сухая — портрет-пробел не поднимай, ответь по существу и не тяни разговор.';
@@ -447,7 +535,7 @@ const PatientModel = {
         if (clock - last >= 8) { stressDoor = true; ProfileStore.set('portrait', '_stressDoorAt', String(clock), 'thread', 'meta'); }
       } catch (_) {}
     }
-    return this.buildInjection(merged, gap, timing, eng, state, live, stressDoor);
+    return this.buildInjection(merged, gap, timing, eng, state, live, stressDoor, this.stableStates(), this.disclosures());
   }
 };
 

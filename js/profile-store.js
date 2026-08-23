@@ -28,7 +28,9 @@ const ProfileStore = {
           // Ядро характера (5 осей) — заполняет движок модели пациента пассивным чтением.
           motive: [], attitude_numbers: [], life_rhythm: [], tone_openness: [], stress_attitude: [],
           // Нить «образ жизни»: яркая черта → истоки → наполнение → смысл.
-          li_intensity: [], li_origin: [], li_content: [], li_meaning: []
+          li_intensity: [], li_origin: [], li_content: [], li_meaning: [],
+          // Улики отдельно от выводов: состояния, форма подачи, самораскрытия.
+          self_disclosures: [], state_patterns: [], delivery_signals: []
         },
         patterns: {
           breakfast: [], lunch: [], dinner: [], snacks: [],
